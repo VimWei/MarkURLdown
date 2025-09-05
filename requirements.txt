@@ -1,0 +1,15 @@
+# MarkURLdown 依赖包
+# 安装命令：
+# pip install -r requirements.txt
+
+# 基础依赖
+requests>=2.25.0
+markitdown
+
+# 微信公众号文章处理必需依赖
+beautifulsoup4>=4.9.0
+lxml>=4.6.0
+
+# GUI 依赖
+PySide6>=6.0.0
+
