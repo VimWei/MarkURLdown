@@ -3,4 +3,5 @@ output/
 reference/
 **/__pycache__/
 setting.json
+last_state.json
 *.swp

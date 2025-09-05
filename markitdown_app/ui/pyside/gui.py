@@ -13,17 +13,24 @@ from PySide6.QtGui import QFont, QIcon
 
 from markitdown_app.types import SourceRequest, ConversionOptions, ProgressEvent
 from markitdown_app.ui.viewmodel import ViewModel
-from markitdown_app.io.config import load_config, save_config
+from markitdown_app.io.config import load_config, save_config, load_json_from_root
+
 
 class ProgressSignals(QObject):
     """用于跨线程发送进度信号的辅助类"""
     progress_event = Signal(object)  # ProgressEvent
 
+
 class PySideApp(QMainWindow):
-    def __init__(self):
+    def __init__(self, root_dir: str, settings: dict | None = None):
         super().__init__()
-        
-        # 状态变量
+
+        # -- Persisted, app-level settings --
+        settings = settings or {}
+        self.root_dir = root_dir
+        # (Future: self.language = settings.get('language', 'en'))
+
+        # -- Session state (starts with clean defaults) --
         self.url_var = ""
         default_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "output")
         self.output_dir_var = os.path.abspath(default_output_dir)
@@ -31,46 +38,60 @@ class PySideApp(QMainWindow):
         self.detail_var = ""
         self.is_running = False
 
-        # 选项
+        # Default options
         self.ignore_ssl_var = False
         self.no_proxy_var = True
         self.download_images_var = False
 
-        # 初始化组件
+        # -- Component Initialization --
         self.vm = ViewModel()
         self.signals = ProgressSignals()
         
         self._setup_ui()
         self._connect_signals()
 
+    def closeEvent(self, event):
+        """在窗口关闭时自动保存当前会话状态"""
+        try:
+            state_data = {
+                "urls": [self.url_listbox.item(i).text() for i in range(self.url_listbox.count())],
+                "output_dir": self.output_entry.text(),
+                "ignore_ssl": self.ignore_ssl_cb.isChecked(),
+                "no_proxy": self.no_proxy_cb.isChecked(),
+                "download_images": self.download_images_cb.isChecked(),
+            }
+            
+            state_path = os.path.join(self.root_dir, "last_state.json")
+            save_config(state_path, state_data)
+            
+        except Exception as e:
+            print(f"Error saving session state on exit: {e}")
+        finally:
+            event.accept()
+
     def _setup_ui(self):
         self.setWindowTitle("MarkURLdown (URL → Markdown)")
 
         # --- Set Application Icon ---
-        # The assets directory is now one level up, shared by all UI implementations
         icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'app_icon.ico')
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         # --------------------------
         self.resize(920, 560)
-        # 居中显示
         qr = self.frameGeometry()
         cp = QApplication.primaryScreen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
         self.setMinimumSize(800, 480)
 
-        # 主窗口部件
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # 主布局 - 使用更紧凑的间距
         layout = QGridLayout(central_widget)
         layout.setHorizontalSpacing(10)
         layout.setVerticalSpacing(6)
-        layout.setContentsMargins(20, 20, 20, 20)  # 减少边距
+        layout.setContentsMargins(20, 20, 20, 20)
 
-        # URL 输入行
         layout.addWidget(QLabel("网页 URL"), 0, 0)
         self.url_entry = QLineEdit()
         self.url_entry.setStyleSheet("QLineEdit { padding: 4px; }")
@@ -82,15 +103,13 @@ class PySideApp(QMainWindow):
         self.add_btn.setFixedHeight(button_height)
         layout.addWidget(self.add_btn, 0, 2)
 
-        # URL 列表
         layout.addWidget(QLabel("URL 列表"), 1, 0)
         self.url_listbox = QListWidget()
         layout.addWidget(self.url_listbox, 1, 1)
 
-        # URL 列表操作按钮 - 改为更紧凑的布局
         url_btn_frame = QFrame()
         url_btn_layout = QVBoxLayout(url_btn_frame)
-        url_btn_layout.setSpacing(2)  # 减少按钮间距
+        url_btn_layout.setSpacing(2)
         url_btn_layout.setContentsMargins(0, 0, 0, 0)
 
         self.move_up_btn = QPushButton("上移 ↑")
@@ -98,14 +117,12 @@ class PySideApp(QMainWindow):
         self.delete_btn = QPushButton("删除 ✕")
         self.clear_btn = QPushButton("清空")
 
-        # 设置按钮固定高度，使其更紧凑
         for btn in [self.move_up_btn, self.move_down_btn, self.delete_btn, self.clear_btn]:
             btn.setFixedHeight(button_height)
             url_btn_layout.addWidget(btn)
 
         layout.addWidget(url_btn_frame, 1, 2)
 
-        # 输出目录
         layout.addWidget(QLabel("输出目录"), 2, 0)
         self.output_entry = QLineEdit(self.output_dir_var)
         self.output_entry.setStyleSheet("QLineEdit { padding: 4px; }")
@@ -114,12 +131,11 @@ class PySideApp(QMainWindow):
         self.choose_dir_btn.setFixedHeight(button_height)
         layout.addWidget(self.choose_dir_btn, 2, 2)
 
-        # 选项复选框 - 紧凑居中布局，增加上下间距
         options_frame = QFrame()
         options_layout = QHBoxLayout(options_frame)
         options_layout.setSpacing(20)
-        options_layout.setContentsMargins(0, 8, 0, 8)  # 增加上下边距
-        options_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 居中对齐
+        options_layout.setContentsMargins(0, 8, 0, 8)
+        options_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.no_proxy_cb = QCheckBox("禁用系统代理")
         self.no_proxy_cb.setChecked(self.no_proxy_var)
@@ -133,32 +149,29 @@ class PySideApp(QMainWindow):
 
         layout.addWidget(options_frame, 3, 0, 1, 3)
 
-        # 导入导出按钮 - 紧凑小按钮，增加上下间距
         import_export_frame = QFrame()
         import_export_layout = QHBoxLayout(import_export_frame)
-        import_export_layout.setSpacing(6)  # 减少按钮间距
-        import_export_layout.setContentsMargins(0, 0, 0, 0)  # 增加上下边距
-        import_export_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 居中对齐
+        import_export_layout.setSpacing(6)
+        import_export_layout.setContentsMargins(0, 0, 0, 0)
+        import_export_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        self.restore_btn = QPushButton("恢复上次会话")
         self.export_btn = QPushButton("导出配置")
         self.import_btn = QPushButton("导入配置")
 
-        # 设置小按钮样式
-        for btn in [self.export_btn, self.import_btn]:
-            btn.setFixedSize(100, 32)  # 固定小尺寸
+        for btn in [self.restore_btn, self.export_btn, self.import_btn]:
+            btn.setFixedSize(120, 32)
             import_export_layout.addWidget(btn)
 
         layout.addWidget(import_export_frame, 4, 0, 1, 3)
 
-        # 转换按钮 - 紧凑居中，增加上下间距
         convert_frame = QFrame()
         convert_layout = QHBoxLayout(convert_frame)
-        # convert_layout.setContentsMargins(0, 8, 0, 8)  # 增加上下边距
-        convert_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 居中对齐
+        convert_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.convert_btn = QPushButton("转换为 Markdown")
         self.convert_btn.setFont(QFont("", 11, QFont.Weight.Bold))
-        self.convert_btn.setFixedSize(200, 40)  # 固定尺寸，不填充整行
+        self.convert_btn.setFixedSize(200, 40)
         self.convert_btn.setStyleSheet("""
             QPushButton {
                 background-color: #0078d4;
@@ -177,9 +190,8 @@ class PySideApp(QMainWindow):
         convert_layout.addWidget(self.convert_btn)
         layout.addWidget(convert_frame, 5, 0, 1, 3)
 
-        # 进度条 - 默认可见，样式更美观，增加上下间距
         self.progress = QProgressBar()
-        self.progress.setVisible(True)  # 默认显示
+        self.progress.setVisible(True)
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self.progress.setStyleSheet("""
@@ -194,14 +206,12 @@ class PySideApp(QMainWindow):
             }
         """)
 
-        # 为进度条添加边距
         progress_frame = QFrame()
         progress_layout = QVBoxLayout(progress_frame)
-        progress_layout.setContentsMargins(0, 4, 0, 4)  # 增加上下边距
+        progress_layout.setContentsMargins(0, 4, 0, 4)
         progress_layout.addWidget(self.progress)
         layout.addWidget(progress_frame, 6, 0, 1, 3)
 
-        # 状态标签 - 更紧凑的布局，增加上边距
         status_frame = QFrame()
         status_layout = QVBoxLayout(status_frame)
         status_layout.setSpacing(2)
@@ -217,31 +227,56 @@ class PySideApp(QMainWindow):
         status_layout.addWidget(self.detail_label)
         layout.addWidget(status_frame, 7, 0, 1, 3)
 
-        # 设置列权重
         layout.setColumnStretch(1, 1)
         layout.setRowStretch(1, 1)
 
-        # 设置焦点
         self.url_entry.setFocus()
 
-
     def _connect_signals(self):
-        # 按钮连接
         self.add_btn.clicked.connect(self._add_url_from_entry)
         self.move_up_btn.clicked.connect(self._move_selected_up)
         self.move_down_btn.clicked.connect(self._move_selected_down)
         self.delete_btn.clicked.connect(self._delete_selected)
         self.clear_btn.clicked.connect(self._clear_list)
         self.choose_dir_btn.clicked.connect(self._choose_output_dir)
+        
+        self.restore_btn.clicked.connect(self._restore_last_session)
         self.export_btn.clicked.connect(self._export_config)
         self.import_btn.clicked.connect(self._import_config)
+        
         self.convert_btn.clicked.connect(self._on_convert)
-
-        # 进度信号连接
         self.signals.progress_event.connect(self._on_event)
-
-        # 回车键支持
         self.url_entry.returnPressed.connect(self._add_url_from_entry)
+
+    def _restore_last_session(self):
+        """加载并应用 last_state.json"""
+        try:
+            state = load_json_from_root(self.root_dir, "last_state.json")
+            if not state:
+                self.status_label.setText("没有找到上次的会话状态")
+                return
+
+            self._apply_state(state)
+            self.status_label.setText("已成功恢复上次的会话")
+        except Exception as e:
+            self.status_label.setText("恢复会话失败")
+            self.detail_label.setText(str(e))
+            QMessageBox.critical(self, "错误", f"恢复上次会话失败:\n{e}")
+
+    def _apply_state(self, state: dict):
+        """将一个状态字典应用到UI上"""
+        self.url_listbox.clear()
+        for url in state.get("urls", []):
+            self.url_listbox.addItem(url)
+
+        if "output_dir" in state:
+            self.output_entry.setText(state["output_dir"])
+        if "ignore_ssl" in state:
+            self.ignore_ssl_cb.setChecked(bool(state["ignore_ssl"]))
+        if "no_proxy" in state:
+            self.no_proxy_cb.setChecked(bool(state["no_proxy"]))
+        if "download_images" in state:
+            self.download_images_cb.setChecked(bool(state["download_images"]))
 
     def _choose_output_dir(self):
         chosen = QFileDialog.getExistingDirectory(
@@ -256,7 +291,6 @@ class PySideApp(QMainWindow):
             self._stop()
             return
 
-        # 收集 URL 列表
         urls = []
         for i in range(self.url_listbox.count()):
             urls.append(self.url_listbox.item(i).text())
@@ -326,7 +360,6 @@ class PySideApp(QMainWindow):
         if not raw:
             return
 
-        # 支持一次性粘贴多行/以空白分隔的多个URL
         parts = [p.strip() for p in raw.replace("\r", "\n").split("\n")]
         urls = []
         for part in parts:
@@ -346,7 +379,6 @@ class PySideApp(QMainWindow):
         for u in urls:
             self.url_listbox.addItem(u)
 
-        # 清空输入框
         self.url_entry.setText("")
 
     def _move_selected_up(self):
@@ -400,23 +432,8 @@ class PySideApp(QMainWindow):
 
             if filename:
                 config = load_config(filename)
-
-                # URL 列表
-                self.url_listbox.clear()
-                for url in config.get("urls", []):
-                    self.url_listbox.addItem(url)
-
-                # 其他配置
-                if "output_dir" in config:
-                    self.output_entry.setText(config["output_dir"])
-                if "ignore_ssl" in config:
-                    self.ignore_ssl_cb.setChecked(bool(config["ignore_ssl"]))
-                if "no_proxy" in config:
-                    self.no_proxy_cb.setChecked(bool(config["no_proxy"]))
-                if "download_images" in config:
-                    self.download_images_cb.setChecked(bool(config["download_images"]))
-
+                self._apply_state(config) # Use the new helper function
                 self.status_label.setText(f"配置已从 {os.path.basename(filename)} 导入")
-                self.detail_label.setText(f"导入了 {len(config.get('urls', []))} 个URL，输出目录: {config.get('output_dir', '默认')}")
+                self.detail_label.setText(f"导入了 {len(config.get('urls', []))} 个URL")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"导入配置失败:\n{e}")

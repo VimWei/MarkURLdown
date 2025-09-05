@@ -74,18 +74,23 @@ def run_app():
         # --- 延迟导入重型依赖 ---
         print("开始导入主应用...")
         from markitdown_app.ui.pyside.gui import PySideApp
+        from markitdown_app.io.config import load_json_from_root
         print("主应用导入完成")
         
         splash.showMessage(
-            "初始化完成",
+            "加载配置...",
             Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,
             Qt.white
         )
         app.processEvents()
-        
+
+        # 加载永久设置 (语言等)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        settings = load_json_from_root(script_dir, "settings.json")
+
         # 创建主窗口
         print("开始创建主窗口...")
-        main_window = PySideApp()
+        main_window = PySideApp(root_dir=script_dir, settings=settings)
         print("主窗口创建完成")
 
         # --- 从Splash过渡到主窗口 ---

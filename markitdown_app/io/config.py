@@ -15,9 +15,9 @@ def load_config(path: str) -> dict:
         return json.load(f)
 
 
-def load_settings_default(root_dir: str) -> dict:
-    """Load optional setting.json at project root; return {} if missing."""
-    settings_path = os.path.join(root_dir, "setting.json")
+def load_json_from_root(root_dir: str, filename: str) -> dict:
+    """Load optional json at project root; return {} if missing."""
+    settings_path = os.path.join(root_dir, filename)
     if not os.path.isfile(settings_path):
         return {}
     try:
