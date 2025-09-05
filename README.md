@@ -2,6 +2,12 @@
 
 MarkItDown is a user-friendly desktop application designed to effortlessly convert web articles into clean, readable Markdown files. It's perfect for archiving content, creating a personal knowledge base, or preparing articles for publishing on platforms like Hugo, Jekyll, or Hexo.
 
+## Screenshots
+
+![Splash Screen](markitdown_app/ui/assets/screenshot_splash.png)
+
+![Main Application Window](markitdown_app/ui/assets/screenshot_MarkURLdown.png)
+
 ## Features
 
 *   **Modern & Intuitive GUI:** A clean and simple graphical interface built with PySide6.
@@ -52,10 +58,10 @@ Once installed, you can launch the application without needing to open a command
 
 This project stands on the shoulders of giants. We would like to thank the developers of these outstanding open-source libraries:
 
+*   **MarkItDown:** For the core Markdown conversion engine.
 *   **PySide6:** For the powerful and modern GUI framework.
 *   **Requests:** For robust and simple HTTP requests.
 *   **BeautifulSoup4:** For its excellence in parsing and navigating HTML.
-*   **MarkItDown:** For the core Markdown conversion engine.
 
 ## License
 
