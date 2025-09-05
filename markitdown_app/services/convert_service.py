@@ -39,15 +39,15 @@ class ConvertService:
     def _worker(self, requests_list: list[SourceRequest], out_dir: str, options: ConversionOptions, on_event: EventCallback) -> None:
         try:
             total = len(requests_list)
-            on_event(ProgressEvent(kind="progress_init", total=total, text=f"开始转换 {total} 个输入"))
+            on_event(ProgressEvent(kind="progress_init", total=total, key="convert_init", data={"total": total}))
             session = build_requests_session(ignore_ssl=options.ignore_ssl, no_proxy=options.no_proxy)
 
             completed = 0
             for idx, req in enumerate(requests_list, start=1):
                 if self._should_stop:
-                    on_event(ProgressEvent(kind="stopped", text="转换已停止"))
+                    on_event(ProgressEvent(kind="stopped", key="convert_stopped"))
                     return
-                on_event(ProgressEvent(kind="status", text=f"[{idx}/{total}] 正在转换: {req.value}"))
+                on_event(ProgressEvent(kind="status", key="convert_status_running", data={"idx": idx, "total": total, "url": req.value}))
 
                 payload = ConvertPayload(kind=req.kind, value=req.value, meta={
                     "out_dir": out_dir,
@@ -58,12 +58,12 @@ class ConvertService:
                     result = registry_convert(payload, session, options)
                     out_path = write_markdown(out_dir, result.suggested_filename, result.markdown)
                     completed += 1
-                    on_event(ProgressEvent(kind="detail", text=f"完成: {out_path}"))
-                    on_event(ProgressEvent(kind="progress_step", current=completed, text=f"已完成 {completed}/{total}"))
+                    on_event(ProgressEvent(kind="detail", key="convert_detail_done", data={"path": out_path}))
+                    on_event(ProgressEvent(kind="progress_step", current=completed, key="convert_progress_step", data={"completed": completed, "total": total}))
                 except Exception as e:
-                    on_event(ProgressEvent(kind="error", text=f"转换失败: {req.value} -> {e}"))
+                    on_event(ProgressEvent(kind="error", key="convert_error", data={"url": req.value, "error": str(e)}))
 
-            on_event(ProgressEvent(kind="progress_done", text=f"全部转换完成，成功 {completed}/{total}"))
+            on_event(ProgressEvent(kind="progress_done", key="convert_progress_done", data={"completed": completed, "total": total}))
         finally:
             self._thread = None
 

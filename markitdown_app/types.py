@@ -28,6 +28,8 @@ class ConvertResult:
 @dataclass
 class ProgressEvent:
     kind: Literal["status", "detail", "progress_init", "progress_step", "progress_done", "stopped", "error"]
+    key: str | None = None
+    data: dict | None = None
     text: str | None = None
     total: int | None = None
     current: int | None = None

@@ -2,6 +2,6 @@ log/
 output/
 reference/
 **/__pycache__/
-setting.json
+settings.json
 last_state.json
 *.swp

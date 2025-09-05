@@ -43,7 +43,7 @@ def show_immediate_splash():
 
     splash = QSplashScreen(pixmap)
     splash.showMessage(
-        "启动中...",
+        "Starting...",
         Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,
         Qt.white
     )
@@ -65,49 +65,49 @@ def run_app():
         # 更新splash消息
         from PySide6.QtCore import Qt
         splash.showMessage(
-            "加载界面组件...",
+            "Loading UI components...",
             Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,
             Qt.white
         )
         app.processEvents()
 
         # --- 延迟导入重型依赖 ---
-        print("开始导入主应用...")
+        print("Importing main application...")
         from markitdown_app.ui.pyside.gui import PySideApp
         from markitdown_app.io.config import load_json_from_root
-        print("主应用导入完成")
+        print("Main application imported.")
         
         splash.showMessage(
-            "加载配置...",
+            "Loading configuration...",
             Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,
             Qt.white
         )
         app.processEvents()
 
-        # 加载永久设置 (语言等)
+        # Load persistent settings (language, etc.)
         script_dir = os.path.dirname(os.path.abspath(__file__))
         settings = load_json_from_root(script_dir, "settings.json")
 
         # 创建主窗口
-        print("开始创建主窗口...")
+        print("Creating main window...")
         main_window = PySideApp(root_dir=script_dir, settings=settings)
-        print("主窗口创建完成")
+        print("Main window created.")
 
         # --- 从Splash过渡到主窗口 ---
         splash.finish(main_window)
         main_window.show()
-        print("主窗口显示完成")
+        print("Main window displayed.")
 
         sys.exit(app.exec())
         
     except Exception as e:
-        print(f"启动过程中出错: {e}")
+        print(f"Error during startup: {e}")
         import traceback
         traceback.print_exc()
         # 如果出错，尝试显示错误对话框
         try:
             from PySide6.QtWidgets import QMessageBox
-            QMessageBox.critical(None, "启动错误", f"应用启动失败:\n{e}")
+            QMessageBox.critical(None, "Startup Error", f"Application failed to start:\n{e}")
         except:
             pass
 
