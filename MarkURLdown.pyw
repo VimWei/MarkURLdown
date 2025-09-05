@@ -86,7 +86,10 @@ def run_app():
 
         # Load persistent settings (language, etc.)
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        settings = load_json_from_root(script_dir, "settings.json")
+        sessions_dir = os.path.join(script_dir, "sessions")
+        os.makedirs(sessions_dir, exist_ok=True)
+
+        settings = load_json_from_root(sessions_dir, "settings.json")
 
         # 创建主窗口
         print("Creating main window...")

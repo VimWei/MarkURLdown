@@ -82,7 +82,7 @@ class PySideApp(QMainWindow):
                 "no_proxy": self.no_proxy_cb.isChecked(),
                 "download_images": self.download_images_cb.isChecked(),
             }
-            state_path = os.path.join(self.root_dir, "last_state.json")
+            state_path = os.path.join(self.root_dir, "sessions", "last_state.json")
             save_config(state_path, state_data)
         except Exception as e:
             print(f"Error saving session state on exit: {e}")
@@ -293,13 +293,14 @@ class PySideApp(QMainWindow):
         self.status_label.setText(self.translator.t('status_restart_required'))
 
         # Save the setting
-        settings_path = os.path.join(self.root_dir, "settings.json")
+        settings_path = os.path.join(self.root_dir, "sessions", "settings.json")
         settings_data = {"language": lang_code}
         save_config(settings_path, settings_data)
 
     def _restore_last_session(self):
         try:
-            state = load_json_from_root(self.root_dir, "last_state.json")
+            sessions_dir = os.path.join(self.root_dir, "sessions")
+            state = load_json_from_root(sessions_dir, "last_state.json")
             if not state:
                 self.status_label.setText(self.translator.t('status_no_session'))
                 return
@@ -441,6 +442,7 @@ class PySideApp(QMainWindow):
 
     def _export_config(self):
         t = self.translator.t
+        sessions_dir = os.path.join(self.root_dir, "sessions")
         try:
             data = {
                 "urls": [self.url_listbox.item(i).text() for i in range(self.url_listbox.count())],
@@ -449,7 +451,7 @@ class PySideApp(QMainWindow):
                 "no_proxy": self.no_proxy_cb.isChecked(),
                 "download_images": self.download_images_cb.isChecked(),
             }
-            filename, _ = QFileDialog.getSaveFileName(self, t('dialog_export_config'), "", t('file_filter_json'))
+            filename, _ = QFileDialog.getSaveFileName(self, t('dialog_export_config'), sessions_dir, t('file_filter_json'))
             if filename:
                 save_config(filename, data)
                 self.status_label.setText(t('status_config_exported', filename=os.path.basename(filename)))
@@ -459,8 +461,9 @@ class PySideApp(QMainWindow):
 
     def _import_config(self):
         t = self.translator.t
+        sessions_dir = os.path.join(self.root_dir, "sessions")
         try:
-            filename, _ = QFileDialog.getOpenFileName(self, t('dialog_import_config'), "", t('file_filter_json'))
+            filename, _ = QFileDialog.getOpenFileName(self, t('dialog_import_config'), sessions_dir, t('file_filter_json'))
             if filename:
                 config = load_config(filename)
                 self._apply_state(config)
