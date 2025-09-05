@@ -1,0 +1,6 @@
+log/
+output/
+reference/
+**/__pycache__/
+setting.json
+*.swp
