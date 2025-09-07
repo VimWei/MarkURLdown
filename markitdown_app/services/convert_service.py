@@ -8,7 +8,7 @@ from markitdown_app.core.registry import convert as registry_convert
 from markitdown_app.io.session import build_requests_session
 from markitdown_app.io.writer import write_markdown
 from markitdown_app.io.logger import log_urls
-from markitdown_app.types import SourceRequest, ConversionOptions, ProgressEvent, ConvertPayload
+from markitdown_app.app_types import SourceRequest, ConversionOptions, ProgressEvent, ConvertPayload
 
 
 EventCallback = Callable[[ProgressEvent], None]

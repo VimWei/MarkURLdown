@@ -1,0 +1,42 @@
+# MarkItDown Project Rules for Cursor AI
+
+## Project Overview
+This is a desktop application for Windows that converts web articles into clean Markdown files. The application features a GUI built with PySide6 and supports batch conversions, image downloading, and special handling for complex websites like WeChat articles.
+
+## Architecture
+- **Core Logic**: `markitdown_app/core/` - HTML to Markdown conversion, image processing, filename generation
+- **Services**: `markitdown_app/services/` - Background thread management for UI responsiveness
+- **I/O**: `markitdown_app/io/` - File operations, configuration management, logging
+- **UI**: `markitdown_app/ui/` - PySide6 GUI implementation with ViewModel pattern
+- **Types**: `markitdown_app/app_types/` - Custom data types and structures
+
+## Technology Stack
+- **Language**: Python
+- **GUI Framework**: PySide6 (primary), Tkinter (fallback)
+- **Dependencies**: MarkItDown, BeautifulSoup4
+- **Configuration**: JSON-based settings (`setting.json`)
+
+## Development Conventions
+- Use ViewModel pattern to separate UI from business logic
+- Execute long-running tasks in background threads
+- Maintain modular architecture with clear separation of concerns
+- Use JSON for configuration import/export
+- Main entry point: `MarkURLdown.pyw`
+
+## Code Style
+- Follow Python PEP 8 conventions
+- Use type hints where appropriate
+- Write clear docstrings for functions and classes
+- Maintain consistent error handling patterns
+
+## File Structure
+- Keep UI logic in `markitdown_app/ui/`
+- Core conversion logic in `markitdown_app/core/`
+- Service layer in `markitdown_app/services/`
+- Configuration and I/O in `markitdown_app/io/`
+
+## Testing
+- Focus on core conversion functionality
+- Test GUI responsiveness during batch operations
+- Verify image downloading and processing
+- Test configuration import/export features

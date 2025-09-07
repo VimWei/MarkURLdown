@@ -17,12 +17,27 @@ def build_requests_session(ignore_ssl: bool, no_proxy: bool) -> requests.Session
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
+    
     if no_proxy:
         session.trust_env = False
+    else:
+        # 确保从环境变量读取代理设置
+        session.trust_env = True
+        # 手动设置代理（如果环境变量存在）
+        import os
+        http_proxy = os.environ.get('HTTP_PROXY') or os.environ.get('http_proxy')
+        https_proxy = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy')
+        
+        if http_proxy or https_proxy:
+            session.proxies = {
+                'http': http_proxy,
+                'https': https_proxy or http_proxy
+            }
+    
     if ignore_ssl:
         session.verify = False
     session.headers.update({
-        "User-Agent": "MarkItDown/Refactor (+https://github.com/microsoft/markitdown)",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     })
     return session
 

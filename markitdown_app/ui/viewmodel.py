@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from markitdown_app.services.convert_service import ConvertService
-from markitdown_app.types import ProgressEvent, SourceRequest, ConversionOptions
+from markitdown_app.app_types import ProgressEvent, SourceRequest, ConversionOptions
 
 
 OnEvent = Callable[[ProgressEvent], None]

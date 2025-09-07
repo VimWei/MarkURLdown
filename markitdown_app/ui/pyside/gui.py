@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Signal, QObject
 from PySide6.QtGui import QFont, QIcon
 
-from markitdown_app.types import SourceRequest, ConversionOptions, ProgressEvent
+from markitdown_app.app_types import SourceRequest, ConversionOptions, ProgressEvent
 from markitdown_app.ui.viewmodel import ViewModel
 from markitdown_app.io.config import load_config, save_config, load_json_from_root
 

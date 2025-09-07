@@ -1,62 +1,68 @@
-# Project: MarkItDown
-
 ## Project Overview
 
-This project, "MarkItDown," is a desktop application for Windows designed to convert web articles into clean, readable Markdown files. It features a graphical user interface (GUI) and supports batch conversions, image downloading, and handling for specific complex websites like WeChat articles.
+This project is a desktop application named **MarkItDown**, designed to convert web articles into clean, readable Markdown files. It features a modern graphical user interface (GUI) built with **Python** and the **PySide6** (Qt) framework.
 
-The application is built with Python and offers two GUI implementations:
-*   **PySide6:** A modern, feature-rich UI which is the primary interface for the application.
-*   **Tkinter:** A more basic, alternative UI.
+The application's core functionality is to fetch content from a given URL, extract the main article, convert it from HTML to Markdown, and save it locally. It includes advanced features like batch processing, session management (saving/loading URL lists and settings), and optional image downloading.
 
-The architecture is modular, separating concerns into different packages:
-*   `markitdown_app/core`: Handles the core logic of HTML to Markdown conversion, image processing, and filename generation. It utilizes the `MarkItDown` and `BeautifulSoup4` libraries.
-*   `markitdown_app/services`: Manages the conversion process in a background thread to keep the UI responsive.
-*   `markitdown_app/io`: Deals with file I/O, including configuration management (`setting.json`) and logging.
-*   `markitdown_app/ui`: Contains the UI code, with sub-packages for `pyside` and `tkinter`. It uses a ViewModel (`viewmodel.py`) to decouple the UI from the application's business logic.
-*   `markitdown_app/types`: Defines custom data types and structures used throughout the application.
+The architecture is modular and extensible:
+
+*   **UI Layer (`markitdown_app/ui`):** A PySide6-based GUI that is decoupled from the core logic via a ViewModel (`viewmodel.py`). It supports internationalization with English and Chinese locales.
+*   **Service Layer (`markitdown_app/services`):** The `convert_service.py` orchestrates the conversion process in a background thread to keep the UI responsive.
+*   **Core Logic (`markitdown_app/core`):**
+    *   A **handler registry** (`registry.py`) acts as a dispatcher, routing URLs to the appropriate handler.
+    *   **Specialized handlers** exist for complex websites like WeChat (`weixin_handler.py`), Zhihu (`zhihu_handler.py`), and WordPress (`wordpress_handler.py`).
+    *   A **generic handler** (`generic_handler.py`) provides a fallback for any other website.
+    *   The crawling mechanism is multi-strategy, using **Playwright**, **httpx**, and **requests** to maximize success rates against anti-bot measures.
+    *   The final HTML-to-Markdown conversion is handled by `html_to_md.py`.
+*   **I/O and Configuration (`markitdown_app/io`):** Manages configuration, session data, and writing files to disk.
 
 ## Building and Running
 
-### Dependencies
+### Prerequisites
 
-The project's Python dependencies are listed in `requirements.txt`. They can be installed using pip:
+*   Python 3.10+
+*   A virtual environment (recommended)
 
-```bash
-pip install -r requirements.txt
-```
+### Installation
+
+1.  **Install Python dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+2.  **Install Playwright browsers:**
+    This step is required for the advanced crawling features to work correctly, especially for sites with heavy anti-bot protection.
+    ```bash
+    playwright install
+    ```
 
 ### Running the Application
 
-There are several ways to run the application:
+The application is designed to be run directly from the file explorer.
 
-1.  **VBScript (Recommended for end-users):**
-    The `MarkItDown.vbs` script is the intended way to launch the application without a console window. It activates the specified Conda environment and then executes the main application script.
+1.  Navigate to the project's root directory.
+2.  Double-click the **`MarkItDown.vbs`** script.
 
-    *Before running, you may need to configure the `condaPath` and `condaEnvName` variables inside `MarkItDown.vbs`.*
+This will launch the GUI application. Alternatively, you can run the main entry point directly:
 
-2.  **PySide6 GUI (Main application):**
-    To run the main PySide6 application directly, use the following command:
+```bash
+python MarkURLdown.pyw
+```
 
-    ```bash
-    pythonw MarkURLdown.pyw
-    ```
-    or
-    ```bash
-    python markitdown_app/app/main_pyside.py
-    ```
+### Running Tests
 
-3.  **Tkinter GUI (Alternative):**
-    To run the Tkinter version of the application, use this command:
+The project contains a `tests` directory with unit and integration tests. While a specific test runner is not explicitly defined in the project files, `pytest` is a common choice for Python projects. To run tests, you would typically execute:
 
-    ```bash
-    python markitdown_app/app/main_tk.py
-    ```
+```bash
+# TODO: Confirm the exact test command.
+pytest
+```
 
 ## Development Conventions
 
-*   **GUI:** The primary and most feature-complete GUI is implemented using PySide6. The Tkinter version serves as a fallback or alternative.
-*   **Modularity:** The code is organized into distinct modules for UI, core logic, services, and I/O.
-*   **ViewModel:** A ViewModel pattern is used to separate UI logic from the core business logic, allowing for easier maintenance and testing.
-*   **Concurrency:** Long-running tasks, such as converting multiple URLs, are executed in a separate thread to prevent the GUI from freezing.
-*   **Configuration:** Application settings and URL lists can be imported and exported as JSON files. A default `setting.json` file can be placed in the project root for development.
-*   **Entry Points:** The main entry point for the PySide6 application is `MarkURLdown.pyw`, which also handles the display of a splash screen.
+*   **Architecture:** The project follows a Model-View-ViewModel (MVVM) like pattern, with a clear separation between the UI (`ui`), business logic (`services`), and core functionalities (`core`).
+*   **Modularity:** The handler system in `core/registry.py` is designed for easy extension. To add support for a new website, a developer can create a new handler function and add it to the `HANDLERS` list.
+*   **Error Handling:** Handlers are designed to fail gracefully. If a specialized handler fails or determines it cannot process a URL, it returns `None`, allowing the registry to fall back to the generic handler.
+*   **Concurrency:** The UI remains responsive during conversions by running the main processing loop in a separate thread (`threading.Thread` in `convert_service.py`). Progress is reported back to the UI using a callback system with `ProgressEvent` objects.
+*   **Coding Style:** The code generally follows standard Python conventions (PEP 8). It uses type hints (`from __future__ import annotations`) for improved code clarity and maintainability.
+*   **Dependencies:** Key dependencies are managed in `requirements.txt`. The project leverages modern libraries like `PySide6`, `httpx`, and `Playwright`.
