@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QProgressBar, QFileDialog, QMessageBox, QFrame, QGridLayout, QComboBox
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QObject
-from PySide6.QtGui import QFont, QIcon
+from PySide6.QtGui import QFont, QIcon, QClipboard
 
 from markitdown_app.app_types import SourceRequest, ConversionOptions, ProgressEvent
 from markitdown_app.ui.viewmodel import ViewModel
@@ -62,7 +62,7 @@ class PySideApp(QMainWindow):
 
         # Default options
         self.ignore_ssl_var = False
-        self.no_proxy_var = True
+        self.use_proxy_var = False
         self.download_images_var = False
 
         self.vm = ViewModel()
@@ -79,7 +79,7 @@ class PySideApp(QMainWindow):
                 "urls": [self.url_listbox.item(i).text() for i in range(self.url_listbox.count())],
                 "output_dir": self.output_entry.text(),
                 "ignore_ssl": self.ignore_ssl_cb.isChecked(),
-                "no_proxy": self.no_proxy_cb.isChecked(),
+                "use_proxy": self.use_proxy_cb.isChecked(),
                 "download_images": self.download_images_cb.isChecked(),
             }
             state_path = os.path.join(self.root_dir, "sessions", "last_state.json")
@@ -131,9 +131,10 @@ class PySideApp(QMainWindow):
         url_btn_layout.setContentsMargins(0, 0, 0, 0)
         self.move_up_btn = QPushButton()
         self.move_down_btn = QPushButton()
+        self.copy_btn = QPushButton()
         self.delete_btn = QPushButton()
         self.clear_btn = QPushButton()
-        for btn in [self.move_up_btn, self.move_down_btn, self.delete_btn, self.clear_btn]:
+        for btn in [self.move_up_btn, self.move_down_btn, self.copy_btn, self.delete_btn, self.clear_btn]:
             btn.setFixedHeight(button_height)
             url_btn_layout.addWidget(btn)
         layout.addWidget(url_btn_frame, 1, 3)
@@ -154,13 +155,13 @@ class PySideApp(QMainWindow):
         options_layout.setSpacing(20)
         options_layout.setContentsMargins(0, 8, 0, 8)
         options_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.no_proxy_cb = QCheckBox()
-        self.no_proxy_cb.setChecked(self.no_proxy_var)
+        self.use_proxy_cb = QCheckBox()
+        self.use_proxy_cb.setChecked(self.use_proxy_var)
         self.ignore_ssl_cb = QCheckBox()
         self.ignore_ssl_cb.setChecked(self.ignore_ssl_var)
         self.download_images_cb = QCheckBox()
         self.download_images_cb.setChecked(self.download_images_var)
-        for cb in [self.no_proxy_cb, self.ignore_ssl_cb, self.download_images_cb]:
+        for cb in [self.use_proxy_cb, self.ignore_ssl_cb, self.download_images_cb]:
             options_layout.addWidget(cb)
         layout.addWidget(options_frame, 3, 0, 1, 4)
 
@@ -251,13 +252,19 @@ class PySideApp(QMainWindow):
         self.add_btn.setText(t('add_button'))
         self.url_list_label.setText(t('url_list_label'))
         self.move_up_btn.setText(t('move_up_button'))
+        self.move_up_btn.setToolTip(t('tooltip_move_up'))
         self.move_down_btn.setText(t('move_down_button'))
+        self.move_down_btn.setToolTip(t('tooltip_move_down'))
         self.delete_btn.setText(t('delete_button'))
+        self.delete_btn.setToolTip(t('tooltip_delete'))
         self.clear_btn.setText(t('clear_button'))
+        self.clear_btn.setToolTip(t('tooltip_clear'))
+        self.copy_btn.setText(t('copy_button'))
+        self.copy_btn.setToolTip(t('tooltip_copy'))
         self.output_dir_label.setText(t('output_dir_label'))
         self.choose_dir_btn.setText(t('choose_dir_button'))
         self.lang_label.setText(t('language_label_text'))
-        self.no_proxy_cb.setText(t('no_proxy_checkbox'))
+        self.use_proxy_cb.setText(t('use_proxy_checkbox'))
         self.ignore_ssl_cb.setText(t('ignore_ssl_checkbox'))
         self.download_images_cb.setText(t('download_images_checkbox'))
         self.restore_btn.setText(t('restore_button'))
@@ -272,6 +279,7 @@ class PySideApp(QMainWindow):
         self.move_down_btn.clicked.connect(self._move_selected_down)
         self.delete_btn.clicked.connect(self._delete_selected)
         self.clear_btn.clicked.connect(self._clear_list)
+        self.copy_btn.clicked.connect(self._copy_selected)
         self.choose_dir_btn.clicked.connect(self._choose_output_dir)
         self.restore_btn.clicked.connect(self._restore_last_session)
         self.export_btn.clicked.connect(self._export_config)
@@ -319,8 +327,8 @@ class PySideApp(QMainWindow):
             self.output_entry.setText(state["output_dir"])
         if "ignore_ssl" in state:
             self.ignore_ssl_cb.setChecked(bool(state["ignore_ssl"]))
-        if "no_proxy" in state:
-            self.no_proxy_cb.setChecked(bool(state["no_proxy"]))
+        if "use_proxy" in state:
+            self.use_proxy_cb.setChecked(bool(state["use_proxy"]))
         if "download_images" in state:
             self.download_images_cb.setChecked(bool(state["download_images"]))
 
@@ -350,7 +358,7 @@ class PySideApp(QMainWindow):
         self.status_label.setText(self.translator.t('status_converting'))
         self.detail_label.setText("")
         reqs = [SourceRequest(kind="url", value=u) for u in urls]
-        options = ConversionOptions(ignore_ssl=self.ignore_ssl_cb.isChecked(), no_proxy=self.no_proxy_cb.isChecked(), download_images=self.download_images_cb.isChecked())
+        options = ConversionOptions(ignore_ssl=self.ignore_ssl_cb.isChecked(), no_proxy=not self.use_proxy_cb.isChecked(), download_images=self.download_images_cb.isChecked())
         self.vm.start(reqs, out_dir, options, self._on_event)
 
     def _stop(self):
@@ -440,6 +448,15 @@ class PySideApp(QMainWindow):
     def _clear_list(self):
         self.url_listbox.clear()
 
+    def _copy_selected(self):
+        current = self.url_listbox.currentRow()
+        if current >= 0:
+            url = self.url_listbox.item(current).text()
+            clipboard = QApplication.clipboard()
+            clipboard.setText(url)
+            self.status_label.setText(self.translator.t('status_url_copied'))
+            self.detail_label.setText(self.translator.t('detail_copied_url', url=url))
+
     def _export_config(self):
         t = self.translator.t
         sessions_dir = os.path.join(self.root_dir, "sessions")
@@ -448,7 +465,7 @@ class PySideApp(QMainWindow):
                 "urls": [self.url_listbox.item(i).text() for i in range(self.url_listbox.count())],
                 "output_dir": self.output_entry.text(),
                 "ignore_ssl": self.ignore_ssl_cb.isChecked(),
-                "no_proxy": self.no_proxy_cb.isChecked(),
+                "use_proxy": self.use_proxy_cb.isChecked(),
                 "download_images": self.download_images_cb.isChecked(),
             }
             filename, _ = QFileDialog.getSaveFileName(self, t('dialog_export_config'), sessions_dir, t('file_filter_json'))
