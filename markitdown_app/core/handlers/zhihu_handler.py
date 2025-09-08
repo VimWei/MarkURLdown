@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 import time
 import random
+from typing import Optional, Callable
 
 from bs4 import BeautifulSoup
 
 from markitdown_app.core.html_to_md import html_fragment_to_markdown
-from markitdown_app.core.common_utils import get_user_agents, extract_title_from_html
 # 注意：crawlers模块已删除，使用内联实现
 
 
@@ -26,24 +26,19 @@ class FetchResult:
     html_markdown: str
 
 
-def fetch_zhihu_article(session, url: str) -> FetchResult:
+def fetch_zhihu_article(_session, url: str, on_detail: Optional[Callable[[str], None]] = None) -> FetchResult:
     """
     获取知乎专栏文章内容 - 多策略尝试
     
-    使用多种爬虫技术，按优先级尝试：
+    使用爬虫技术按优先级尝试：
     1. Playwright - 现代化浏览器自动化（最可靠，能处理知乎验证）
-    2. httpx - 现代化HTTP客户端（备用策略）
     """
     
     # 定义爬虫策略，按优先级排序
-    # 优先使用Playwright处理需要验证的链接，然后使用轻量级策略
+    # 优先使用Playwright处理需要验证的链接
     crawler_strategies = [
         # 策略1: Playwright - 最可靠，能处理知乎的验证机制
-        lambda: _try_playwright_crawler(url),
-        
-        # 策略2: httpx - 现代化HTTP客户端，速度快（备用策略）
-        lambda: _try_httpx_crawler(session, url),
-        
+        lambda: _try_playwright_crawler(url, on_detail),
     ]
     
     # 尝试各种策略，增加重试机制
@@ -60,6 +55,10 @@ def fetch_zhihu_article(session, url: str) -> FetchResult:
                 
                 result = strategy()
                 if result.success:
+                    # 显示内容获取成功状态
+                    if on_detail:
+                        on_detail("知乎内容获取成功，正在处理...")
+                    
                     # 处理内容并检查质量
                     processed_result = _process_zhihu_content(result.text_content, result.title, url)
                     
@@ -114,7 +113,7 @@ def fetch_zhihu_article(session, url: str) -> FetchResult:
     raise Exception("知乎文章爬取失败，请尝试其他方法")
 
 
-def _try_playwright_crawler(url: str) -> CrawlerResult:
+def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理知乎的验证机制"""
     try:
         # 动态导入 Playwright
@@ -206,11 +205,15 @@ def _try_playwright_crawler(url: str) -> CrawlerResult:
             
             # 访问页面
             print(f"Playwright: 正在访问 {url}")
+            if on_detail:
+                on_detail("正在启动浏览器访问知乎...")
             
             # 优化的访问流程：首页 → 目标文章
             try:
                 # 1. 先访问知乎首页建立会话
                 print("Playwright: 正在访问知乎首页建立会话...")
+                if on_detail:
+                    on_detail("正在访问知乎首页建立会话...")
                 home_response = page.goto("https://www.zhihu.com/", wait_until='domcontentloaded', timeout=15000)
                 if home_response and home_response.status == 200:
                     print("Playwright: 知乎首页访问成功，获取cookies...")
@@ -272,6 +275,8 @@ def _try_playwright_crawler(url: str) -> CrawlerResult:
             
             # 2. 直接访问目标文章
             print("Playwright: 直接访问目标文章...")
+            if on_detail:
+                on_detail("正在访问目标文章...")
             response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
             
             # 智能等待页面稳定并处理登录弹窗
@@ -376,6 +381,8 @@ def _try_playwright_crawler(url: str) -> CrawlerResult:
                 print("Playwright: 未找到内容区域，但继续获取页面内容...")
             
             # 获取页面内容
+            if on_detail:
+                on_detail("正在获取页面内容...")
             html = page.content()
             
             # 尝试获取标题
@@ -410,88 +417,7 @@ def _try_playwright_crawler(url: str) -> CrawlerResult:
         )
 
 
-def _try_httpx_crawler(session, url: str) -> CrawlerResult:
-    """尝试使用 httpx 爬虫"""
-    # 为知乎设置特殊的请求头
-    zhihu_headers = _get_zhihu_headers()
     
-    try:
-        import httpx
-        # 创建新的httpx会话，使用知乎专用请求头
-        with httpx.Client(
-            timeout=30,
-            follow_redirects=True,
-            headers=zhihu_headers
-        ) as client:
-            # 先访问知乎首页建立会话和获取cookies
-            try:
-                print("httpx: 正在访问知乎首页建立会话...")
-                home_response = client.get("https://www.zhihu.com/", timeout=15)
-                if home_response.status_code == 200:
-                    print("httpx: 知乎首页访问成功，获取cookies...")
-                    time.sleep(random.uniform(2, 4))
-                    
-                    # 尝试访问专栏首页
-                    print("httpx: 访问专栏首页...")
-                    column_response = client.get("https://zhuanlan.zhihu.com/", timeout=15)
-                    if column_response.status_code == 200:
-                        print("httpx: 专栏首页访问成功...")
-                        time.sleep(random.uniform(2, 4))
-                    else:
-                        print("httpx: 专栏首页访问失败，但继续尝试...")
-                else:
-                    print(f"httpx: 知乎首页访问失败: {home_response.status_code}")
-            except Exception as e:
-                print(f"httpx: 访问知乎首页失败: {e}")
-            
-            # 访问目标页面
-            print("httpx: 访问目标页面...")
-            response = client.get(url, timeout=30)
-            
-            if response.status_code >= 400:
-                return CrawlerResult(
-                    success=False,
-                    title=None,
-                    text_content="",
-                    error=f"HTTP {response.status_code}"
-                )
-            
-            return CrawlerResult(
-                success=True,
-                title=extract_title_from_html(response.text),
-                text_content=response.text
-            )
-    except ImportError:
-        return CrawlerResult(
-            success=False,
-            title=None,
-            text_content="",
-            error="httpx not installed"
-        )
-
-
-
-
-def _get_zhihu_headers() -> dict:
-    """获取知乎专用请求头"""
-    return {
-        "User-Agent": random.choice(get_user_agents()),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
-        "DNT": "1",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Referer": "https://www.zhihu.com/",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "cross-site",
-        "Sec-Fetch-User": "?1",
-        "Cache-Control": "max-age=0",
-        "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-    }
 
 def _clean_zhihu_zhida_links(content_elem):
     """清理知乎直答链接，保留文本内容，移除链接"""
@@ -573,65 +499,6 @@ def _clean_zhihu_external_links(content_elem):
                 link.replace_with(text_node)
             else:
                 link.decompose()
-            continue
-
-
-def _fix_zhihu_image_formats(content_elem):
-    """修复知乎图片格式问题，检测并修正WebP格式"""
-    import re
-    import httpx
-    from urllib.parse import urlparse
-    
-    # 查找所有知乎图片
-    zhihu_images = content_elem.find_all('img', src=re.compile(r'https://pic\d+\.zhimg\.com/'))
-    
-    for img in zhihu_images:
-        src = img.get('src', '')
-        if not src:
-            continue
-            
-        try:
-            # 检查图片格式
-            print(f"Playwright: 检测图片格式: {src}")
-            
-            # 使用httpx发送HEAD请求获取Content-Type
-            with httpx.Client(timeout=10.0, follow_redirects=True) as client:
-                response = client.head(src)
-                content_type = response.headers.get('content-type', '').lower()
-            
-            # 解析URL
-            parsed_url = urlparse(src)
-            path = parsed_url.path
-            filename = path.split('/')[-1] if path else ''
-            
-            # 检查是否是WebP格式但扩展名不是.webp
-            if 'image/webp' in content_type and not filename.endswith('.webp'):
-                # 修正扩展名
-                if '.' in filename:
-                    name, ext = filename.rsplit('.', 1)
-                    new_filename = f"{name}.webp"
-                else:
-                    new_filename = f"{filename}.webp"
-                
-                # 构建新的URL
-                new_path = path.replace(filename, new_filename)
-                new_src = f"{parsed_url.scheme}://{parsed_url.netloc}{new_path}"
-                if parsed_url.query:
-                    new_src += f"?{parsed_url.query}"
-                
-                # 更新图片src
-                img['src'] = new_src
-                print(f"Playwright: 修正图片格式: {src} -> {new_src}")
-                
-            elif 'image/jpeg' in content_type or 'image/jpg' in content_type:
-                print(f"Playwright: 图片格式正确 (JPEG): {src}")
-            elif 'image/png' in content_type:
-                print(f"Playwright: 图片格式正确 (PNG): {src}")
-            else:
-                print(f"Playwright: 未知图片格式: {content_type} - {src}")
-                
-        except Exception as e:
-            print(f"Playwright: 检测图片格式异常: {e}")
             continue
 
 
@@ -759,8 +626,7 @@ def _process_zhihu_content(html: str, title: str | None = None, url: str | None 
         # 清理知乎外部链接重定向 - 恢复原始链接
         _clean_zhihu_external_links(content_elem)
         
-        # 修复知乎图片格式问题 - 检测并修正WebP格式
-        _fix_zhihu_image_formats(content_elem)
+        # 注意：图片格式检测已移至图片下载阶段处理，以提升内容处理速度
         
         md = html_fragment_to_markdown(content_elem)
     else:
@@ -775,7 +641,7 @@ def _process_zhihu_content(html: str, title: str | None = None, url: str | None 
     
     # 添加文章链接URL
     if url:
-        header_parts.append(f"**文章链接：** {url}")
+        header_parts.append(f"**来源：** {url}")
     
     # 添加作者和发布日期信息
     if author or publish_date:

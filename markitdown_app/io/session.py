@@ -5,7 +5,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
-def build_requests_session(ignore_ssl: bool, no_proxy: bool) -> requests.Session:
+def build_requests_session(ignore_ssl: bool, use_proxy: bool) -> requests.Session:
     session = requests.Session()
     retry = Retry(
         total=3,
@@ -18,9 +18,7 @@ def build_requests_session(ignore_ssl: bool, no_proxy: bool) -> requests.Session
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     
-    if no_proxy:
-        session.trust_env = False
-    else:
+    if use_proxy:
         # 确保从环境变量读取代理设置
         session.trust_env = True
         # 手动设置代理（如果环境变量存在）
@@ -33,6 +31,8 @@ def build_requests_session(ignore_ssl: bool, no_proxy: bool) -> requests.Session
                 'http': http_proxy,
                 'https': https_proxy or http_proxy
             }
+    else:
+        session.trust_env = False
     
     if ignore_ssl:
         session.verify = False

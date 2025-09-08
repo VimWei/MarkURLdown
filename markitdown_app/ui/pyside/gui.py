@@ -61,9 +61,10 @@ class PySideApp(QMainWindow):
         self.is_running = False
 
         # Default options
-        self.ignore_ssl_var = False
         self.use_proxy_var = False
-        self.download_images_var = False
+        self.ignore_ssl_var = False
+        self.download_images_var = True
+        self.filter_site_chrome_var = True
 
         self.vm = ViewModel()
         self.signals = ProgressSignals()
@@ -78,9 +79,10 @@ class PySideApp(QMainWindow):
             state_data = {
                 "urls": [self.url_listbox.item(i).text() for i in range(self.url_listbox.count())],
                 "output_dir": self.output_entry.text(),
-                "ignore_ssl": self.ignore_ssl_cb.isChecked(),
                 "use_proxy": self.use_proxy_cb.isChecked(),
+                "ignore_ssl": self.ignore_ssl_cb.isChecked(),
                 "download_images": self.download_images_cb.isChecked(),
+                "filter_site_chrome": self.filter_site_chrome_cb.isChecked(),
             }
             state_path = os.path.join(self.root_dir, "sessions", "last_state.json")
             save_config(state_path, state_data)
@@ -161,7 +163,9 @@ class PySideApp(QMainWindow):
         self.ignore_ssl_cb.setChecked(self.ignore_ssl_var)
         self.download_images_cb = QCheckBox()
         self.download_images_cb.setChecked(self.download_images_var)
-        for cb in [self.use_proxy_cb, self.ignore_ssl_cb, self.download_images_cb]:
+        self.filter_site_chrome_cb = QCheckBox()
+        self.filter_site_chrome_cb.setChecked(self.filter_site_chrome_var)
+        for cb in [self.use_proxy_cb, self.ignore_ssl_cb, self.download_images_cb, self.filter_site_chrome_cb]:
             options_layout.addWidget(cb)
         layout.addWidget(options_frame, 3, 0, 1, 4)
 
@@ -267,6 +271,7 @@ class PySideApp(QMainWindow):
         self.use_proxy_cb.setText(t('use_proxy_checkbox'))
         self.ignore_ssl_cb.setText(t('ignore_ssl_checkbox'))
         self.download_images_cb.setText(t('download_images_checkbox'))
+        self.filter_site_chrome_cb.setText(t('filter_site_chrome_checkbox'))
         self.restore_btn.setText(t('restore_button'))
         self.export_btn.setText(t('export_button'))
         self.import_btn.setText(t('import_button'))
@@ -282,8 +287,8 @@ class PySideApp(QMainWindow):
         self.copy_btn.clicked.connect(self._copy_selected)
         self.choose_dir_btn.clicked.connect(self._choose_output_dir)
         self.restore_btn.clicked.connect(self._restore_last_session)
-        self.export_btn.clicked.connect(self._export_config)
-        self.import_btn.clicked.connect(self._import_config)
+        self.export_btn.clicked.connect(self._export_session)
+        self.import_btn.clicked.connect(self._import_session)
         self.convert_btn.clicked.connect(self._on_convert)
         self.signals.progress_event.connect(self._on_event)
         self.url_entry.returnPressed.connect(self._add_url_from_entry)
@@ -325,12 +330,14 @@ class PySideApp(QMainWindow):
             self.url_listbox.addItem(url)
         if "output_dir" in state:
             self.output_entry.setText(state["output_dir"])
-        if "ignore_ssl" in state:
-            self.ignore_ssl_cb.setChecked(bool(state["ignore_ssl"]))
         if "use_proxy" in state:
             self.use_proxy_cb.setChecked(bool(state["use_proxy"]))
+        if "ignore_ssl" in state:
+            self.ignore_ssl_cb.setChecked(bool(state["ignore_ssl"]))
         if "download_images" in state:
             self.download_images_cb.setChecked(bool(state["download_images"]))
+        if "filter_site_chrome" in state:
+            self.filter_site_chrome_cb.setChecked(bool(state["filter_site_chrome"]))
 
     def _choose_output_dir(self):
         chosen = QFileDialog.getExistingDirectory(self, self.translator.t('dialog_choose_output_dir'), self.output_entry.text() or os.getcwd())
@@ -358,7 +365,12 @@ class PySideApp(QMainWindow):
         self.status_label.setText(self.translator.t('status_converting'))
         self.detail_label.setText("")
         reqs = [SourceRequest(kind="url", value=u) for u in urls]
-        options = ConversionOptions(ignore_ssl=self.ignore_ssl_cb.isChecked(), no_proxy=not self.use_proxy_cb.isChecked(), download_images=self.download_images_cb.isChecked())
+        options = ConversionOptions(
+            use_proxy=self.use_proxy_cb.isChecked(),
+            ignore_ssl=self.ignore_ssl_cb.isChecked(),
+            download_images=self.download_images_cb.isChecked(),
+            filter_site_chrome=self.filter_site_chrome_cb.isChecked(),
+        )
         self.vm.start(reqs, out_dir, options, self._on_event)
 
     def _stop(self):
@@ -457,16 +469,17 @@ class PySideApp(QMainWindow):
             self.status_label.setText(self.translator.t('status_url_copied'))
             self.detail_label.setText(self.translator.t('detail_copied_url', url=url))
 
-    def _export_config(self):
+    def _export_session(self):
         t = self.translator.t
         sessions_dir = os.path.join(self.root_dir, "sessions")
         try:
             data = {
                 "urls": [self.url_listbox.item(i).text() for i in range(self.url_listbox.count())],
                 "output_dir": self.output_entry.text(),
-                "ignore_ssl": self.ignore_ssl_cb.isChecked(),
                 "use_proxy": self.use_proxy_cb.isChecked(),
+                "ignore_ssl": self.ignore_ssl_cb.isChecked(),
                 "download_images": self.download_images_cb.isChecked(),
+                "filter_site_chrome": self.filter_site_chrome_cb.isChecked(),
             }
             filename, _ = QFileDialog.getSaveFileName(self, t('dialog_export_config'), sessions_dir, t('file_filter_json'))
             if filename:
@@ -476,7 +489,7 @@ class PySideApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, t('dialog_error_title'), t('dialog_export_failed', error=e))
 
-    def _import_config(self):
+    def _import_session(self):
         t = self.translator.t
         sessions_dir = os.path.join(self.root_dir, "sessions")
         try:

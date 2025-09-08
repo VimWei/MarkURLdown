@@ -11,8 +11,9 @@
   "output_dir_label": "输出目录",
   "choose_dir_button": "选择…",
   "use_proxy_checkbox": "使用系统代理",
-  "ignore_ssl_checkbox": "忽略 SSL 验证 (不安全)",
+  "ignore_ssl_checkbox": "忽略 SSL 验证（不安全）",
   "download_images_checkbox": "下载图片（速度慢）",
+  "filter_site_chrome_checkbox": "过滤常见非正文元素",
   "restore_button": "恢复上次会话",
   "export_button": "导出会话",
   "import_button": "导入会话",
@@ -56,5 +57,10 @@
   "tooltip_move_down": "将选中的URL在列表中向下移动",
   "tooltip_delete": "从列表中删除选中的URL",
   "tooltip_clear": "清空列表中的所有URL",
-  "tooltip_copy": "将选中的URL复制到剪贴板"
+  "tooltip_copy": "将选中的URL复制到剪贴板",
+  "images_found_start": "发现 {count} 张图片，开始下载…",
+  "images_dl_init": "开始并发下载 {total} 张图片…已完成 0%",
+  "images_dl_progress": "开始并发下载 {total} 张图片…已完成 {percent}%",
+  "images_dl_done": "开始并发下载 {total} 张图片…已完成 100%",
+  "images_dl_saving": "图片下载完成，正在保存文件…"
 }

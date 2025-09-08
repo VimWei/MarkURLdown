@@ -9,53 +9,90 @@ from urllib.parse import urljoin, urlparse
 from typing import Optional, Callable, Dict, Tuple
 
 
+def _convert_github_url(url: str) -> str:
+    """将GitHub的旧格式URL转换为新格式，避免重定向问题"""
+    if "github.com" in url and "/raw/" in url:
+        # 将 github.com/username/repo/raw/branch/path 转换为 raw.githubusercontent.com/username/repo/branch/path
+        new_url = url.replace("github.com", "raw.githubusercontent.com").replace("/raw/", "/")
+        return new_url
+    return url
+
+
 async def _download_single_image(session: aiohttp.ClientSession, url: str, local_path: str, 
                                 extra_headers: Optional[Dict[str, str]] = None) -> bool:
     """异步下载单张图片"""
     try:
-        timeout = aiohttp.ClientTimeout(total=15)  # 15秒超时
-        async with session.get(url, headers=extra_headers, timeout=timeout) as response:
+        # 转换GitHub URL以避免重定向问题
+        converted_url = _convert_github_url(url)
+        if converted_url != url:
+            print(f"转换GitHub URL: {url} -> {converted_url}")
+        
+        timeout = aiohttp.ClientTimeout(total=30)  # 30秒超时
+        async with session.get(converted_url, headers=extra_headers, timeout=timeout) as response:
             if response.status == 200:
                 content = await response.read()
                 with open(local_path, "wb") as f:
                     f.write(content)
                 return True
             else:
-                print(f"下载图片失败: {url}, 状态码: {response.status}")
+                print(f"下载图片失败: {converted_url}, 状态码: {response.status}")
                 return False
     except asyncio.TimeoutError:
-        print(f"下载图片超时: {url}")
+        print(f"下载图片超时: {converted_url}")
         return False
     except Exception as e:
-        print(f"下载图片异常: {url}, 错误: {e}")
+        print(f"下载图片异常: {converted_url}, 错误: {e}")
         return False
 
 
 async def _download_images_async(image_tasks: list[Tuple[str, str, Optional[Dict[str, str]]]], 
                                 session: aiohttp.ClientSession, 
                                 on_detail: Optional[Callable[[str], None]] = None) -> Dict[str, bool]:
-    """异步并发下载所有图片"""
+    """异步并发下载所有图片，并动态汇报进度"""
     if not image_tasks:
         return {}
     
+    total = len(image_tasks)
     if on_detail:
-        on_detail(f"开始并发下载 {len(image_tasks)} 张图片...")
+        on_detail({"key": "images_dl_init", "data": {"total": total}})
     
-    # 创建下载任务
-    download_tasks = []
+    # 创建下载任务；每个任务返回 (url, success)
+    async def _wrapped_download(url: str, local_path: str, headers: Optional[Dict[str, str]]):
+        try:
+            ok = await _download_single_image(session, url, local_path, headers)
+            return url, bool(ok)
+        except Exception:
+            return url, False
+
+    tasks: list[asyncio.Task] = []
     for url, local_path, headers in image_tasks:
-        task = _download_single_image(session, url, local_path, headers)
-        download_tasks.append(task)
+        task = asyncio.create_task(_wrapped_download(url, local_path, headers))
+        tasks.append(task)
     
-    # 并发执行所有下载任务
-    results = await asyncio.gather(*download_tasks, return_exceptions=True)
+    results: Dict[str, bool] = {}
+    done_count = 0
+    success_count = 0
     
-    # 统计结果
-    success_count = sum(1 for result in results if result is True)
+    for finished in asyncio.as_completed(tasks):
+        try:
+            url, ok = await finished
+        except Exception:
+            # 理论上不会到这里，因为 _wrapped_download 已吃异常
+            url, ok = ("", False)
+        if url:
+            results[url] = bool(ok)
+        done_count += 1
+        if ok:
+            success_count += 1
+        if on_detail:
+            # 动态更新为统一前缀+百分比（无小数点）
+            percent = int(done_count * 100 / total)
+            on_detail({"key": "images_dl_progress", "data": {"total": total, "percent": percent}})
+    
     if on_detail:
-        on_detail(f"图片下载完成: {success_count}/{len(image_tasks)} 成功")
+        on_detail({"key": "images_dl_done", "data": {"total": total}})
     
-    return {url: result for (url, _, _), result in zip(image_tasks, results)}
+    return results
 
 
 def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, session, 
@@ -75,7 +112,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
         return md_text
         
     if on_detail:
-        on_detail(f"发现 {total} 张图片，开始下载…")
+        on_detail({"key": "images_found_start", "data": {"count": total}})
 
     # 收集所有需要下载的图片信息
     image_tasks = []
@@ -194,7 +231,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
 
     result_text = pattern_html.sub(replace_html, result_text)
     if total > 0 and on_detail:
-        on_detail("图片下载完成，正在保存文件…")
+        on_detail({"key": "images_dl_saving"})
     return result_text
 
 

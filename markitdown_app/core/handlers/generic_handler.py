@@ -5,6 +5,7 @@
 
 import time
 import random
+from urllib.parse import urlparse
 from dataclasses import dataclass
 from markitdown import MarkItDown
 from markitdown_app.app_types import ConvertPayload, ConversionOptions, ConvertResult
@@ -12,6 +13,13 @@ from markitdown_app.io.session import build_requests_session
 from markitdown_app.core.normalize import normalize_markdown_headings
 from markitdown_app.core.images import download_images_and_rewrite
 from markitdown_app.core.filename import derive_md_filename
+from markitdown_app.core.common_utils import (
+    COMMON_FILTERS,
+    DOMAIN_FILTERS,
+    apply_dom_filters,
+    extract_title_from_html,
+    extract_title_from_body,
+)
 
 
 @dataclass
@@ -129,17 +137,94 @@ def _try_direct_httpx(url: str, session) -> CrawlerResult:
             return CrawlerResult(success=False, title=None, text_content="", error=f"httpx异常: {e}")
 
 
+def _try_generic_with_filtering(url: str, session) -> CrawlerResult:
+    """策略0: 先拉取HTML并按保守选择器过滤，然后交给 MarkItDown。"""
+    try:
+        print("尝试通用过滤策略(HTML预过滤)...")
+        resp = session.get(url, timeout=30)
+        resp.raise_for_status()
+
+        raw_html = resp.text
+        domain = urlparse(url).netloc.lower()
+
+        # 合并选择器：COMMON_FILTERS + DOMAIN_FILTERS[domain]
+        selectors: list[str] = []
+        selectors.extend(COMMON_FILTERS)
+        if domain in DOMAIN_FILTERS:
+            selectors.extend(DOMAIN_FILTERS[domain])
+
+        # 去重，保持顺序
+        seen: set[str] = set()
+        merged: list[str] = []
+        for s in selectors:
+            if s not in seen:
+                seen.add(s)
+                merged.append(s)
+
+        filtered_html, removed = apply_dom_filters(raw_html, merged)
+        print(f"DOM过滤：移除了 {removed} 个元素")
+
+        md = MarkItDown()
+        md._requests_session.headers.update({
+            "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        })
+        # 某些版本的 MarkItDown 可能错误地将纯字符串当作文件路径处理；做兜底
+        try:
+            result = md.convert(filtered_html)
+        except Exception as e1:
+            try:
+                # 尝试以字节内容传入
+                result = md.convert(filtered_html.encode("utf-8"))
+            except Exception:
+                # 最后兜底：写入临时文件再转换
+                import tempfile, os
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".html")
+                try:
+                    tmp.write(filtered_html.encode("utf-8"))
+                    tmp.close()
+                    result = md.convert(tmp.name)
+                finally:
+                    try:
+                        os.unlink(tmp.name)
+                    except Exception:
+                        pass
+
+        if result and result.text_content:
+            title = (
+                getattr(result, 'title', None)
+                or (result.metadata.get('title') if hasattr(result, 'metadata') and result.metadata else None)
+                or extract_title_from_body(filtered_html)
+                or extract_title_from_html(filtered_html)
+            )
+            return CrawlerResult(success=True, title=title, text_content=result.text_content)
+        else:
+            return CrawlerResult(success=False, title=None, text_content="", error="过滤后内容为空")
+    except Exception as e:
+        return CrawlerResult(success=False, title=None, text_content="", error=f"通用过滤异常: {e}")
+
+
 def convert_url(payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult:
     """转换普通网站URL为Markdown"""
     assert payload.kind == "url"
     url = payload.value
 
     # 多策略尝试顺序
-    crawler_strategies = [
+    crawler_strategies = []
+    # 若开启“过滤常见非正文元素”，优先尝试预过滤策略
+    if getattr(options, "filter_site_chrome", False):
+        # 延迟导入本模块内的辅助函数，避免上方插入失败
+        def _strategy_filtering():
+            try:
+                return _try_generic_with_filtering(url, session)
+            except NameError:
+                return _try_lightweight_markitdown(url, session)
+        crawler_strategies.append(_strategy_filtering)
+
+    crawler_strategies.extend([
         lambda: _try_lightweight_markitdown(url, session),
         lambda: _try_enhanced_markitdown(url, session),
         lambda: _try_direct_httpx(url, session),
-    ]
+    ])
 
     # 多策略尝试，每个策略最多重试2次
     max_retries = 2

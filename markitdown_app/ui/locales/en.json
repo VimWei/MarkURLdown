@@ -13,6 +13,7 @@
   "use_proxy_checkbox": "Use System Proxy",
   "ignore_ssl_checkbox": "Ignore SSL Verification (Unsafe)",
   "download_images_checkbox": "Download Images (Slow)",
+  "filter_site_chrome_checkbox": "Filter non-content Elements",
   "restore_button": "Restore Last Session",
   "export_button": "Export Session",
   "import_button": "Import Session",
@@ -56,5 +57,10 @@
   "tooltip_move_down": "Move selected URL down in the list",
   "tooltip_delete": "Delete the selected URL from the list",
   "tooltip_clear": "Remove all URLs from the list",
-  "tooltip_copy": "Copy the selected URL to clipboard"
+  "tooltip_copy": "Copy the selected URL to clipboard",
+  "images_found_start": "Found {count} images, starting download…",
+  "images_dl_init": "Starting concurrent download of {total} images… Completed 0%",
+  "images_dl_progress": "Starting concurrent download of {total} images… Completed {percent}%",
+  "images_dl_done": "Concurrent download of {total} images completed 100%",
+  "images_dl_saving": "Image downloads complete, saving file…"
 }

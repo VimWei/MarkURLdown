@@ -14,8 +14,9 @@ class SourceRequest:
 @dataclass
 class ConversionOptions:
     ignore_ssl: bool
-    no_proxy: bool
+    use_proxy: bool
     download_images: bool
+    filter_site_chrome: bool
 
 
 @dataclass

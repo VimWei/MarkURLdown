@@ -120,15 +120,16 @@ def _try_playwright_with_filtering(url: str) -> FetchResult:
 
             # 获取页面内容
             html = page.content()
+            title = page.title()
             browser.close()
 
-            # 使用BeautifulSoup解析并过滤内容
-            return _process_wordpress_content(html, url)
+        # 使用BeautifulSoup解析并过滤内容
+        return _process_wordpress_content(html, url, title_hint=title)
 
     except Exception as e:
         return FetchResult(title=None, html_markdown="", success=False, error=f"Playwright异常: {e}")
 
-def _process_wordpress_content(html: str, url: str | None = None) -> FetchResult:
+def _process_wordpress_content(html: str, url: str | None = None, title_hint: str | None = None) -> FetchResult:
     """处理WordPress内容，提取标题、元数据和过滤后的正文"""
     try:
         soup = BeautifulSoup(html, 'lxml')
@@ -136,24 +137,31 @@ def _process_wordpress_content(html: str, url: str | None = None) -> FetchResult
         print(f"BeautifulSoup解析失败: {e}")
         return FetchResult(title=None, html_markdown="")
 
-    # 查找标题 - WordPress文章的标题选择器
+    # 查找标题 - 优先使用 Playwright 获取的标题
     title = None
-    title_selectors = [
-        'h1.entry-title',
-        'h1.post-title',
-        'h1.page-title',
-        'h1',
-        'title'
-    ]
+    if title_hint:
+        title = title_hint
+        if " - " in title:
+            title = title.split(" - ")[0]
 
-    for selector in title_selectors:
-        title_elem = soup.select_one(selector)
-        if title_elem:
-            title = title_elem.get_text(strip=True)
-            # 清理标题中的网站名称
-            if ' - ' in title:
-                title = title.split(' - ')[0]
-            break
+    if not title:
+        # 从HTML中提取标题
+        title_selectors = [
+            'h1.entry-title',
+            'h1.post-title', 
+            'h1.page-title',
+            'h1',
+            'title'
+        ]
+
+        for selector in title_selectors:
+            title_elem = soup.select_one(selector)
+            if title_elem:
+                title = title_elem.get_text(strip=True)
+                # 清理标题中的网站名称
+                if ' - ' in title:
+                    title = title.split(' - ')[0]
+                break
 
     # 保持完整的HTML结构，只删除不需要的片段
     # 创建完整HTML的副本用于过滤（保持完整结构）
@@ -162,14 +170,11 @@ def _process_wordpress_content(html: str, url: str | None = None) -> FetchResult
 
     # 定义需要移除的元素选择器 - 采用保守策略，只删除确定性的导航内容
     unwanted_selectors = [
-        # html head 区域
-        'head',
-
         # 主要导航和菜单
         'nav', '.nav', '.navigation', '.menu', '.main-navigation', '.site-navigation',
 
         # 页面头部
-        '#header', '.header', '.site-header', '.page-header',
+        'head', '#header', '.header', '.site-header', '.page-header',
 
         # 侧边栏和组件
         '.sidebar', '.widget', '.widget-area', '.secondary', '.sidebar-widget',
@@ -193,14 +198,19 @@ def _process_wordpress_content(html: str, url: str | None = None) -> FetchResult
         '.advertisement', '.ads', '.ad', '.ad-container', '.ad-banner',
 
         # 页脚
-        'footer', '.footer', '.site-footer',
+        '#footer', '.footer', '.site-footer',
 
         # 其他常见非内容元素
         '.skip-link', '.screen-reader-text', '.sr-only',
 
+        # 相关阅读和推荐内容
+        '.related-reading', '.related-posts', '.more-posts', '.related', '.similar-posts',
+
         # 特定于skywind.me的元素（根据分析结果）
-        'entry-author-info', "pvc_stats_3039",
-        ".entry-utility",  ".likebtn_container"
+        '#entry-author-info',
+        '.pvc_stats.pvc_load_by_ajax_update',
+        ".entry-utility",  ".likebtn_container",
+        ".meta-prep.meta-prep-author", ".meta-sep", ".author.vcard"
     ]
 
     # 移除不需要的元素（从完整HTML中删除片段）
@@ -211,30 +221,59 @@ def _process_wordpress_content(html: str, url: str | None = None) -> FetchResult
             elem.decompose()  # 完全移除元素
             removed_count += 1
 
+    # 额外过滤：基于文本内容的智能过滤
+    # 移除包含"相关阅读"、"相关文章"等关键词的段落
+    related_keywords = ["相关阅读", "相关文章", "推荐阅读", "更多文章", "similar posts", "related posts"]
+    
+    for p in html_copy.find_all('p'):
+        text = p.get_text(strip=True)
+        if any(keyword in text for keyword in related_keywords):
+            # 检查是否包含链接（通常是相关阅读的特征）
+            if p.find('a'):
+                p.decompose()
+                removed_count += 1
+                print(f"移除了相关阅读段落: {text[:50]}...")
+
     print(f"从完整HTML中移除了 {removed_count} 个非内容元素")
 
     # 使用MarkItDown转换过滤后的完整HTML
     try:
-        # 现在html_copy是完整的HTML结构，只是删除了不需要的片段
-        html_content = str(html_copy)
-
         md = MarkItDown()
-        result = md.convert(html_content)
-
-        if result and result.text_content:
-            # 直接返回MarkItDown的结果，不做任何修改
-            return FetchResult(title=title, html_markdown=result.text_content)
-        else:
-            # 如果MarkItDown失败，使用备用方法
-            print("MarkItDown转换失败，使用备用方法")
-            content_text = _convert_html_to_markdown_manual(html_copy)
-            return FetchResult(title=title, html_markdown=content_text)
-
+        result = md.convert(str(html_copy))
+        if result and getattr(result, "text_content", None):
+            # 在标题下添加来源URL
+            markdown_content = result.text_content
+            if title and url:
+                # 查找标题位置并插入来源行
+                lines = markdown_content.split('\n')
+                new_lines = []
+                title_added = False
+                for i, line in enumerate(lines):
+                    new_lines.append(line)
+                    # 如果找到标题行且还没有添加来源行
+                    if line.strip() == f"# {title}" and not title_added:
+                        new_lines.append(f"来源：{url}")
+                        title_added = True
+                markdown_content = '\n'.join(new_lines)
+            return FetchResult(title=title, html_markdown=markdown_content)
     except Exception as e:
         print(f"MarkItDown转换失败: {e}")
-        # 使用手动转换方法
-        content_text = _convert_html_to_markdown_manual(html_copy)
-        return FetchResult(title=title, html_markdown=content_text)
+
+    # 兜底的简单手动转换（尽量保持简洁）
+    markdown_content = _convert_html_to_markdown_manual(html_copy)
+    if title and url:
+        # 在标题下添加来源URL
+        lines = markdown_content.split('\n')
+        new_lines = []
+        title_added = False
+        for i, line in enumerate(lines):
+            new_lines.append(line)
+            # 如果找到标题行且还没有添加来源行
+            if line.strip() == f"# {title}" and not title_added:
+                new_lines.append(f"来源：{url}")
+                title_added = True
+        markdown_content = '\n'.join(new_lines)
+    return FetchResult(title=title, html_markdown=markdown_content)
 
 def _convert_html_to_markdown_manual(soup) -> str:
     """手动将HTML转换为Markdown，保留图片和链接"""

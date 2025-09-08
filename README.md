@@ -22,6 +22,7 @@ MarkItDown is a sophisticated desktop application designed to effortlessly conve
     *   **WeChat Official Accounts:** Advanced handling with multi-strategy crawling and anti-detection measures
     *   **Zhihu Articles:** Specialized extraction for Zhihu columns and articles with authentication handling
     *   **WordPress Sites:** Optimized processing for WordPress-based websites
+    *   **Next.js Blogs:** Tuned for common static Next.js blog themes
     *   **Generic Handler:** Intelligent fallback for all other websites
 *   **Image Handling:** Optionally downloads all images from articles and saves them locally for complete, offline-first archives.
 *   **Session Management:** 
@@ -32,6 +33,7 @@ MarkItDown is a sophisticated desktop application designed to effortlessly conve
     *   **Proxy Support:** Configurable proxy settings with system proxy detection
     *   **SSL Verification:** Optional SSL certificate verification bypass for problematic sites
     *   **Smart Filename Generation:** Automatic generation of clean, readable filenames from article titles
+    *   **Filter non-content elements:** Removes typical site chrome (nav, header, footer, TOC, comments) before conversion; enabled by default
 
 
 ## Installation
@@ -102,6 +104,7 @@ If one strategy fails, the system automatically falls back to the next strategy,
 ### Specialized Site Support
 - **WeChat Official Accounts**: Handles `poc_token` verification and complex page structures
 - **Zhihu Articles**: Manages authentication challenges and specialized content extraction
+- **Next.js Blogs (experimental)**: Optimized pipeline for static Next.js blog themes; currently enabled for `guangzhengli.com/blog`
 - **General Websites**: Uses appropriate strategy based on site complexity
 
 ## Usage
@@ -123,6 +126,7 @@ Once installed, you can launch the application without needing to open a command
 4.  Choose your desired output directory using the "Choose..." button.
 5.  Configure your options:
     - **Download Images**: Downloads all images locally (slower but creates complete offline archives)
+    - **Filter non-content elements**: Remove nav/header/footer/TOC/comments before conversion (recommended)
     - **Disable System Proxy**: Bypasses system proxy settings if needed
     - **Ignore SSL Verification**: Bypasses SSL certificate verification (use with caution)
 6.  Click the "Convert to Markdown" button to begin the conversion process.

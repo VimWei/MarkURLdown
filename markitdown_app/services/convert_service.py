@@ -40,7 +40,7 @@ class ConvertService:
         try:
             total = len(requests_list)
             on_event(ProgressEvent(kind="progress_init", total=total, key="convert_init", data={"total": total}))
-            session = build_requests_session(ignore_ssl=options.ignore_ssl, no_proxy=options.no_proxy)
+            session = build_requests_session(ignore_ssl=options.ignore_ssl, use_proxy=options.use_proxy)
 
             completed = 0
             for idx, req in enumerate(requests_list, start=1):
@@ -49,9 +49,19 @@ class ConvertService:
                     return
                 on_event(ProgressEvent(kind="status", key="convert_status_running", data={"idx": idx, "total": total, "url": req.value}))
 
+                def _emit_detail(msg):
+                    # Support either raw text (backward compatible) or a dict with {key, data}
+                    try:
+                        if isinstance(msg, dict):
+                            on_event(ProgressEvent(kind="detail", key=msg.get("key"), data=msg.get("data")))
+                        else:
+                            on_event(ProgressEvent(kind="detail", text=str(msg)))
+                    except Exception:
+                        on_event(ProgressEvent(kind="detail", text=str(msg)))
+
                 payload = ConvertPayload(kind=req.kind, value=req.value, meta={
                     "out_dir": out_dir,
-                    "on_detail": lambda msg: on_event(ProgressEvent(kind="detail", text=msg)),
+                    "on_detail": _emit_detail,
                     "should_stop": lambda: self._should_stop,
                 })
                 try:
