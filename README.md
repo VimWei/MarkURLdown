@@ -11,7 +11,6 @@ MarkURLDown is a sophisticated desktop application designed to effortlessly conv
 ## Features
 
 *   **Modern & Intuitive GUI:** A clean and responsive graphical interface built with PySide6.
-*   **Multilingual Support:** Built-in support for English and Chinese (Simplified) with automatic language detection and easy switching.
 *   **Batch Conversion:** Convert multiple URLs in a single session with progress tracking and real-time status updates.
 *   **Smart Content Extraction:** Intelligently cleans up clutter like ads, navigation bars, and footers to grab only the main article content.
 *   **Advanced Crawler Technology:** Multi-strategy crawler system with automatic fallback:
@@ -34,6 +33,7 @@ MarkURLDown is a sophisticated desktop application designed to effortlessly conv
     *   **Image Handling:** Downloads all images from articles and saves them locally for complete, offline-first archives.
     *   **Filter non-content elements:** Removes typical site chrome (nav, header, footer, TOC, comments) before conversion for Generic Handler
     *   **Speed Mode (Shared Browser):** Reuse one Playwright browser per batch, new context per URL.
+*   **Multilingual Support:** Built-in support for English and Chinese (Simplified) with automatic language detection and easy switching.
 
 ## Installation
 
@@ -87,44 +87,6 @@ To set up the project locally, you will need a working Python environment (Pytho
     playwright install
     ```
 
-### Dependencies
-
-The application uses the following key dependencies:
-
-- **Core Dependencies:**
-  - `markitdown` - Core HTML to Markdown conversion engine
-  - `requests` - HTTP client for basic web requests
-  - `beautifulsoup4` - HTML parsing and content extraction
-  - `lxml` - Fast XML/HTML parser
-
-- **Advanced Crawling:**
-  - `httpx` - Modern HTTP/2 client for high-performance requests
-  - `aiohttp` - Asynchronous HTTP client for concurrent image downloads
-  - `playwright` - Browser automation for complex anti-bot scenarios
-
-- **GUI Framework:**
-  - `PySide6` - Modern Qt-based GUI framework
-
-## Crawler Technology
-
-MarkItDown features a sophisticated multi-strategy crawler system designed to handle various anti-bot scenarios:
-
-### Multi-Strategy Approach
-The application automatically tries multiple crawling strategies in order of reliability:
-
-1. **Playwright Crawler** - Modern browser automation that can handle complex JavaScript rendering and anti-bot detection
-2. **httpx Crawler** - High-performance HTTP/2 client for fast and efficient requests
-3. **Requests Crawler** - Lightweight HTTP client for simple scenarios
-
-### Automatic Fallback
-If one strategy fails, the system automatically falls back to the next strategy, ensuring maximum success rates even when websites implement anti-bot measures.
-
-### Specialized Site Support
-- **WeChat Official Accounts**: Handles `poc_token` verification and complex page structures
-- **Zhihu Articles**: Manages authentication challenges and specialized content extraction
-- **Next.js Blogs (experimental)**: Optimized pipeline for static Next.js blog themes; currently enabled for `guangzhengli.com/blog`
-- **General Websites**: Uses appropriate strategy based on site complexity
-
 ## Usage
 
 Once installed, you can launch the application without needing to open a command line.
@@ -142,30 +104,8 @@ Once installed, you can launch the application without needing to open a command
 2.  Add as many URLs as you need to the list.
 3.  Use the up/down arrows to reorder URLs if needed.
 4.  Choose your desired output directory using the "Choose..." button.
-5.  Configure your options:
-    - **Download Images**: Downloads all images locally (slower but creates complete offline archives)
-    - **Filter non-content elements**: Remove nav/header/footer/TOC/comments before conversion (recommended)
-    - **Disable System Proxy**: Bypasses system proxy settings if needed
-    - **Ignore SSL Verification**: Bypasses SSL certificate verification (use with caution)
+5.  Configure your options
 6.  Click the "Convert to Markdown" button to begin the conversion process.
-
-### Advanced Features
-
-**Session Management:**
-- **Auto-save**: Your current session (URLs, settings, output directory) is automatically saved when you close the application
-- **Restore Last Session**: Click "Restore Last Session" to reload your previous work
-- **Export/Import Config**: Use "Export Config" to save your settings and "Import Config" to load them later
-
-**Language Support:**
-- The application automatically detects your system language
-- Switch between English and Chinese (Simplified) using the Language menu
-- Language changes require a restart to take effect
-
-**Batch Processing:**
-- Add multiple URLs to process them in sequence
-- Real-time progress tracking shows current status and completion percentage
-- Stop conversion at any time using the "Stop Conversion" button
-- Detailed status messages keep you informed of the conversion progress
 
 ## Acknowledgements
 
