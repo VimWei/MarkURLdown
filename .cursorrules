@@ -3,13 +3,6 @@
 ## Project Overview
 This is a desktop application for Windows that converts web articles into clean Markdown files. The application features a GUI built with PySide6 and supports batch conversions, image downloading, and special handling for complex websites like WeChat articles.
 
-## Architecture
-- **Core Logic**: `markitdown_app/core/` - HTML to Markdown conversion, image processing, filename generation
-- **Services**: `markitdown_app/services/` - Background thread management for UI responsiveness
-- **I/O**: `markitdown_app/io/` - File operations, configuration management, logging
-- **UI**: `markitdown_app/ui/` - PySide6 GUI implementation with ViewModel pattern
-- **Types**: `markitdown_app/app_types/` - Custom data types and structures
-
 ## Technology Stack
 - **Language**: Python
 - **GUI Framework**: PySide6 (primary), Tkinter (fallback)
@@ -17,6 +10,9 @@ This is a desktop application for Windows that converts web articles into clean 
 - **Configuration**: JSON-based settings (`setting.json`)
 
 ## Development Conventions
+- **Follow the detailed architecture design in `reference/RefactorPlan.md`**
+- **ALWAYS update `reference/RefactorPlan.md` when implementing new features or completing planned tasks**
+- **Keep the refactor plan as the single source of truth for project architecture and roadmap**
 - Use ViewModel pattern to separate UI from business logic
 - Execute long-running tasks in background threads
 - Maintain modular architecture with clear separation of concerns
@@ -29,14 +25,33 @@ This is a desktop application for Windows that converts web articles into clean 
 - Write clear docstrings for functions and classes
 - Maintain consistent error handling patterns
 
-## File Structure
-- Keep UI logic in `markitdown_app/ui/`
-- Core conversion logic in `markitdown_app/core/`
-- Service layer in `markitdown_app/services/`
-- Configuration and I/O in `markitdown_app/io/`
+## Architecture & Design
+- **Follow the comprehensive architecture design in `reference/RefactorPlan.md`**
+- **Core Logic**: `markitdown_app/core/` - HTML to Markdown conversion, image processing, filename generation
+- **Services**: `markitdown_app/services/` - Background thread management for UI responsiveness
+- **I/O**: `markitdown_app/io/` - File operations, configuration management, logging
+- **UI**: `markitdown_app/ui/` - PySide6 GUI implementation with ViewModel pattern
+- **Types**: `markitdown_app/app_types/` - Custom data types and structures
+- **Handlers**: Use site-specific handlers with inline crawler implementations
+- **Converters**: Support multiple input types (URL, HTML, files)
+- **Registry**: Use registration system for handlers and converters
 
 ## Testing
+- **ALWAYS use the existing test framework in the `tests/` directory**
+- **NEVER create temporary test files in the project root directory**
+- **Follow the detailed testing strategy in `reference/TESTING_STRATEGY.md`**
+- Use Python's built-in `unittest` framework for unit tests
+- Use custom integration test scripts for end-to-end testing
+- Follow the existing test structure and naming conventions
 - Focus on core conversion functionality
 - Test GUI responsiveness during batch operations
 - Verify image downloading and processing
 - Test configuration import/export features
+
+## Documentation Maintenance
+- **ALWAYS update `reference/RefactorPlan.md` when making architectural changes**
+- **Mark completed tasks with ✅ in the implementation steps section**
+- **Add new features to the roadmap section with clear implementation plans**
+- **Update architecture diagrams and component descriptions when structure changes**
+- **Keep the refactor plan synchronized with actual code implementation**
+- **Document design decisions and architectural evolution in the plan**

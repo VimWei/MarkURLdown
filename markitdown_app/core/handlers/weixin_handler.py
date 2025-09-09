@@ -411,9 +411,9 @@ def _process_weixin_content(html: str, title: str | None = None, url: str | None
     if title:
         header_parts.append(f"# {title}")
     
-    # 添加文章链接URL
+    # 添加来源 URL
     if url:
-        header_parts.append(f"**文章链接：** {url}")
+        header_parts.append(f"**来源：** {url}")
     
     # 添加作者、公众号名称和发布日期信息
     if author or account_name or publish_date:
