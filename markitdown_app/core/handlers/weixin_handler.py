@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import time
 import random
+from typing import Optional, Callable
 
 from bs4 import BeautifulSoup
 
@@ -26,7 +27,7 @@ class FetchResult:
     html_markdown: str
 
 
-def fetch_weixin_article(session, url: str) -> FetchResult:
+def fetch_weixin_article(session, url: str, on_detail: Optional[Callable[[str], None]] = None) -> FetchResult:
     """
     获取微信公众号文章内容 - 多策略尝试
     
@@ -39,10 +40,10 @@ def fetch_weixin_article(session, url: str) -> FetchResult:
     # 优先使用Playwright处理需要验证的链接，然后使用轻量级策略
     crawler_strategies = [
         # 策略1: Playwright - 最可靠，能处理微信的poc_token验证
-        lambda: _try_playwright_crawler(url),
+        lambda: _try_playwright_crawler(url, on_detail),
         
         # 策略2: httpx - 现代化HTTP客户端，备用策略
-        lambda: _try_httpx_crawler(session, url),
+        lambda: _try_httpx_crawler(session, url, on_detail),
     ]
     
     # 尝试各种策略，增加重试机制
@@ -60,6 +61,8 @@ def fetch_weixin_article(session, url: str) -> FetchResult:
                 result = strategy()
                 if result.success:
                     # 处理内容并检查质量
+                    if on_detail:
+                        on_detail("微信内容获取成功，正在处理...")
                     processed_result = _process_weixin_content(result.text_content, result.title, url)
                     
                     # 检查是否获取到验证页面
@@ -104,7 +107,7 @@ def fetch_weixin_article(session, url: str) -> FetchResult:
     raise Exception("所有微信获取策略都失败，回退到通用转换器")
 
 
-def _try_playwright_crawler(url: str) -> CrawlerResult:
+def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理微信的poc_token验证"""
     try:
         # 动态导入 Playwright
@@ -155,10 +158,14 @@ def _try_playwright_crawler(url: str) -> CrawlerResult:
             
             # 访问页面
             print(f"Playwright: 正在访问 {url}")
+            if on_detail:
+                on_detail("正在启动浏览器访问微信...")
             
             # 先访问微信首页建立会话
             try:
                 print("Playwright: 正在访问微信首页建立会话...")
+                if on_detail:
+                    on_detail("正在访问微信首页建立会话...")
                 page.goto("https://mp.weixin.qq.com/", wait_until='domcontentloaded', timeout=15000)
                 page.wait_for_timeout(random.uniform(2000, 4000))
             except Exception as e:
@@ -166,6 +173,8 @@ def _try_playwright_crawler(url: str) -> CrawlerResult:
             
             # 访问目标页面
             response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
+            if on_detail:
+                on_detail("正在访问目标文章...")
             
             if not response or response.status >= 400:
                 browser.close()
@@ -180,6 +189,8 @@ def _try_playwright_crawler(url: str) -> CrawlerResult:
             page.wait_for_timeout(random.uniform(3000, 6000))
             
             # 获取页面内容
+            if on_detail:
+                on_detail("正在获取页面内容...")
             html = page.content()
             
             # 尝试获取标题
@@ -213,7 +224,7 @@ def _try_playwright_crawler(url: str) -> CrawlerResult:
         )
 
 
-def _try_httpx_crawler(session, url: str) -> CrawlerResult:
+def _try_httpx_crawler(session, url: str, on_detail: Optional[Callable[[str], None]] = None) -> CrawlerResult:
     """尝试使用 httpx 爬虫"""
     # 为微信设置特殊的请求头
     weixin_headers = _get_weixin_headers()
@@ -229,12 +240,16 @@ def _try_httpx_crawler(session, url: str) -> CrawlerResult:
             # 先访问微信首页建立会话
             try:
                 print("httpx: 正在访问微信首页建立会话...")
+                if on_detail:
+                    on_detail("正在访问微信首页建立会话...")
                 client.get("https://mp.weixin.qq.com/", timeout=15)
                 time.sleep(random.uniform(2, 4))
             except Exception as e:
                 print(f"httpx: 访问微信首页失败: {e}")
             
             # 访问目标页面
+            if on_detail:
+                on_detail("正在访问目标文章...")
             response = client.get(url, timeout=30)
             
             if response.status_code >= 400:
@@ -245,6 +260,8 @@ def _try_httpx_crawler(session, url: str) -> CrawlerResult:
                     error=f"HTTP {response.status_code}"
                 )
             
+            if on_detail:
+                on_detail("正在获取页面内容...")
             return CrawlerResult(
                 success=True,
                 title=extract_title_from_html(response.text),

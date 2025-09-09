@@ -21,7 +21,9 @@ def _weixin_handler(payload: ConvertPayload, session, options: ConversionOptions
     url = payload.value
     if "mp.weixin.qq.com" not in url:
         return None
-    fetched = fetch_weixin_article(session, url)
+    # 透传 UI 提示回调到 weixin handler，用于状态栏显示
+    on_detail_cb = payload.meta.get("on_detail")
+    fetched = fetch_weixin_article(session, url, on_detail=on_detail_cb)
 
     # If blocked or empty, fallback to generic converter
     # 更智能的阻塞检测：只有在内容很短且包含验证关键词时才认为是阻塞
