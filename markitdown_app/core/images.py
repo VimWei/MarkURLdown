@@ -51,10 +51,12 @@ def _should_detect_image_format(url: str) -> bool:
     host = parsed.netloc.lower()
     path = parsed.path.lower()
 
-    # 只对已知有格式问题的域名进行检测
+    # 对已知有格式问题的域名进行检测
     problematic_domains = [
         'zhimg.com',  # 知乎图片
         'pic.zhimg.com',  # 知乎图片
+        'qpic.cn',  # 微信图片CDN
+        'mmbiz.qpic.cn',  # 微信图片CDN
     ]
 
     # 检查是否是问题域名
@@ -64,10 +66,6 @@ def _should_detect_image_format(url: str) -> bool:
     # 对于没有扩展名的图片，采用保守策略
     # 只对已知可能有问题的模式进行检测
     if not any(ext in path for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']):
-        # 微信图片：不需要检测（格式正确）
-        if 'qpic.cn' in host or 'mmbiz.qpic.cn' in host:
-            return False
-
         # 其他常见CDN和API：通常格式正确，不需要检测
         if any(cdn in host for cdn in ['cdn.', 'static.', 'assets.', 'img.', 'images.']):
             return False
