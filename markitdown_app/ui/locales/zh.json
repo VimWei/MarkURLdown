@@ -14,7 +14,7 @@
   "ignore_ssl_checkbox": "忽略 SSL 验证",
   "download_images_checkbox": "下载图片",
   "filter_site_chrome_checkbox": "过滤非正文元素",
-  "use_shared_browser_checkbox": "加速模式",
+  "use_shared_browser_checkbox": "加速模式(共享浏览器)",
   "restore_button": "恢复上次会话",
   "export_button": "导出会话",
   "import_button": "导入会话",

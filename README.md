@@ -1,6 +1,6 @@
-# MarkItDown
+# MarkURLDown
 
-MarkItDown is a sophisticated desktop application designed to effortlessly convert web articles into clean, readable Markdown files. Built with a modular architecture and modern GUI framework, it's perfect for archiving content, creating a personal knowledge base, or preparing articles for publishing on platforms like Hugo, Jekyll, or Hexo.
+MarkURLDown is a sophisticated desktop application designed to effortlessly convert web articles into clean, readable Markdown files. Built with a modular architecture and modern GUI framework, it's perfect for archiving content, creating a personal knowledge base.
 
 ## Screenshots
 
@@ -24,17 +24,16 @@ MarkItDown is a sophisticated desktop application designed to effortlessly conve
     *   **WordPress Sites:** Optimized processing for WordPress-based websites
     *   **Next.js Blogs:** Tuned for common static Next.js blog themes
     *   **Generic Handler:** Intelligent fallback for all other websites
-*   **Image Handling:** Optionally downloads all images from articles and saves them locally for complete, offline-first archives.
-*   **Session Management:** 
+*   **Session Management:**
     *   **Auto-save:** Automatically saves your work session and restores it on next launch
     *   **Config Export/Import:** Export and import configuration settings for easy backup and sharing
     *   **Multiple Sessions:** Support for multiple named sessions for different projects
 *   **Advanced Options:**
     *   **Proxy Support:** Configurable proxy settings with system proxy detection
     *   **SSL Verification:** Optional SSL certificate verification bypass for problematic sites
-    *   **Smart Filename Generation:** Automatic generation of clean, readable filenames from article titles
-    *   **Filter non-content elements:** Removes typical site chrome (nav, header, footer, TOC, comments) before conversion; enabled by default
-
+    *   **Image Handling:** Downloads all images from articles and saves them locally for complete, offline-first archives.
+    *   **Filter non-content elements:** Removes typical site chrome (nav, header, footer, TOC, comments) before conversion for Generic Handler
+    *   **Speed Mode (Shared Browser):** Reuse one Playwright browser per batch, new context per URL.
 
 ## Installation
 
@@ -51,23 +50,42 @@ To set up the project locally, you will need a working Python environment (Pytho
     # Using venv
     python -m venv markitdown_env
     source markitdown_env/bin/activate  # On Windows: markitdown_env\Scripts\activate
-    
+
     # Or using conda
     conda create --name markitdown python=3.10 -y
     conda activate markitdown
     ```
 
+    Using uv (fast installer/runner):
+    ```bash
+    # Install uv (Linux/macOS)
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # On Windows (PowerShell)
+    iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex
+
+    # Create and activate venv
+    uv venv
+    # Linux/macOS (bash/zsh)
+    source .venv/bin/activate
+    # Windows (PowerShell)
+    .\.venv\Scripts\Activate.ps1
+    # Windows (Command Prompt)
+    .venv\Scripts\activate
+    ```
+
 3.  **Install the required dependencies:**
     ```bash
+    # Using pip
     pip install -r requirements.txt
+
+    # Or using uv (faster)
+    uv pip install -r requirements.txt
     ```
 
 4.  **Install Playwright browsers (for advanced crawling):**
     ```bash
     playwright install
     ```
-    
-    **Note:** Playwright is optional but highly recommended for handling complex anti-bot scenarios on sites like WeChat and Zhihu. If you don't install Playwright, the application will use alternative crawling strategies (httpx and requests).
 
 ### Dependencies
 
@@ -95,7 +113,7 @@ MarkItDown features a sophisticated multi-strategy crawler system designed to ha
 The application automatically tries multiple crawling strategies in order of reliability:
 
 1. **Playwright Crawler** - Modern browser automation that can handle complex JavaScript rendering and anti-bot detection
-2. **httpx Crawler** - High-performance HTTP/2 client for fast and efficient requests  
+2. **httpx Crawler** - High-performance HTTP/2 client for fast and efficient requests
 3. **Requests Crawler** - Lightweight HTTP client for simple scenarios
 
 ### Automatic Fallback

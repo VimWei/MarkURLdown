@@ -4,6 +4,7 @@ import os
 import re
 import asyncio
 import aiohttp
+import hashlib
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
 from typing import Optional, Callable, Dict, Tuple
@@ -86,8 +87,13 @@ def _detect_image_format_from_file(file_path: str) -> str:
         return ''
 
 async def _download_single_image(session: aiohttp.ClientSession, url: str, local_path: str,
-                                extra_headers: Optional[Dict[str, str]] = None) -> bool:
-    """异步下载单张图片"""
+                                extra_headers: Optional[Dict[str, str]] = None,
+                                hash_to_path: Optional[Dict[str, str]] = None,
+                                hash_lock: Optional[asyncio.Lock] = None) -> tuple[bool, str]:
+    """异步下载单张图片（流式计算SHA-256，基于内容精确去重）。
+
+    返回 (success, final_local_path)。当命中去重时，final_local_path 为已存在文件路径。
+    """
     try:
         # 转换GitHub URL以避免重定向问题
         converted_url = _convert_github_url(url)
@@ -97,24 +103,74 @@ async def _download_single_image(session: aiohttp.ClientSession, url: str, local
         timeout = aiohttp.ClientTimeout(total=30)  # 30秒超时
         async with session.get(converted_url, headers=extra_headers, timeout=timeout) as response:
             if response.status == 200:
-                content = await response.read()
-                with open(local_path, "wb") as f:
-                    f.write(content)
-                return True
+                # 以 .part 临时文件写入，边写边算哈希
+                temp_path = local_path + ".part"
+                hasher = hashlib.sha256()
+                try:
+                    with open(temp_path, "wb") as f:
+                        async for chunk in response.content.iter_chunked(65536):
+                            if not chunk:
+                                continue
+                            hasher.update(chunk)
+                            f.write(chunk)
+                    file_hash = hasher.hexdigest()
+                    # 去重检查
+                    if hash_to_path is not None and hash_lock is not None:
+                        async with hash_lock:
+                            existed = hash_to_path.get(file_hash)
+                            if existed:
+                                # 已存在同内容文件，删除临时文件并复用
+                                try:
+                                    os.remove(temp_path)
+                                except Exception:
+                                    pass
+                                return True, existed
+                            else:
+                                # 首次出现，落盘为目标文件
+                                try:
+                                    os.replace(temp_path, local_path)
+                                except Exception:
+                                    # 回退到重命名失败的复制路径
+                                    try:
+                                        os.rename(temp_path, local_path)
+                                    except Exception:
+                                        # 实在失败也不影响流程
+                                        pass
+                                hash_to_path[file_hash] = local_path
+                                return True, local_path
+                    # 无去重上下文，直接落盘
+                    try:
+                        os.replace(temp_path, local_path)
+                    except Exception:
+                        try:
+                            os.rename(temp_path, local_path)
+                        except Exception:
+                            pass
+                    return True, local_path
+                except Exception as e:
+                    try:
+                        if os.path.exists(temp_path):
+                            os.remove(temp_path)
+                    except Exception:
+                        pass
+                    print(f"下载图片写入失败: {converted_url}, 错误: {e}")
+                    return False, local_path
             else:
                 print(f"下载图片失败: {converted_url}, 状态码: {response.status}")
-                return False
+                return False, local_path
     except asyncio.TimeoutError:
         print(f"下载图片超时: {converted_url}")
-        return False
+        return False, local_path
     except Exception as e:
         print(f"下载图片异常: {converted_url}, 错误: {e}")
-        return False
+        return False, local_path
 
 async def _download_images_async(image_tasks: list[Tuple[str, str, Optional[Dict[str, str]]]],
                                 session: aiohttp.ClientSession,
-                                on_detail: Optional[Callable[[str], None]] = None) -> Dict[str, bool]:
-    """异步并发下载所有图片，并动态汇报进度"""
+                                on_detail: Optional[Callable[[str], None]] = None,
+                                hash_to_path: Optional[Dict[str, str]] = None,
+                                hash_lock: Optional[asyncio.Lock] = None) -> Dict[str, Tuple[bool, str]]:
+    """异步并发下载所有图片，并动态汇报进度；返回 {url: (ok, final_local_path)}"""
     if not image_tasks:
         return {}
 
@@ -125,27 +181,27 @@ async def _download_images_async(image_tasks: list[Tuple[str, str, Optional[Dict
     # 创建下载任务；每个任务返回 (url, success)
     async def _wrapped_download(url: str, local_path: str, headers: Optional[Dict[str, str]]):
         try:
-            ok = await _download_single_image(session, url, local_path, headers)
-            return url, bool(ok)
+            ok, final_path = await _download_single_image(session, url, local_path, headers, hash_to_path, hash_lock)
+            return url, bool(ok), final_path
         except Exception:
-            return url, False
+            return url, False, local_path
 
     tasks: list[asyncio.Task] = []
     for url, local_path, headers in image_tasks:
         task = asyncio.create_task(_wrapped_download(url, local_path, headers))
         tasks.append(task)
 
-    results: Dict[str, bool] = {}
+    results: Dict[str, Tuple[bool, str]] = {}
     done_count = 0
 
     for finished in asyncio.as_completed(tasks):
         try:
-            url, ok = await finished
+            url, ok, final_path = await finished
         except Exception:
             # 理论上不会到这里
-            url, ok = ("", False)
+            url, ok, final_path = ("", False, "")
         if url:
-            results[url] = bool(ok)
+            results[url] = (bool(ok), final_path)
         done_count += 1
         if on_detail:
             # 动态更新为统一前缀+百分比（无小数点）
@@ -224,7 +280,10 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
             # 创建aiohttp会话
             connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)  # 限制并发连接数
             async with aiohttp.ClientSession(connector=connector) as aio_session:
-                return await _download_images_async(image_tasks, aio_session, on_detail)
+                # 每篇文章内的去重索引
+                hash_to_path: Dict[str, str] = {}
+                hash_lock = asyncio.Lock()
+                return await _download_images_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock)
 
         # 检查是否已有事件循环
         try:
@@ -239,22 +298,104 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
             download_results = asyncio.run(download_all())
 
         # 条件性图片格式检测：只对特定域名进行格式检测
+        # 同时根据最终落盘路径更新 url_to_local（可能因去重而指向其他文件）
         for url, local_path, _ in image_tasks:
-            if download_results.get(url, False) and local_path.endswith('.img'):
+            ok, final_local_path = download_results.get(url, (False, local_path))
+            if ok:
+                # 更新映射，使用最终文件相对路径
+                url_to_local[url] = f"{os.path.basename(images_dir)}/{os.path.basename(final_local_path)}"
+            if ok and final_local_path.endswith('.img'):
                 # 检查是否需要格式检测（基于域名）
                 if _should_detect_image_format(url):
-                    detected_ext = _detect_image_format_from_file(local_path)
+                    detected_ext = _detect_image_format_from_file(final_local_path)
                     if detected_ext and detected_ext != '.img':
                         # 重命名文件并更新路径映射
-                        new_path = local_path.replace('.img', detected_ext)
+                        new_path = final_local_path.replace('.img', detected_ext)
                         try:
                             os.rename(local_path, new_path)
                             # 更新url_to_local中的路径
-                            for key, value in url_to_local.items():
-                                if key == url:
-                                    url_to_local[key] = value.replace('.img', detected_ext)
+                            # 遍历所有映射，将指向旧文件名的项更新为新扩展名
+                            old_name = os.path.basename(final_local_path)
+                            new_name = os.path.basename(new_path)
+                            for key, value in list(url_to_local.items()):
+                                if value.endswith(old_name):
+                                    url_to_local[key] = value[:-len(old_name)] + new_name
                         except Exception as e:
                             print(f"重命名图片文件失败: {e}")
+
+        # 事后紧凑重命名：按文章内首次出现顺序为“唯一图片文件”重新分配连续序号
+        try:
+            # 收集按出现顺序的去重后的目标文件（相对路径）
+            ordered_unique_rel: list[str] = []
+            seen_files: set[str] = set()
+            for match in matches:
+                raw = match.group(1)
+                src = raw.strip().split()[0].strip('<>"\'')
+                if src.startswith("data:"):
+                    continue
+                if src.startswith("//"):
+                    base_scheme = urlparse(base_url).scheme or "https"
+                    src = f"{base_scheme}:{src}"
+                resolved = urljoin(base_url, src)
+                rel = url_to_local.get(resolved)
+                if not rel:
+                    continue
+                if rel not in seen_files:
+                    seen_files.add(rel)
+                    ordered_unique_rel.append(rel)
+
+            # 计算目标名称映射 old_rel -> new_rel（保持扩展名，且仅对实际存在的文件连续编号）
+            rel_rename_map: Dict[str, str] = {}
+            new_index = 1
+            for rel in ordered_unique_rel:
+                basename = os.path.basename(rel)
+                old_abs = os.path.join(images_dir, basename)
+                if not os.path.exists(old_abs):
+                    # 文件不存在，跳过且不消耗序号，避免出现断号
+                    continue
+                _, ext = os.path.splitext(basename)
+                if not ext:
+                    ext = ".img"
+                new_basename = f"{run_stamp}_{new_index:03d}{ext}"
+                new_index += 1
+                dirname = os.path.basename(images_dir)
+                new_rel = f"{dirname}/{new_basename}"
+                if new_rel != rel:
+                    rel_rename_map[rel] = new_rel
+
+            if rel_rename_map:
+                # 第一阶段：全部改为临时名，避免目标名冲突
+                tmp_suffix = ".reseq.tmp"
+                tmp_paths: Dict[str, str] = {}
+                for old_rel, new_rel in rel_rename_map.items():
+                    old_abs = os.path.join(images_dir, os.path.basename(old_rel))
+                    if not os.path.exists(old_abs):
+                        continue
+                    tmp_abs = old_abs + tmp_suffix
+                    try:
+                        os.replace(old_abs, tmp_abs)
+                        tmp_paths[old_rel] = tmp_abs
+                    except Exception:
+                        pass
+
+                # 第二阶段：从临时名移动到最终名，并更新映射
+                for old_rel, new_rel in rel_rename_map.items():
+                    tmp_abs = tmp_paths.get(old_rel)
+                    if not tmp_abs or not os.path.exists(tmp_abs):
+                        continue
+                    final_abs = os.path.join(images_dir, os.path.basename(new_rel))
+                    try:
+                        os.replace(tmp_abs, final_abs)
+                    except Exception:
+                        try:
+                            os.rename(tmp_abs, final_abs)
+                        except Exception:
+                            pass
+                # 更新所有 URL 映射为新相对路径
+                for url, rel in list(url_to_local.items()):
+                    url_to_local[url] = rel_rename_map.get(rel, rel)
+        except Exception as e:
+            print(f"图片紧凑重命名失败: {e}")
 
     # 替换markdown中的图片链接
     def replace_md(match: re.Match) -> str:
