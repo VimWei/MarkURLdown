@@ -23,7 +23,9 @@ def _weixin_handler(payload: ConvertPayload, session, options: ConversionOptions
         return None
     # 透传 UI 提示回调到 weixin handler，用于状态栏显示
     on_detail_cb = payload.meta.get("on_detail")
-    fetched = fetch_weixin_article(session, url, on_detail=on_detail_cb)
+    # 透传共享 Browser（若开启加速模式）
+    shared_browser = payload.meta.get("shared_browser")
+    fetched = fetch_weixin_article(session, url, on_detail=on_detail_cb, shared_browser=shared_browser)
 
     # If blocked or empty, fallback to generic converter
     # 更智能的阻塞检测：只有在内容很短且包含验证关键词时才认为是阻塞
@@ -63,7 +65,8 @@ def _zhihu_handler(payload: ConvertPayload, session, options: ConversionOptions)
     
     try:
         on_detail_cb = payload.meta.get("on_detail")
-        fetched = fetch_zhihu_article(session, url, on_detail=on_detail_cb)
+        shared_browser = payload.meta.get("shared_browser")
+        fetched = fetch_zhihu_article(session, url, on_detail=on_detail_cb, shared_browser=shared_browser)
 
         # 更智能的阻塞检测：只有在内容很短且包含验证关键词时才认为是阻塞
         content = fetched.html_markdown or ""

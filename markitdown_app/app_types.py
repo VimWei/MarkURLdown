@@ -17,6 +17,7 @@ class ConversionOptions:
     use_proxy: bool
     download_images: bool
     filter_site_chrome: bool
+    use_shared_browser: bool = True
 
 
 @dataclass

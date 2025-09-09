@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import time
 import random
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 from bs4 import BeautifulSoup
 
@@ -22,7 +22,7 @@ class FetchResult:
     title: str | None
     html_markdown: str
 
-def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], None]] = None) -> FetchResult:
+def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> FetchResult:
     """
     获取知乎专栏文章内容
     使用 Playwright - 现代化浏览器自动化（最可靠，能处理知乎验证）
@@ -39,7 +39,7 @@ def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], N
             else:
                 print("尝试知乎获取...")
 
-            result = _try_playwright_crawler(url, on_detail)
+            result = _try_playwright_crawler(url, on_detail, shared_browser)
             if result.success:
                 # 显示内容获取成功状态
                 if on_detail:
@@ -94,12 +94,170 @@ def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], N
     print("   4. 尝试在浏览器中直接访问文章")
     raise Exception("知乎文章爬取失败，请尝试其他方法")
 
-def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None) -> CrawlerResult:
+def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理知乎的验证机制"""
     try:
-        # 动态导入 Playwright
-        from playwright.sync_api import sync_playwright
+        # 分支1：共享 Browser（为每个 URL 新建 Context）
+        if shared_browser is not None:
+            context = shared_browser.new_context(
+                viewport={'width': 1920, 'height': 1080},
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                locale='zh-CN',
+                timezone_id='Asia/Shanghai',
+                geolocation={'latitude': 39.9042, 'longitude': 116.4074},  # 北京坐标
+                permissions=['geolocation'],
+                extra_http_headers={
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-User': '?1',
+                    'Cache-Control': 'max-age=0',
+                }
+            )
+            page = context.new_page()
+            # 注入反检测脚本
+            page.add_init_script("""
+                // 隐藏webdriver属性
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined,
+                });
 
+                // 模拟真实的navigator属性
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [1, 2, 3, 4, 5],
+                });
+
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['zh-CN', 'zh', 'en'],
+                });
+
+                // 模拟真实的屏幕属性
+                Object.defineProperty(screen, 'width', {
+                    get: () => 1920,
+                });
+
+                Object.defineProperty(screen, 'height', {
+                    get: () => 1080,
+                });
+
+                // 模拟真实的时区
+                Object.defineProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', {
+                    value: function() {
+                        return { timeZone: 'Asia/Shanghai' };
+                    }
+                });
+            """)
+            page.set_default_timeout(30000)
+
+            # 首页 → 目标文章流程
+            try:
+                print("Playwright: 正在访问知乎首页建立会话...")
+                if on_detail:
+                    on_detail("正在访问知乎首页建立会话...")
+                home_response = page.goto("https://www.zhihu.com/", wait_until='domcontentloaded', timeout=15000)
+                if home_response and home_response.status == 200:
+                    page.wait_for_timeout(random.uniform(2000, 4000))
+                    try:
+                        page.wait_for_timeout(random.uniform(500, 1500))
+                        login_selectors = [
+                            '.Modal-closeButton', '.SignFlow-close', '[aria-label="关闭"]',
+                            '.Modal-close', '.close-button', 'button[aria-label="关闭"]'
+                        ]
+                        login_close = None
+                        for selector in login_selectors:
+                            login_close = page.query_selector(selector)
+                            if login_close:
+                                break
+                        if login_close:
+                            try:
+                                login_close.click(timeout=3000)
+                            except:
+                                try:
+                                    login_close.click(force=True, timeout=2000)
+                                except:
+                                    try:
+                                        page.evaluate("arguments[0].click()", login_close)
+                                    except:
+                                        page.keyboard.press('Escape')
+                            page.wait_for_timeout(500)
+                    except Exception:
+                        pass
+            except Exception as e:
+                print(f"Playwright: 访问知乎首页失败: {e}")
+
+            # 访问目标文章
+            print("Playwright: 直接访问目标文章...")
+            if on_detail:
+                on_detail("正在访问目标文章...")
+            response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
+
+            # 等待稳定与处理弹窗
+            page.wait_for_timeout(random.uniform(1000, 2000))
+            try:
+                login_selectors = [
+                    '.Modal-closeButton', '.SignFlow-close', '[aria-label="关闭"]', '.Modal-close',
+                    '.close-button', 'button[aria-label="关闭"]', '.ant-modal-close', '.el-dialog__close'
+                ]
+                login_close = None
+                for selector in login_selectors:
+                    login_close = page.query_selector(selector)
+                    if login_close:
+                        break
+                if login_close:
+                    try:
+                        login_close.click(timeout=5000)
+                    except:
+                        try:
+                            login_close.click(force=True, timeout=3000)
+                        except:
+                            try:
+                                page.evaluate("arguments[0].click()", login_close)
+                            except:
+                                try:
+                                    page.keyboard.press('Escape')
+                                except:
+                                    pass
+                    page.wait_for_timeout(1000)
+            except Exception as e:
+                try:
+                    page.keyboard.press('Escape')
+                except:
+                    pass
+
+            page.wait_for_timeout(random.uniform(1000, 2000))
+            try:
+                page.wait_for_selector('div.Post-RichTextContainer, div.Post-RichText, article, div.content', timeout=10000)
+            except:
+                pass
+
+            if on_detail:
+                on_detail("正在获取页面内容...")
+            html = page.content()
+            title = None
+            try:
+                title = page.title()
+            except:
+                pass
+
+            try:
+                page.close()
+            except Exception:
+                pass
+            try:
+                context.close()
+            except Exception:
+                pass
+
+            return CrawlerResult(success=True, title=title, text_content=html)
+
+        # 分支2：每 URL 独立 Browser（原路径）
+        from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             # 启动真实的Chrome浏览器，使用成功的反检测配置
             browser = p.chromium.launch(

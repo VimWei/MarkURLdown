@@ -65,6 +65,7 @@ class PySideApp(QMainWindow):
         self.ignore_ssl_var = False
         self.download_images_var = True
         self.filter_site_chrome_var = True
+        self.use_shared_browser_var = True
 
         self.vm = ViewModel()
         self.signals = ProgressSignals()
@@ -83,6 +84,7 @@ class PySideApp(QMainWindow):
                 "ignore_ssl": self.ignore_ssl_cb.isChecked(),
                 "download_images": self.download_images_cb.isChecked(),
                 "filter_site_chrome": self.filter_site_chrome_cb.isChecked(),
+                "use_shared_browser": self.use_shared_browser_cb.isChecked(),
             }
             state_path = os.path.join(self.root_dir, "sessions", "last_state.json")
             save_config(state_path, state_data)
@@ -165,7 +167,9 @@ class PySideApp(QMainWindow):
         self.download_images_cb.setChecked(self.download_images_var)
         self.filter_site_chrome_cb = QCheckBox()
         self.filter_site_chrome_cb.setChecked(self.filter_site_chrome_var)
-        for cb in [self.use_proxy_cb, self.ignore_ssl_cb, self.download_images_cb, self.filter_site_chrome_cb]:
+        self.use_shared_browser_cb = QCheckBox(self.translator.t('use_shared_browser_checkbox'))
+        self.use_shared_browser_cb.setChecked(self.use_shared_browser_var)
+        for cb in [self.use_proxy_cb, self.ignore_ssl_cb, self.download_images_cb, self.filter_site_chrome_cb, self.use_shared_browser_cb]:
             options_layout.addWidget(cb)
         layout.addWidget(options_frame, 3, 0, 1, 4)
 
@@ -338,6 +342,8 @@ class PySideApp(QMainWindow):
             self.download_images_cb.setChecked(bool(state["download_images"]))
         if "filter_site_chrome" in state:
             self.filter_site_chrome_cb.setChecked(bool(state["filter_site_chrome"]))
+        if "use_shared_browser" in state:
+            self.use_shared_browser_cb.setChecked(bool(state["use_shared_browser"]))
 
     def _choose_output_dir(self):
         chosen = QFileDialog.getExistingDirectory(self, self.translator.t('dialog_choose_output_dir'), self.output_entry.text() or os.getcwd())
@@ -370,6 +376,7 @@ class PySideApp(QMainWindow):
             ignore_ssl=self.ignore_ssl_cb.isChecked(),
             download_images=self.download_images_cb.isChecked(),
             filter_site_chrome=self.filter_site_chrome_cb.isChecked(),
+            use_shared_browser=self.use_shared_browser_cb.isChecked(),
         )
         self.vm.start(reqs, out_dir, options, self._on_event)
 
@@ -480,6 +487,7 @@ class PySideApp(QMainWindow):
                 "ignore_ssl": self.ignore_ssl_cb.isChecked(),
                 "download_images": self.download_images_cb.isChecked(),
                 "filter_site_chrome": self.filter_site_chrome_cb.isChecked(),
+                "use_shared_browser": self.use_shared_browser_cb.isChecked(),
             }
             filename, _ = QFileDialog.getSaveFileName(self, t('dialog_export_config'), sessions_dir, t('file_filter_json'))
             if filename:

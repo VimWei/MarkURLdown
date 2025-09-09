@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import time
 import random
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 from bs4 import BeautifulSoup
 
@@ -27,7 +27,7 @@ class FetchResult:
     html_markdown: str
 
 
-def fetch_weixin_article(session, url: str, on_detail: Optional[Callable[[str], None]] = None) -> FetchResult:
+def fetch_weixin_article(session, url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> FetchResult:
     """
     获取微信公众号文章内容 - 多策略尝试
     
@@ -40,7 +40,7 @@ def fetch_weixin_article(session, url: str, on_detail: Optional[Callable[[str], 
     # 优先使用Playwright处理需要验证的链接，然后使用轻量级策略
     crawler_strategies = [
         # 策略1: Playwright - 最可靠，能处理微信的poc_token验证
-        lambda: _try_playwright_crawler(url, on_detail),
+        lambda: _try_playwright_crawler(url, on_detail, shared_browser),
         
         # 策略2: httpx - 现代化HTTP客户端，备用策略
         lambda: _try_httpx_crawler(session, url, on_detail),
@@ -107,14 +107,65 @@ def fetch_weixin_article(session, url: str, on_detail: Optional[Callable[[str], 
     raise Exception("所有微信获取策略都失败，回退到通用转换器")
 
 
-def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None) -> CrawlerResult:
+def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理微信的poc_token验证"""
     try:
-        # 动态导入 Playwright
+        # 若有共享 Browser，走共享路径：new_context → bootstrap → 访问 → 关闭 context
+        if shared_browser is not None:
+            context = shared_browser.new_context(
+                viewport={'width': 1920, 'height': 1080},
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                locale='zh-CN',
+                timezone_id='Asia/Shanghai',
+                extra_http_headers={
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Referer': 'https://mp.weixin.qq.com/',
+                }
+            )
+            page = context.new_page()
+            page.set_default_timeout(30000)
+            try:
+                try:
+                    print("Playwright: 正在访问微信首页建立会话...")
+                    if on_detail:
+                        on_detail("正在访问微信首页建立会话...")
+                    page.goto("https://mp.weixin.qq.com/", wait_until='domcontentloaded', timeout=15000)
+                    page.wait_for_timeout(random.uniform(2000, 4000))
+                except Exception:
+                    pass
+                print(f"Playwright: 正在访问 {url}")
+                if on_detail:
+                    on_detail("正在访问目标文章...")
+                response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
+                if not response or response.status >= 400:
+                    return CrawlerResult(success=False, title=None, text_content="", error=f"HTTP {response.status if response else 'Unknown'}")
+                page.wait_for_timeout(random.uniform(3000, 6000))
+                if on_detail:
+                    on_detail("正在获取页面内容...")
+                html = page.content()
+                title = None
+                try:
+                    title = page.title()
+                except Exception:
+                    pass
+                return CrawlerResult(success=True, title=title, text_content=html)
+            finally:
+                try:
+                    page.close()
+                except Exception:
+                    pass
+                try:
+                    context.close()
+                except Exception:
+                    pass
+        # 否则走原始的 per-URL 浏览器路径
         from playwright.sync_api import sync_playwright
-        
         with sync_playwright() as p:
-            # 启动浏览器，使用更多反检测参数
             browser = p.chromium.launch(
                 headless=True,
                 args=[
@@ -132,8 +183,6 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                     '--disable-javascript',  # 禁用JavaScript，避免检测
                 ]
             )
-            
-            # 创建上下文，模拟真实用户
             context = browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -149,19 +198,11 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                     'Referer': 'https://mp.weixin.qq.com/',
                 }
             )
-            
-            # 创建页面
             page = context.new_page()
-            
-            # 设置超时
             page.set_default_timeout(30000)
-            
-            # 访问页面
             print(f"Playwright: 正在访问 {url}")
             if on_detail:
                 on_detail("正在启动浏览器访问微信...")
-            
-            # 先访问微信首页建立会话
             try:
                 print("Playwright: 正在访问微信首页建立会话...")
                 if on_detail:
@@ -170,43 +211,23 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                 page.wait_for_timeout(random.uniform(2000, 4000))
             except Exception as e:
                 print(f"Playwright: 访问微信首页失败: {e}")
-            
-            # 访问目标页面
             response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
             if on_detail:
                 on_detail("正在访问目标文章...")
-            
             if not response or response.status >= 400:
                 browser.close()
-                return CrawlerResult(
-                    success=False,
-                    title=None,
-                    text_content="",
-                    error=f"HTTP {response.status if response else 'Unknown'}"
-                )
-            
-            # 等待页面加载完成
+                return CrawlerResult(success=False, title=None, text_content="", error=f"HTTP {response.status if response else 'Unknown'}")
             page.wait_for_timeout(random.uniform(3000, 6000))
-            
-            # 获取页面内容
             if on_detail:
                 on_detail("正在获取页面内容...")
             html = page.content()
-            
-            # 尝试获取标题
             title = None
             try:
                 title = page.title()
             except:
                 pass
-            
             browser.close()
-            
-            return CrawlerResult(
-                success=True,
-                title=title,
-                text_content=html
-            )
+            return CrawlerResult(success=True, title=title, text_content=html)
             
     except ImportError:
         return CrawlerResult(

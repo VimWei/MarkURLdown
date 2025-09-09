@@ -42,6 +42,20 @@ class ConvertService:
             on_event(ProgressEvent(kind="progress_init", total=total, key="convert_init", data={"total": total}))
             session = build_requests_session(ignore_ssl=options.ignore_ssl, use_proxy=options.use_proxy)
 
+            # 可选：共享 Browser （加速模式）
+            playwright_runtime = None
+            shared_browser = None
+            if getattr(options, "use_shared_browser", False):
+                try:
+                    from playwright.sync_api import sync_playwright
+                    playwright_runtime = sync_playwright().start()
+                    # 采用通用、稳健的最小配置。站点特定选项在 new_context 时设置。
+                    shared_browser = playwright_runtime.chromium.launch(headless=True)
+                    on_event(ProgressEvent(kind="detail", key="convert_shared_browser_started"))
+                except Exception as _e:
+                    # 失败则降级为非共享路径
+                    shared_browser = None
+
             completed = 0
             for idx, req in enumerate(requests_list, start=1):
                 if self._should_stop:
@@ -63,6 +77,8 @@ class ConvertService:
                     "out_dir": out_dir,
                     "on_detail": _emit_detail,
                     "should_stop": lambda: self._should_stop,
+                    # 仅在开启加速模式时传递共享 Browser
+                    "shared_browser": shared_browser,
                 })
                 try:
                     result = registry_convert(payload, session, options)
@@ -75,6 +91,17 @@ class ConvertService:
 
             on_event(ProgressEvent(kind="progress_done", key="convert_progress_done", data={"completed": completed, "total": total}))
         finally:
+            # 关闭共享 Browser
+            try:
+                if shared_browser is not None:
+                    shared_browser.close()
+            except Exception:
+                pass
+            try:
+                if playwright_runtime is not None:
+                    playwright_runtime.stop()
+            except Exception:
+                pass
             self._thread = None
 
 
