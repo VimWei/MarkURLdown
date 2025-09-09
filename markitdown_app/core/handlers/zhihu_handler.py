@@ -665,7 +665,23 @@ def _process_zhihu_content(html: str, title: str | None = None, url: str | None 
     if author_meta:
         author = author_meta.get('content', '').strip()
 
-    # 如果meta标签没有作者信息，尝试从文章内容中提取
+    # 其次尝试从作者信息容器中提取（知乎页面常见：div.AuthorInfo-content）
+    if not author:
+        author_info = soup.select_one('div.AuthorInfo-content')
+        if author_info:
+            # 优先取带有作者名字的可见文本
+            # 常见结构含 a.AuthorInfo-name 或 span 等
+            name_elem = author_info.select_one('.AuthorInfo-name, a, span')
+            if name_elem:
+                candidate = name_elem.get_text(strip=True)
+                if candidate:
+                    author = candidate
+            if not author:
+                text = author_info.get_text(" ", strip=True)
+                if text:
+                    author = text
+
+    # 如果上述方式没有作者信息，尝试从文章内容中提取
     if not author:
         # 查找包含作者信息的文本模式
         content_elem = soup.find('div', class_='Post-RichTextContainer') or soup.find('div', class_='Post-RichText')
@@ -685,8 +701,8 @@ def _process_zhihu_content(html: str, title: str | None = None, url: str | None 
                 if match:
                     author = match.group(1).strip()
                     # 清理作者名称，移除多余信息
-                    author = re.sub(r'（.*?）', '', author)  # 移除括号内容
-                    author = re.sub(r'知乎.*', '', author)  # 移除知乎信息
+                    author = re.sub(r'（.*?）', '', author)
+                    author = re.sub(r'知乎.*', '', author)
                     author = author.strip()
                     if author:
                         break
@@ -695,6 +711,7 @@ def _process_zhihu_content(html: str, title: str | None = None, url: str | None 
     publish_date = None
     date_selectors = [
         'time[datetime]',
+        'div.ContentItem-time',
         'span[data-tooltip]',
         'div.Post-Header .ContentItem-time',
         'meta[property="article:published_time"]',
@@ -709,6 +726,8 @@ def _process_zhihu_content(html: str, title: str | None = None, url: str | None 
             elif elem.get('datetime'):
                 publish_date = elem.get('datetime', '').strip()
             else:
+                # ContentItem-time 常位于包含相对时间/tooltip 的容器
+                # 获取尽量干净的可见文本
                 publish_date = elem.get_text(strip=True)
             if publish_date:
                 break
