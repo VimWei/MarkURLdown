@@ -6,3 +6,6 @@ tests/
 run_tests.py
 **/__pycache__/
 *.swp
+GEMINI.md
+.cursorignore
+.cursorrules
