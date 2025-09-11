@@ -363,7 +363,7 @@ def _build_zhihu_header_parts(soup: BeautifulSoup, url: str | None) -> tuple[str
     """构建Markdown头部信息片段（标题、来源、作者、时间），并返回 (title, parts)。"""
     # 检测页面类型
     page_type = _detect_zhihu_page_type(url)
-    
+
     header_parts: list[str] = []
     title: str | None = _extract_zhihu_title(soup, page_type)
     if title:
@@ -447,7 +447,7 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
     """尝试使用 Playwright 爬虫 - 能处理知乎的验证机制"""
     # 检测页面类型
     page_type = _detect_zhihu_page_type(url)
-    
+
     try:
         # 分支1：共享 Browser（为每个 URL 新建 Context）
         if shared_browser is not None:
@@ -1065,7 +1065,7 @@ def _process_zhihu_content(html: str, title_hint: str | None = None, url: str | 
 
     # 检测页面类型
     page_type = _detect_zhihu_page_type(url)
-    
+
     # 先构建头部信息（包含标题抽取）
     title, header_parts = _build_zhihu_header_parts(soup, url)
     header_str = ("\n".join(header_parts) + "\n\n") if header_parts else ""
@@ -1096,7 +1096,7 @@ def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], N
     """
     # 检测页面类型
     page_type = _detect_zhihu_page_type(url)
-    
+
     # 若页面类型未知，委托给通用处理器
     if page_type.kind == 'unknown':
         try:
