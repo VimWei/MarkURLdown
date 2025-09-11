@@ -32,6 +32,306 @@ class ZhihuPageType:
     is_column_page: bool
     kind: str  # "answer" | "column" | "unknown"
 
+# 选择器与等待点常量（集中管理，便于维护与复用）
+ZHIHU_SELECTORS = {
+    'home_login_close': [
+        '.Modal-closeButton',
+        '.SignFlow-close',
+        '[aria-label="关闭"]',
+        '.Modal-close',
+        '.close-button',
+        'button[aria-label="关闭"]',
+    ],
+    'login_close': [
+        '.Modal-closeButton',
+        '.SignFlow-close',
+        '[aria-label="关闭"]',
+        '.Modal-close',
+        '.close-button',
+        'button[aria-label="关闭"]',
+        '.ant-modal-close',
+        '.el-dialog__close',
+        '.Qrcode-close',
+    ],
+    'expand_buttons': [
+        'button.ContentItem-expandButton',
+        'button:has-text("展开阅读全文")',
+        'text="展开阅读全文"',
+        'a:has-text("展开阅读全文")',
+        'span:has-text("展开阅读全文")',
+        '[data-za-detail-view-element_name="展开阅读全文"]',
+        '.RichContent-inner button',
+        '.RichContent-inner a',
+        'button[data-za-detail-view-element_name="展开阅读全文"]',
+    ],
+}
+
+WAIT_SELECTOR_BY_TYPE = {
+    'answer': 'h1.QuestionHeader-title, div.QuestionAnswer-content',
+    'column': 'article',
+    'unknown': 'main',
+}
+
+def _get_wait_selector_for_page_type(page_type: ZhihuPageType) -> str:
+    """根据页面类型返回等待用选择器。"""
+    if page_type.is_answer_page:
+        return WAIT_SELECTOR_BY_TYPE['answer']
+    if page_type.is_column_page:
+        return WAIT_SELECTOR_BY_TYPE['column']
+    return WAIT_SELECTOR_BY_TYPE['unknown']
+
+def _try_close_modal_with_selectors(page, selectors: list[str]) -> bool:
+    """尝试使用一组选择器关闭弹窗，返回是否成功。"""
+    try:
+        for selector in selectors:
+            try:
+                close_btn = page.query_selector(selector)
+                if close_btn and (not hasattr(close_btn, 'is_visible') or close_btn.is_visible()):
+                    try:
+                        close_btn.click(timeout=3000)
+                        print(f"Playwright: 成功点击关闭按钮 ({selector})")
+                        return True
+                    except:
+                        try:
+                            close_btn.click(force=True, timeout=2000)
+                            print(f"Playwright: 强制点击关闭按钮 ({selector})")
+                            return True
+                        except:
+                            try:
+                                page.evaluate("arguments[0].click()", close_btn)
+                                print(f"Playwright: 通过JS点击关闭按钮 ({selector})")
+                                return True
+                            except:
+                                pass
+            except:
+                continue
+    except Exception:
+        pass
+    return False
+
+def _wait_for_selector_stable(page, page_type: ZhihuPageType, timeout_ms: int = 10000) -> None:
+    """根据页面类型等待主要内容选择器出现。"""
+    try:
+        wait_selector = _get_wait_selector_for_page_type(page_type)
+        page.wait_for_selector(wait_selector, timeout=timeout_ms)
+    except Exception:
+        pass
+
+def _try_click_expand_buttons(page) -> bool:
+    """尝试点击知乎的“展开阅读全文”相关按钮，返回是否有点击发生。"""
+    expand_selectors = ZHIHU_SELECTORS['expand_buttons']
+    try:
+        for selector in expand_selectors:
+            try:
+                expand_buttons = page.query_selector_all(selector)
+                if expand_buttons:
+                    print(f"Playwright: 找到展开按钮 ({selector}): {len(expand_buttons)}个")
+                    for button in expand_buttons:
+                        try:
+                            if not hasattr(button, 'is_visible') or button.is_visible():
+                                button.scroll_into_view_if_needed()
+                                page.wait_for_timeout(500)
+                                button.click(timeout=3000)
+                                print("Playwright: 成功点击展开按钮")
+                                page.wait_for_timeout(3000)
+                                return True
+                        except Exception as e:
+                            print(f"Playwright: 点击展开按钮失败: {e}")
+                            continue
+                else:
+                    print(f"Playwright: 未找到展开按钮 ({selector})")
+            except Exception as e:
+                print(f"Playwright: 查找展开按钮失败 ({selector}): {e}")
+                continue
+    except Exception:
+        pass
+    return False
+
+def _read_page_content_and_title(page, on_detail: Optional[Callable[[str], None]] = None) -> tuple[str, str | None]:
+    """读取页面的HTML与标题，带轻量异常保护。"""
+    if on_detail:
+        try:
+            on_detail("正在获取页面内容...")
+        except Exception:
+            pass
+    html = ""
+    title = None
+    try:
+        html = page.content()
+    except Exception:
+        html = ""
+    try:
+        title = page.title()
+    except Exception:
+        title = None
+    return html, title
+
+def _establish_home_session(page, on_detail: Optional[Callable[[str], None]] = None) -> None:
+    """访问知乎首页建立会话并尝试关闭首页登录弹窗。"""
+    try:
+        print("Playwright: 正在访问知乎首页建立会话...")
+        if on_detail:
+            try:
+                on_detail("正在访问知乎首页建立会话...")
+            except Exception:
+                pass
+        home_response = page.goto("https://www.zhihu.com/", wait_until='domcontentloaded', timeout=15000)
+        if home_response and getattr(home_response, 'status', None) == 200:
+            print("Playwright: 知乎首页访问成功，获取cookies...")
+            page.wait_for_timeout(random.uniform(2000, 4000))
+            try:
+                page.mouse.move(random.randint(100, 800), random.randint(100, 400))
+                page.wait_for_timeout(random.uniform(500, 1500))
+            except Exception:
+                pass
+            try:
+                page.wait_for_timeout(random.uniform(500, 1500))
+                if _try_close_modal_with_selectors(page, ZHIHU_SELECTORS['home_login_close']):
+                    page.wait_for_timeout(500)
+                else:
+                    print("Playwright: 首页未发现登录弹窗")
+            except Exception as e:
+                print(f"Playwright: 处理首页登录弹窗异常: {e}")
+        else:
+            print("Playwright: 知乎首页访问失败")
+    except Exception as e:
+        print(f"Playwright: 访问知乎首页失败: {e}")
+
+def _goto_target_and_prepare_content(page, url: str, page_type: ZhihuPageType, on_detail: Optional[Callable[[str], None]] = None) -> None:
+    """访问目标URL，处理登录弹窗，等待页面稳定，并尝试展开全文。"""
+    # 访问目标
+    try:
+        if on_detail:
+            try:
+                on_detail("正在访问目标URL...")
+            except Exception:
+                pass
+        page.goto(url, wait_until='domcontentloaded', timeout=30000)
+    except Exception:
+        pass
+
+    # 初步等待
+    page.wait_for_timeout(random.uniform(1000, 2000))
+
+    # 先关一次登录弹窗
+    try:
+        if _try_close_modal_with_selectors(page, ZHIHU_SELECTORS['login_close']):
+            page.wait_for_timeout(1000)
+        else:
+            print("Playwright: 未发现登录弹窗")
+    except Exception as e:
+        print(f"Playwright: 处理登录弹窗异常: {e}")
+        try:
+            page.keyboard.press('Escape')
+            print("Playwright: 使用ESC键作为备用方案")
+        except Exception:
+            pass
+
+    # 再等待一小会，确保稳定
+    page.wait_for_timeout(random.uniform(1000, 2000))
+
+    # 处理知乎回答页面的展开逻辑（含再次确保弹窗关闭）
+    try:
+        print("Playwright: 开始查找展开按钮...")
+        print("Playwright: 检查并关闭登录弹窗...")
+        modal_closed = False
+        for attempt in range(3):
+            try:
+                modal_backdrop = page.query_selector('.Modal-backdrop')
+                qrcode_modal = page.query_selector('.Qrcode-qrcode')
+                if modal_backdrop or qrcode_modal:
+                    print(f"Playwright: 发现登录弹窗，尝试关闭 (第{attempt+1}次)")
+                    modal_closed = _try_close_modal_with_selectors(page, ZHIHU_SELECTORS['login_close']) or modal_closed
+                    if not modal_closed:
+                        page.keyboard.press('Escape')
+                        print("Playwright: 使用ESC键关闭弹窗")
+                        modal_closed = True
+                    page.wait_for_timeout(2000)
+                else:
+                    print("Playwright: 未发现登录弹窗")
+                    modal_closed = True
+                    break
+            except Exception as e:
+                print(f"Playwright: 关闭弹窗时出错: {e}")
+                page.keyboard.press('Escape')
+                page.wait_for_timeout(1000)
+
+        if not modal_closed:
+            print("Playwright: 无法完全关闭登录弹窗，跳过展开按钮点击")
+
+        # 等待页面完全加载
+        page.wait_for_timeout(2000)
+
+        # 点击展开按钮
+        _try_click_expand_buttons(page)
+    except Exception as e:
+        print(f"Playwright: 处理展开按钮时出错: {e}")
+
+    # 最后等待关键内容选择器
+    _wait_for_selector_stable(page, page_type, timeout_ms=10000)
+
+def _apply_stealth_and_defaults(page) -> None:
+    """为 Page 注入反检测脚本并设置默认超时。"""
+    try:
+        page.add_init_script("""
+            // 隐藏webdriver属性
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            // 模拟真实的navigator属性
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
+            // 模拟真实的屏幕属性
+            Object.defineProperty(screen, 'width', { get: () => 1920 });
+            Object.defineProperty(screen, 'height', { get: () => 1080 });
+            // 模拟真实的时区
+            Object.defineProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', {
+                value: function() { return { timeZone: 'Asia/Shanghai' }; }
+            });
+        """)
+    except Exception:
+        pass
+    try:
+        page.set_default_timeout(30000)
+    except Exception:
+        pass
+
+def _new_context_and_page_from_shared(shared_browser):
+    """在共享 Browser 上创建新的 Context 和 Page，并应用反检测设置。"""
+    context = shared_browser.new_context(
+        viewport={'width': 1920, 'height': 1080},
+        user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        locale='zh-CN',
+        timezone_id='Asia/Shanghai',
+        geolocation={'latitude': 39.9042, 'longitude': 116.4074},
+        permissions=['geolocation'],
+        extra_http_headers={
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+        }
+    )
+    page = context.new_page()
+    _apply_stealth_and_defaults(page)
+    return context, page
+
+def _teardown_shared_context_page(context, page) -> None:
+    """关闭共享模式下创建的 Page 与 Context。"""
+    try:
+        page.close()
+    except Exception:
+        pass
+    try:
+        context.close()
+    except Exception:
+        pass
+
 # 2. 底层工具函数（按调用关系排序）
 def _detect_zhihu_page_type(url: str | None) -> ZhihuPageType:
     """根据 URL 判定知乎页面类型（URL-only）。
@@ -451,61 +751,7 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
     try:
         # 分支1：共享 Browser（为每个 URL 新建 Context）
         if shared_browser is not None:
-            context = shared_browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                locale='zh-CN',
-                timezone_id='Asia/Shanghai',
-                geolocation={'latitude': 39.9042, 'longitude': 116.4074},  # 北京坐标
-                permissions=['geolocation'],
-                extra_http_headers={
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Sec-Fetch-Dest': 'document',
-                    'Sec-Fetch-Mode': 'navigate',
-                    'Sec-Fetch-Site': 'none',
-                    'Sec-Fetch-User': '?1',
-                    'Cache-Control': 'max-age=0',
-                }
-            )
-            page = context.new_page()
-            # 注入反检测脚本
-            page.add_init_script("""
-                // 隐藏webdriver属性
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined,
-                });
-
-                // 模拟真实的navigator属性
-                Object.defineProperty(navigator, 'plugins', {
-                    get: () => [1, 2, 3, 4, 5],
-                });
-
-                Object.defineProperty(navigator, 'languages', {
-                    get: () => ['zh-CN', 'zh', 'en'],
-                });
-
-                // 模拟真实的屏幕属性
-                Object.defineProperty(screen, 'width', {
-                    get: () => 1920,
-                });
-
-                Object.defineProperty(screen, 'height', {
-                    get: () => 1080,
-                });
-
-                // 模拟真实的时区
-                Object.defineProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', {
-                    value: function() {
-                        return { timeZone: 'Asia/Shanghai' };
-                    }
-                });
-            """)
-            page.set_default_timeout(30000)
+            context, page = _new_context_and_page_from_shared(shared_browser)
 
             # 首页 → 目标文章流程
             try:
@@ -543,102 +789,18 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             except Exception as e:
                 print(f"Playwright: 访问知乎首页失败: {e}")
 
-            # 访问目标文章
+            # 访问目标文章并准备内容
             print("Playwright: 直接访问目标文章...")
             if on_detail:
-                on_detail("正在访问目标文章...")
-            response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
-
-            # 等待稳定与处理弹窗
-            page.wait_for_timeout(random.uniform(1000, 2000))
-
-            # 首先尝试检测并关闭登录弹窗
-            login_closed = False
-            try:
-                # 等待页面加载完成
-                page.wait_for_load_state('networkidle', timeout=5000)
-            except:
-                pass
-
-            # 尝试多种方式关闭登录弹窗
-            login_selectors = [
-                '.Modal-closeButton', '.SignFlow-close', '[aria-label="关闭"]', '.Modal-close',
-                '.close-button', 'button[aria-label="关闭"]', '.ant-modal-close', '.el-dialog__close',
-                '.Modal-closeButton', '.SignFlow-close', 'button[aria-label="关闭"]'
-            ]
-
-            for selector in login_selectors:
                 try:
-                    login_close = page.query_selector(selector)
-                    if login_close and login_close.is_visible():
-                        try:
-                            login_close.click(timeout=3000)
-                            print(f"Playwright: 成功点击关闭按钮 ({selector})")
-                            login_closed = True
-                            break
-                        except:
-                            try:
-                                login_close.click(force=True, timeout=2000)
-                                print(f"Playwright: 强制点击关闭按钮 ({selector})")
-                                login_closed = True
-                                break
-                            except:
-                                try:
-                                    page.evaluate("arguments[0].click()", login_close)
-                                    print(f"Playwright: 通过JS点击关闭按钮 ({selector})")
-                                    login_closed = True
-                                    break
-                                except:
-                                    pass
-                except:
-                    continue
-
-            # 如果上述方法都失败，使用ESC键
-            if not login_closed:
-                try:
-                    page.keyboard.press('Escape')
-                    print("Playwright: 使用ESC键关闭登录弹窗")
-                    login_closed = True
-                except:
+                    on_detail("正在访问目标文章...")
+                except Exception:
                     pass
+            _goto_target_and_prepare_content(page, url, page_type, on_detail)
 
-            # 等待弹窗完全关闭
-            if login_closed:
-                page.wait_for_timeout(2000)
-                print("Playwright: 登录弹窗已关闭")
+            html, title = _read_page_content_and_title(page, on_detail)
 
-            # 等待页面稳定，确保弹窗完全关闭
-            page.wait_for_timeout(random.uniform(2000, 3000))
-
-            try:
-                # 根据页面类型优化等待选择器，提升渲染完成后的DOM完整度
-                if page_type.is_answer_page:
-                    wait_selector = 'h1.QuestionHeader-title, div.QuestionAnswer-content'
-                elif page_type.is_column_page:
-                    wait_selector = 'article'
-                else:
-                    wait_selector = 'main'
-                page.wait_for_selector(wait_selector, timeout=10000)
-            except:
-                pass
-
-            if on_detail:
-                on_detail("正在获取页面内容...")
-            html = page.content()
-            title = None
-            try:
-                title = page.title()
-            except:
-                pass
-
-            try:
-                page.close()
-            except Exception:
-                pass
-            try:
-                context.close()
-            except Exception:
-                pass
+            _teardown_shared_context_page(context, page)
 
             return CrawlerResult(success=True, title=title, text_content=html)
 
@@ -734,253 +896,10 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                 on_detail("正在启动浏览器访问知乎...")
 
             # 优化的访问流程：首页 → 目标文章
-            try:
-                # 1. 先访问知乎首页建立会话
-                print("Playwright: 正在访问知乎首页建立会话...")
-                if on_detail:
-                    on_detail("正在访问知乎首页建立会话...")
-                home_response = page.goto("https://www.zhihu.com/", wait_until='domcontentloaded', timeout=15000)
-                if home_response and home_response.status == 200:
-                    print("Playwright: 知乎首页访问成功，获取cookies...")
-                    # 模拟真实用户行为：等待页面加载
-                    page.wait_for_timeout(random.uniform(2000, 4000))
+            _establish_home_session(page, on_detail)
 
-                    # 模拟鼠标移动
-                    page.mouse.move(random.randint(100, 800), random.randint(100, 400))
-                    page.wait_for_timeout(random.uniform(500, 1500))
-
-                    # 智能处理首页登录弹窗
-                    try:
-                        # 等待弹窗可能出现的时机
-                        page.wait_for_timeout(random.uniform(500, 1500))
-
-                        login_selectors = [
-                            '.Modal-closeButton',
-                            '.SignFlow-close',
-                            '[aria-label="关闭"]',
-                            '.Modal-close',
-                            '.close-button',
-                            'button[aria-label="关闭"]'
-                        ]
-
-                        login_close = None
-                        for selector in login_selectors:
-                            login_close = page.query_selector(selector)
-                            if login_close:
-                                break
-
-                        if login_close:
-                            print("Playwright: 发现首页登录弹窗，尝试关闭...")
-
-                            # 多种关闭策略
-                            try:
-                                login_close.click(timeout=3000)
-                                print("Playwright: 首页弹窗直接点击成功")
-                            except:
-                                try:
-                                    login_close.click(force=True, timeout=2000)
-                                    print("Playwright: 首页弹窗强制点击成功")
-                                except:
-                                    try:
-                                        page.evaluate("arguments[0].click()", login_close)
-                                        print("Playwright: 首页弹窗JavaScript点击成功")
-                                    except:
-                                        page.keyboard.press('Escape')
-                                        print("Playwright: 首页弹窗使用ESC键关闭")
-
-                            page.wait_for_timeout(500)
-                        else:
-                            print("Playwright: 首页未发现登录弹窗")
-                    except Exception as e:
-                        print(f"Playwright: 处理首页登录弹窗异常: {e}")
-                else:
-                    print("Playwright: 知乎首页访问失败")
-            except Exception as e:
-                print(f"Playwright: 访问知乎首页失败: {e}")
-
-            # 2. 直接访问目标URL
-            print("Playwright: 直接访问目标URL...")
-            if on_detail:
-                on_detail("正在访问目标URL...")
-            response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
-
-            # 智能等待页面稳定并处理登录弹窗
-            print("Playwright: 等待页面稳定并处理登录弹窗...")
-
-            # 等待页面基本加载完成
-            page.wait_for_timeout(random.uniform(1000, 2000))
-
-            # 智能处理登录弹窗 - 多种策略
-            try:
-                # 查找各种可能的登录弹窗关闭按钮
-                login_selectors = [
-                    '.Modal-closeButton',
-                    '.SignFlow-close',
-                    '[aria-label="关闭"]',
-                    '.Modal-close',
-                    '.close-button',
-                    'button[aria-label="关闭"]',
-                    '.ant-modal-close',
-                    '.el-dialog__close'
-                ]
-
-                login_close = None
-                for selector in login_selectors:
-                    login_close = page.query_selector(selector)
-                    if login_close:
-                        break
-
-                if login_close:
-                    print("Playwright: 发现登录弹窗，尝试关闭...")
-
-                    # 策略1: 直接点击
-                    try:
-                        login_close.click(timeout=5000)
-                        print("Playwright: 直接点击成功")
-                    except:
-                        # 策略2: 强制点击
-                        try:
-                            login_close.click(force=True, timeout=3000)
-                            print("Playwright: 强制点击成功")
-                        except:
-                            # 策略3: 使用JavaScript点击
-                            try:
-                                page.evaluate("arguments[0].click()", login_close)
-                                print("Playwright: JavaScript点击成功")
-                            except:
-                                # 策略4: 按ESC键关闭弹窗
-                                try:
-                                    page.keyboard.press('Escape')
-                                    print("Playwright: 使用ESC键关闭弹窗")
-                                except:
-                                    print("Playwright: 所有关闭策略都失败，继续执行...")
-
-                    # 短暂等待确认弹窗关闭
-                    page.wait_for_timeout(1000)
-                else:
-                    print("Playwright: 未发现登录弹窗")
-
-            except Exception as e:
-                print(f"Playwright: 处理登录弹窗异常: {e}")
-                # 尝试按ESC键作为备用方案
-                try:
-                    page.keyboard.press('Escape')
-                    print("Playwright: 使用ESC键作为备用方案")
-                except:
-                    pass
-
-            # 最终等待页面完全稳定
-            page.wait_for_timeout(random.uniform(1000, 2000))
-
-            # 处理知乎回答页面的"展开阅读全文"按钮
-            try:
-                print("Playwright: 开始查找展开按钮...")
-
-                # 首先确保登录弹窗完全关闭
-                print("Playwright: 检查并关闭登录弹窗...")
-                modal_closed = False
-                for attempt in range(3):  # 最多尝试3次
-                    try:
-                        # 检查是否还有登录弹窗
-                        modal_backdrop = page.query_selector('.Modal-backdrop')
-                        qrcode_modal = page.query_selector('.Qrcode-qrcode')
-
-                        if modal_backdrop or qrcode_modal:
-                            print(f"Playwright: 发现登录弹窗，尝试关闭 (第{attempt+1}次)")
-
-                            # 尝试多种方式关闭弹窗
-                            close_selectors = [
-                                '.Modal-closeButton', '.SignFlow-close', '[aria-label="关闭"]',
-                                '.Modal-close', '.close-button', 'button[aria-label="关闭"]',
-                                '.ant-modal-close', '.el-dialog__close', '.Qrcode-close'
-                            ]
-
-                            for close_selector in close_selectors:
-                                try:
-                                    close_btn = page.query_selector(close_selector)
-                                    if close_btn and close_btn.is_visible():
-                                        close_btn.click(timeout=2000)
-                                        print(f"Playwright: 成功点击关闭按钮 ({close_selector})")
-                                        modal_closed = True
-                                        break
-                                except:
-                                    continue
-
-                            # 如果点击失败，使用ESC键
-                            if not modal_closed:
-                                page.keyboard.press('Escape')
-                                print("Playwright: 使用ESC键关闭弹窗")
-                                modal_closed = True
-
-                            page.wait_for_timeout(2000)  # 等待弹窗关闭
-                        else:
-                            print("Playwright: 未发现登录弹窗")
-                            modal_closed = True
-                            break
-
-                    except Exception as e:
-                        print(f"Playwright: 关闭弹窗时出错: {e}")
-                        page.keyboard.press('Escape')
-                        page.wait_for_timeout(1000)
-
-                if not modal_closed:
-                    print("Playwright: 无法完全关闭登录弹窗，跳过展开按钮点击")
-                    # 不返回错误，继续获取现有内容
-
-                # 等待页面完全加载
-                page.wait_for_timeout(2000)
-
-                # 尝试多种方式查找展开按钮
-                expand_selectors = [
-                    'button.ContentItem-expandButton',
-                    'button:has-text("展开阅读全文")',
-                    'text="展开阅读全文"',
-                    'a:has-text("展开阅读全文")',
-                    'span:has-text("展开阅读全文")',
-                    '[data-za-detail-view-element_name="展开阅读全文"]',
-                    '.RichContent-inner button',
-                    '.RichContent-inner a',
-                    'button[data-za-detail-view-element_name="展开阅读全文"]'
-                ]
-
-                expand_clicked = False
-                for selector in expand_selectors:
-                    try:
-                        expand_buttons = page.query_selector_all(selector)
-                        if expand_buttons:
-                            print(f"Playwright: 找到展开按钮 ({selector}): {len(expand_buttons)}个")
-                            for button in expand_buttons:
-                                try:
-                                    # 检查按钮是否可见
-                                    if button.is_visible():
-                                        # 滚动到按钮位置
-                                        button.scroll_into_view_if_needed()
-                                        page.wait_for_timeout(500)
-
-                                        # 尝试点击
-                                        button.click(timeout=3000)
-                                        print("Playwright: 成功点击展开按钮")
-                                        page.wait_for_timeout(3000)  # 等待内容展开
-                                        expand_clicked = True
-                                        break
-                                    else:
-                                        print("Playwright: 展开按钮不可见")
-                                except Exception as e:
-                                    print(f"Playwright: 点击展开按钮失败: {e}")
-                                    continue
-                            if expand_clicked:
-                                break
-                        else:
-                            print(f"Playwright: 未找到展开按钮 ({selector})")
-                    except Exception as e:
-                        print(f"Playwright: 查找展开按钮失败 ({selector}): {e}")
-                        continue
-
-                if not expand_clicked:
-                    print("Playwright: 所有展开按钮点击尝试都失败了")
-
-            except Exception as e:
-                print(f"Playwright: 处理展开按钮时出错: {e}")
+            # 2. 直接访问目标URL并准备内容
+            _goto_target_and_prepare_content(page, url, page_type, on_detail)
 
             # 检查页面标题而不是响应状态，因为知乎可能返回200但内容是403页面
             try:
@@ -1007,30 +926,15 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             page.mouse.wheel(0, random.randint(100, 400))
             page.wait_for_timeout(random.uniform(1000, 2000))
 
-            try:
-                # 根据页面类型优化等待选择器，提升渲染完成后的DOM完整度
-                if page_type.is_answer_page:
-                    wait_selector = 'h1.QuestionHeader-title, div.QuestionAnswer-content'
-                elif page_type.is_column_page:
-                    wait_selector = 'article'
-                else:
-                    wait_selector = 'main'
-                page.wait_for_selector(wait_selector, timeout=10000)
-            except:
-                pass
+            _wait_for_selector_stable(page, page_type, timeout_ms=10000)
 
             # 获取页面内容
-            if on_detail:
-                on_detail("正在获取页面内容...")
-            html = page.content()
-
-            # 尝试获取标题
-            title = None
-            try:
-                title = page.title()
-                print(f"Playwright: 获取到标题: {title}")
-            except:
-                pass
+            html, title = _read_page_content_and_title(page, on_detail)
+            if title is not None:
+                try:
+                    print(f"Playwright: 获取到标题: {title}")
+                except Exception:
+                    pass
 
             browser.close()
 
