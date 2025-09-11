@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 
-
 def html_fragment_to_markdown(root) -> str:
     def node_to_md(node, in_heading: bool = False) -> str:
         if getattr(node, 'name', None) is None:
@@ -87,5 +86,3 @@ def html_fragment_to_markdown(root) -> str:
     md = node_to_md(root)
     md = re.sub(r"\n{3,}", "\n\n", md).strip() + "\n"
     return md
-
-

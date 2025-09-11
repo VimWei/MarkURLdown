@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 
-
 def normalize_markdown_headings(text: str, title: str | None) -> str:
     if not isinstance(text, str) or not text.strip():
         return text or ""
@@ -67,5 +66,3 @@ def normalize_markdown_headings(text: str, title: str | None) -> str:
     result = "\n".join(out)
     result = re.sub(r"\n{3,}", "\n\n", result).strip() + "\n"
     return result
-
-
