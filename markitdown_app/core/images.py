@@ -9,6 +9,50 @@ from datetime import datetime
 from urllib.parse import urljoin, urlparse
 from typing import Optional, Callable, Dict, Tuple
 
+# =============================================================================
+# 域名配置区域 - 统一管理所有图片域名规则
+# =============================================================================
+
+class ImageDomainConfig:
+    """图片域名配置类，统一管理各种域名的处理规则"""
+    
+    # 需要格式检测的域名（这些域名的图片可能没有正确的文件扩展名）
+    FORMAT_DETECTION_DOMAINS = {
+        # 知乎图片域名 - 使用通配符匹配
+        'zhimg.com': 'wildcard',  # 匹配 *.zhimg.com
+        # 微信图片CDN
+        'qpic.cn': 'exact',
+        'mmbiz.qpic.cn': 'exact',
+    }
+    
+    # 通常格式正确的CDN域名（不需要格式检测）
+    RELIABLE_CDN_PREFIXES = [
+        'cdn.',
+        'static.',
+        'assets.',
+        'img.',
+        'images.',
+    ]
+    
+    @classmethod
+    def should_detect_format(cls, host: str) -> bool:
+        """判断域名是否需要格式检测"""
+        host = host.lower()
+        
+        for domain, match_type in cls.FORMAT_DETECTION_DOMAINS.items():
+            if match_type == 'exact' and host == domain:
+                return True
+            elif match_type == 'wildcard' and (host == domain or host.endswith('.' + domain)):
+                return True
+        
+        return False
+    
+    @classmethod
+    def is_reliable_cdn(cls, host: str) -> bool:
+        """判断是否是可靠的CDN域名"""
+        host = host.lower()
+        return any(host.startswith(prefix) for prefix in cls.RELIABLE_CDN_PREFIXES)
+
 def _convert_github_url(url: str) -> str:
     """将GitHub的旧格式URL转换为新格式，避免重定向问题"""
     if "github.com" in url and "/raw/" in url:
@@ -19,7 +63,7 @@ def _convert_github_url(url: str) -> str:
 
 def _detect_image_format_from_header(content: bytes) -> str:
     """从文件头检测图片格式"""
-    if len(content) < 20:
+    if len(content) < 8:
         return ''
 
     header = content[:20]
@@ -27,8 +71,13 @@ def _detect_image_format_from_header(content: bytes) -> str:
     # 检测各种图片格式的文件头
     if header.startswith(b'\xff\xd8\xff'):
         return '.jpg'  # JPEG
-    elif header.startswith(b'\x89PNG\r\n\x1a\n'):
-        return '.png'  # PNG
+    elif header.startswith(b'\x89PNG'):
+        # PNG格式检测：标准文件头是 89 50 4E 47 0D 0A 1A 0A (8字节)
+        # 但实际文件中可能只有前4字节的PNG标识，后面4字节可能不同
+        if len(content) >= 4:
+            # 检查PNG文件头的前4字节：89 50 4E 47
+            if content[:4] == b'\x89PNG':
+                return '.png'
     elif header.startswith(b'GIF87a') or header.startswith(b'GIF89a'):
         return '.gif'  # GIF
     elif header.startswith(b'RIFF') and len(header) >= 12 and header[8:12] == b'WEBP':
@@ -37,7 +86,7 @@ def _detect_image_format_from_header(content: bytes) -> str:
         return '.bmp'  # BMP
     elif header.startswith(b'II*\x00') or header.startswith(b'MM\x00*'):
         return '.tiff'  # TIFF
-    elif header.startswith(b'<svg') or b'<svg' in header:
+    elif header.startswith(b'<svg') or header.startswith(b'<SVG') or b'<svg' in header.lower():
         return '.svg'  # SVG
     elif header.startswith(b'\x00\x00\x01\x00') or header.startswith(b'\x00\x00\x02\x00'):
         return '.ico'  # ICO
@@ -52,27 +101,19 @@ def _should_detect_image_format(url: str) -> bool:
     host = parsed.netloc.lower()
     path = parsed.path.lower()
 
-    # 对已知有格式问题的域名进行检测
-    problematic_domains = [
-        'zhimg.com',  # 知乎图片
-        'pic.zhimg.com',  # 知乎图片
-        'qpic.cn',  # 微信图片CDN
-        'mmbiz.qpic.cn',  # 微信图片CDN
-    ]
-
-    # 检查是否是问题域名
-    if any(domain in host for domain in problematic_domains):
+    # 使用统一的域名配置进行检测
+    if ImageDomainConfig.should_detect_format(host):
         return True
 
     # 对于没有扩展名的图片，采用保守策略
     # 只对已知可能有问题的模式进行检测
     if not any(ext in path for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']):
-        # 其他常见CDN和API：通常格式正确，不需要检测
-        if any(cdn in host for cdn in ['cdn.', 'static.', 'assets.', 'img.', 'images.']):
+        # 检查是否是可靠的CDN域名
+        if ImageDomainConfig.is_reliable_cdn(host):
             return False
 
         # 对于其他没有扩展名的图片，暂时不检测（保守策略）
-        # 如果发现新的问题站点，可以添加到上面的problematic_domains中
+        # 如果发现新的问题站点，可以添加到 ImageDomainConfig.FORMAT_DETECTION_DOMAINS 中
         return False
 
     return False
@@ -255,8 +296,13 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
         if resolved not in url_to_local:
             parsed = urlparse(resolved)
             _, ext = os.path.splitext(os.path.basename(parsed.path))
-            if not ext:
+            
+            # 对于需要格式检测的域名，统一使用.img扩展名，后续会根据实际内容重命名
+            if _should_detect_image_format(resolved):
                 ext = ".img"
+            elif not ext:
+                ext = ".img"
+                
             local_name = f"{run_stamp}_{counter:03d}{ext}"
             counter += 1
             local_path = os.path.join(images_dir, local_name)
