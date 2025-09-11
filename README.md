@@ -12,27 +12,30 @@ MarkURLDown is a sophisticated desktop application designed to effortlessly conv
 
 *   **Modern & Intuitive GUI:** A clean and responsive graphical interface built with PySide6.
 *   **Batch Conversion:** Convert multiple URLs in a single session with progress tracking and real-time status updates.
-*   **Smart Content Extraction:** Intelligently cleans up clutter like ads, navigation bars, and footers to grab only the main article content.
 *   **Advanced Crawler Technology:** Multi-strategy crawler system with automatic fallback:
     *   **Playwright:** Modern browser automation for complex anti-bot scenarios
     *   **httpx:** High-performance HTTP/2 client for fast requests
     *   **Requests:** Lightweight HTTP client for simple scenarios
+    *   **Anti-Detection Measures:** Advanced browser automation with realistic user behavior simulation, geolocation spoofing, and stealth techniques
+    *   **Dynamic Content Processing:** Handles JavaScript-rendered content, lazy-loaded images, and interactive elements
+    *   **Smart Retry Logic:** Automatic retry with exponential backoff for failed requests and rate limiting
+*   **Smart Content Extraction:** Intelligently cleans up clutter like ads, navigation bars, and footers to grab only the main article content.
 *   **Specialized Site Handlers:** Dedicated processors for complex websites:
-    *   **WeChat Official Accounts:** Advanced handling with multi-strategy crawling and anti-detection measures
-    *   **Zhihu Articles:** Specialized extraction for Zhihu columns and articles with authentication handling
-    *   **WordPress Sites:** Optimized processing for WordPress-based websites
+    *   **WeChat Official Account Articles:** Advanced handling with multi-strategy crawling and anti-detection measures
+    *   **Zhihu.com:** Supports both Zhihu column articles and answer pages with Smart Content Detection
+    *   **WordPress Blogs:** Optimized processing for WordPress-based websites
     *   **Next.js Blogs:** Tuned for common static Next.js blog themes
     *   **Generic Handler:** Intelligent fallback for all other websites
+*   **Advanced Options:**
+    *   **Proxy Support:** Configurable proxy settings with system proxy detection
+    *   **SSL Verification:** Optional SSL certificate verification bypass for problematic sites
+    *   **Image Handling:** Downloads all images from articles and saves them locally for complete, offline-first archives
+    *   **Content Filtering:** Removes typical site chrome (nav, header, footer, TOC, comments) before conversion for Generic Handler
+    *   **Speed Mode (Shared Browser):** Reuse one Playwright browser per batch, new context per URL for improved performance
 *   **Session Management:**
     *   **Auto-save:** Automatically saves your work session and restores it on next launch
     *   **Config Export/Import:** Export and import configuration settings for easy backup and sharing
     *   **Multiple Sessions:** Support for multiple named sessions for different projects
-*   **Advanced Options:**
-    *   **Proxy Support:** Configurable proxy settings with system proxy detection
-    *   **SSL Verification:** Optional SSL certificate verification bypass for problematic sites
-    *   **Image Handling:** Downloads all images from articles and saves them locally for complete, offline-first archives.
-    *   **Filter non-content elements:** Removes typical site chrome (nav, header, footer, TOC, comments) before conversion for Generic Handler
-    *   **Speed Mode (Shared Browser):** Reuse one Playwright browser per batch, new context per URL.
 *   **Multilingual Support:** Built-in support for English and Chinese (Simplified) with automatic language detection and easy switching.
 
 ## Installation
@@ -115,10 +118,10 @@ This project stands on the shoulders of giants. We would like to thank the devel
 *   **PySide6:** For the powerful and modern Qt-based GUI framework that provides the responsive user interface.
 *   **Playwright:** For modern browser automation and handling complex anti-bot scenarios on challenging websites.
 *   **httpx:** For high-performance HTTP/2 client capabilities and modern async support.
-*   **aiohttp:** For asynchronous HTTP client functionality enabling concurrent image downloads.
 *   **Requests:** For robust and simple HTTP requests with excellent session management.
 *   **BeautifulSoup4:** For its excellence in parsing and navigating HTML content.
 *   **lxml:** For fast and reliable XML/HTML parsing capabilities.
+*   **aiohttp:** For asynchronous HTTP client functionality enabling concurrent image downloads.
 
 ## License
 
