@@ -10,6 +10,15 @@ from urllib.parse import urlparse
 
 from markitdown_app.core.html_to_md import html_fragment_to_markdown
 from markitdown_app.core.handlers import generic_handler as _generic
+from markitdown_app.services.playwright_driver import (
+    new_context_and_page_from_shared,
+    teardown_context_page,
+    establish_home_session,
+    try_close_modal_with_selectors,
+    read_page_content_and_title,
+    apply_stealth_and_defaults,
+    wait_for_selector_stable,
+)
 
 # 1. 数据类
 @dataclass
@@ -71,266 +80,6 @@ WAIT_SELECTOR_BY_TYPE = {
     'column': 'article',
     'unknown': 'main',
 }
-
-def _get_wait_selector_for_page_type(page_type: ZhihuPageType) -> str:
-    """根据页面类型返回等待用选择器。"""
-    if page_type.is_answer_page:
-        return WAIT_SELECTOR_BY_TYPE['answer']
-    if page_type.is_column_page:
-        return WAIT_SELECTOR_BY_TYPE['column']
-    return WAIT_SELECTOR_BY_TYPE['unknown']
-
-def _try_close_modal_with_selectors(page, selectors: list[str]) -> bool:
-    """尝试使用一组选择器关闭弹窗，返回是否成功。"""
-    try:
-        for selector in selectors:
-            try:
-                close_btn = page.query_selector(selector)
-                if close_btn and (not hasattr(close_btn, 'is_visible') or close_btn.is_visible()):
-                    try:
-                        close_btn.click(timeout=3000)
-                        print(f"Playwright: 成功点击关闭按钮 ({selector})")
-                        return True
-                    except:
-                        try:
-                            close_btn.click(force=True, timeout=2000)
-                            print(f"Playwright: 强制点击关闭按钮 ({selector})")
-                            return True
-                        except:
-                            try:
-                                page.evaluate("arguments[0].click()", close_btn)
-                                print(f"Playwright: 通过JS点击关闭按钮 ({selector})")
-                                return True
-                            except:
-                                pass
-            except:
-                continue
-    except Exception:
-        pass
-    return False
-
-def _wait_for_selector_stable(page, page_type: ZhihuPageType, timeout_ms: int = 10000) -> None:
-    """根据页面类型等待主要内容选择器出现。"""
-    try:
-        wait_selector = _get_wait_selector_for_page_type(page_type)
-        page.wait_for_selector(wait_selector, timeout=timeout_ms)
-    except Exception:
-        pass
-
-def _try_click_expand_buttons(page) -> bool:
-    """尝试点击知乎的“展开阅读全文”相关按钮，返回是否有点击发生。"""
-    expand_selectors = ZHIHU_SELECTORS['expand_buttons']
-    try:
-        for selector in expand_selectors:
-            try:
-                expand_buttons = page.query_selector_all(selector)
-                if expand_buttons:
-                    print(f"Playwright: 找到展开按钮 ({selector}): {len(expand_buttons)}个")
-                    for button in expand_buttons:
-                        try:
-                            if not hasattr(button, 'is_visible') or button.is_visible():
-                                button.scroll_into_view_if_needed()
-                                page.wait_for_timeout(500)
-                                button.click(timeout=3000)
-                                print("Playwright: 成功点击展开按钮")
-                                page.wait_for_timeout(3000)
-                                return True
-                        except Exception as e:
-                            print(f"Playwright: 点击展开按钮失败: {e}")
-                            continue
-                else:
-                    print(f"Playwright: 未找到展开按钮 ({selector})")
-            except Exception as e:
-                print(f"Playwright: 查找展开按钮失败 ({selector}): {e}")
-                continue
-    except Exception:
-        pass
-    return False
-
-def _read_page_content_and_title(page, on_detail: Optional[Callable[[str], None]] = None) -> tuple[str, str | None]:
-    """读取页面的HTML与标题，带轻量异常保护。"""
-    if on_detail:
-        try:
-            on_detail("正在获取页面内容...")
-        except Exception:
-            pass
-    html = ""
-    title = None
-    try:
-        html = page.content()
-    except Exception:
-        html = ""
-    try:
-        title = page.title()
-    except Exception:
-        title = None
-    return html, title
-
-def _establish_home_session(page, on_detail: Optional[Callable[[str], None]] = None) -> None:
-    """访问知乎首页建立会话并尝试关闭首页登录弹窗。"""
-    try:
-        print("Playwright: 正在访问知乎首页建立会话...")
-        if on_detail:
-            try:
-                on_detail("正在访问知乎首页建立会话...")
-            except Exception:
-                pass
-        home_response = page.goto("https://www.zhihu.com/", wait_until='domcontentloaded', timeout=15000)
-        if home_response and getattr(home_response, 'status', None) == 200:
-            print("Playwright: 知乎首页访问成功，获取cookies...")
-            page.wait_for_timeout(random.uniform(2000, 4000))
-            try:
-                page.mouse.move(random.randint(100, 800), random.randint(100, 400))
-                page.wait_for_timeout(random.uniform(500, 1500))
-            except Exception:
-                pass
-            try:
-                page.wait_for_timeout(random.uniform(500, 1500))
-                if _try_close_modal_with_selectors(page, ZHIHU_SELECTORS['home_login_close']):
-                    page.wait_for_timeout(500)
-                else:
-                    print("Playwright: 首页未发现登录弹窗")
-            except Exception as e:
-                print(f"Playwright: 处理首页登录弹窗异常: {e}")
-        else:
-            print("Playwright: 知乎首页访问失败")
-    except Exception as e:
-        print(f"Playwright: 访问知乎首页失败: {e}")
-
-def _goto_target_and_prepare_content(page, url: str, page_type: ZhihuPageType, on_detail: Optional[Callable[[str], None]] = None) -> None:
-    """访问目标URL，处理登录弹窗，等待页面稳定，并尝试展开全文。"""
-    # 访问目标
-    try:
-        if on_detail:
-            try:
-                on_detail("正在访问目标URL...")
-            except Exception:
-                pass
-        page.goto(url, wait_until='domcontentloaded', timeout=30000)
-    except Exception:
-        pass
-
-    # 初步等待
-    page.wait_for_timeout(random.uniform(1000, 2000))
-
-    # 先关一次登录弹窗
-    try:
-        if _try_close_modal_with_selectors(page, ZHIHU_SELECTORS['login_close']):
-            page.wait_for_timeout(1000)
-        else:
-            print("Playwright: 未发现登录弹窗")
-    except Exception as e:
-        print(f"Playwright: 处理登录弹窗异常: {e}")
-        try:
-            page.keyboard.press('Escape')
-            print("Playwright: 使用ESC键作为备用方案")
-        except Exception:
-            pass
-
-    # 再等待一小会，确保稳定
-    page.wait_for_timeout(random.uniform(1000, 2000))
-
-    # 处理知乎回答页面的展开逻辑（含再次确保弹窗关闭）
-    try:
-        print("Playwright: 开始查找展开按钮...")
-        print("Playwright: 检查并关闭登录弹窗...")
-        modal_closed = False
-        for attempt in range(3):
-            try:
-                modal_backdrop = page.query_selector('.Modal-backdrop')
-                qrcode_modal = page.query_selector('.Qrcode-qrcode')
-                if modal_backdrop or qrcode_modal:
-                    print(f"Playwright: 发现登录弹窗，尝试关闭 (第{attempt+1}次)")
-                    modal_closed = _try_close_modal_with_selectors(page, ZHIHU_SELECTORS['login_close']) or modal_closed
-                    if not modal_closed:
-                        page.keyboard.press('Escape')
-                        print("Playwright: 使用ESC键关闭弹窗")
-                        modal_closed = True
-                    page.wait_for_timeout(2000)
-                else:
-                    print("Playwright: 未发现登录弹窗")
-                    modal_closed = True
-                    break
-            except Exception as e:
-                print(f"Playwright: 关闭弹窗时出错: {e}")
-                page.keyboard.press('Escape')
-                page.wait_for_timeout(1000)
-
-        if not modal_closed:
-            print("Playwright: 无法完全关闭登录弹窗，跳过展开按钮点击")
-
-        # 等待页面完全加载
-        page.wait_for_timeout(2000)
-
-        # 点击展开按钮
-        _try_click_expand_buttons(page)
-    except Exception as e:
-        print(f"Playwright: 处理展开按钮时出错: {e}")
-
-    # 最后等待关键内容选择器
-    _wait_for_selector_stable(page, page_type, timeout_ms=10000)
-
-def _apply_stealth_and_defaults(page) -> None:
-    """为 Page 注入反检测脚本并设置默认超时。"""
-    try:
-        page.add_init_script("""
-            // 隐藏webdriver属性
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-            // 模拟真实的navigator属性
-            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-            Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
-            // 模拟真实的屏幕属性
-            Object.defineProperty(screen, 'width', { get: () => 1920 });
-            Object.defineProperty(screen, 'height', { get: () => 1080 });
-            // 模拟真实的时区
-            Object.defineProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', {
-                value: function() { return { timeZone: 'Asia/Shanghai' }; }
-            });
-        """)
-    except Exception:
-        pass
-    try:
-        page.set_default_timeout(30000)
-    except Exception:
-        pass
-
-def _new_context_and_page_from_shared(shared_browser):
-    """在共享 Browser 上创建新的 Context 和 Page，并应用反检测设置。"""
-    context = shared_browser.new_context(
-        viewport={'width': 1920, 'height': 1080},
-        user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        locale='zh-CN',
-        timezone_id='Asia/Shanghai',
-        geolocation={'latitude': 39.9042, 'longitude': 116.4074},
-        permissions=['geolocation'],
-        extra_http_headers={
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
-            'Cache-Control': 'max-age=0',
-        }
-    )
-    page = context.new_page()
-    _apply_stealth_and_defaults(page)
-    return context, page
-
-def _teardown_shared_context_page(context, page) -> None:
-    """关闭共享模式下创建的 Page 与 Context。"""
-    try:
-        page.close()
-    except Exception:
-        pass
-    try:
-        context.close()
-    except Exception:
-        pass
 
 # 2. 底层工具函数（按调用关系排序）
 def _detect_zhihu_page_type(url: str | None) -> ZhihuPageType:
@@ -507,17 +256,6 @@ def _extract_zhihu_time(soup: BeautifulSoup, page_type: ZhihuPageType) -> str | 
                 node = soup.select_one('div.RichContent div.ContentItem-time')
                 if node:
                     text = node.get_text(" ", strip=True) or None
-            # 如果还是没找到，尝试在更大的范围内搜索包含时间关键词的文本
-            if not text:
-                from bs4 import NavigableString
-                # 在回答容器内搜索
-                answer_container = soup.select_one('div.QuestionAnswer-content') or soup.select_one('div.ContentItem') or soup
-                for text_node in answer_container.find_all(string=True):
-                    if isinstance(text_node, NavigableString):
-                        node_text = str(text_node).strip()
-                        if node_text and ('编辑于' in node_text or '发布于' in node_text) and any(year in node_text for year in ['2020', '2021', '2022', '2023', '2024', '2025']):
-                            text = node_text
-                            break
 
         elif page_type.is_column_page:
             # 优先从专栏正文附近的时间/地点块获取
@@ -659,89 +397,121 @@ def _clean_zhihu_external_links(content_elem):
             continue
 
 # 3. 中层业务函数（按调用关系排序）
-def _build_zhihu_header_parts(soup: BeautifulSoup, url: str | None) -> tuple[str | None, list[str]]:
-    """构建Markdown头部信息片段（标题、来源、作者、时间），并返回 (title, parts)。"""
-    # 检测页面类型
-    page_type = _detect_zhihu_page_type(url)
-
-    header_parts: list[str] = []
-    title: str | None = _extract_zhihu_title(soup, page_type)
-    if title:
-        header_parts.append(f"# {title}")
-
-    if url:
-        header_parts.append(f"**来源：** {url}")
-
-    author_name, author_url, author_badge = _extract_zhihu_author(soup, page_type)
-    if author_name:
-        if author_url:
-            if author_badge:
-                header_parts.append(f"**作者：** [{author_name}]({author_url})  {author_badge}")
-            else:
-                header_parts.append(f"**作者：** [{author_name}]({author_url})")
-        else:
-            if author_badge:
-                header_parts.append(f"**作者：** {author_name}  {author_badge}")
-            else:
-                header_parts.append(f"**作者：** {author_name}")
-
-    publish_time = _extract_zhihu_time(soup, page_type)
-    if publish_time:
-        header_parts.append(f"**时间：** {publish_time}")
-
-    return title, header_parts
-
-def _build_zhihu_content_element(soup: BeautifulSoup, page_type: ZhihuPageType):
-    """定位并组装知乎页面的内容容器，返回用于转 Markdown 的根元素。
-    - 专栏页：优先 `div.Post-RichTextContainer`，回退若干候选
-    - 回答页：优先 `RichContent-inner`，回退若干候选
-    - 未知页：使用保守选择器回退
-    """
-    content_elem = None
+def _get_wait_selector_for_page_type(page_type: ZhihuPageType) -> str:
+    """根据页面类型返回等待用选择器。"""
     if page_type.is_answer_page:
-        # 回答页：直接使用 RichContent-inner 作为正文容器
-        content_elem = soup.select_one('div.RichContent-inner')
-        if not content_elem:
-            # 回退：从 RichContent 容器内再取一次
-            rich_container = soup.select_one('div.RichContent.RichContent--unescapable')
-            if rich_container:
-                content_elem = rich_container.select_one('div.RichContent-inner')
+        return WAIT_SELECTOR_BY_TYPE['answer']
+    if page_type.is_column_page:
+        return WAIT_SELECTOR_BY_TYPE['column']
+    return WAIT_SELECTOR_BY_TYPE['unknown']
 
-    elif page_type.is_column_page:
-        # 专栏页：严格使用 Post-RichTextContainer 作为正文容器
-        content_elem = soup.select_one('div.Post-RichTextContainer')
+def _try_click_expand_buttons(page) -> bool:
+    """尝试点击知乎的“展开阅读全文”相关按钮，返回是否有点击发生。"""
+    expand_selectors = ZHIHU_SELECTORS['expand_buttons']
+    try:
+        for selector in expand_selectors:
+            try:
+                expand_buttons = page.query_selector_all(selector)
+                if expand_buttons:
+                    print(f"Playwright: 找到展开按钮 ({selector}): {len(expand_buttons)}个")
+                    for button in expand_buttons:
+                        try:
+                            if not hasattr(button, 'is_visible') or button.is_visible():
+                                button.scroll_into_view_if_needed()
+                                page.wait_for_timeout(500)
+                                button.click(timeout=3000)
+                                print("Playwright: 成功点击展开按钮")
+                                page.wait_for_timeout(3000)
+                                return True
+                        except Exception as e:
+                            print(f"Playwright: 点击展开按钮失败: {e}")
+                            continue
+                else:
+                    print(f"Playwright: 未找到展开按钮 ({selector})")
+            except Exception as e:
+                print(f"Playwright: 查找展开按钮失败 ({selector}): {e}")
+                continue
+    except Exception:
+        pass
+    return False
 
-    else:
-        # 未知类型：不做猜测，保持 None
-        content_elem = None
+def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callable[[str], None]] = None) -> None:
+    """访问目标URL，处理登录弹窗，等待页面稳定，并尝试展开全文。"""
+    # 访问目标
+    try:
+        if on_detail:
+            try:
+                on_detail("正在访问目标URL...")
+            except Exception:
+                pass
+        page.goto(url, wait_until='domcontentloaded', timeout=30000)
+    except Exception:
+        pass
 
-    return content_elem
+    # 初步等待
+    page.wait_for_timeout(random.uniform(1000, 2000))
 
-def _clean_and_normalize_zhihu_content(content_elem, page_type: ZhihuPageType, soup: BeautifulSoup | None = None) -> None:
-    """清洗知乎内容容器，标准化图片与链接，移除噪音元素。"""
-    # 图片懒加载与占位符
-    for img in content_elem.find_all('img', {'data-src': True}):
-        img['src'] = img['data-src']
-        del img['data-src']
-    for img in content_elem.find_all('img', {'data-original': True}):
-        img['src'] = img['data-original']
-        del img['data-original']
+    # 先关一次登录弹窗
+    try:
+        if try_close_modal_with_selectors(page, ZHIHU_SELECTORS['login_close']):
+            page.wait_for_timeout(1000)
+        else:
+            print("Playwright: 未发现登录弹窗")
+    except Exception as e:
+        print(f"Playwright: 处理登录弹窗异常: {e}")
+        try:
+            page.keyboard.press('Escape')
+            print("Playwright: 使用ESC键作为备用方案")
+        except Exception:
+            pass
 
-    # 移除脚本和样式
-    for script in content_elem.find_all(['script', 'style']):
-        script.decompose()
+    # 再等待一小会，确保稳定
+    page.wait_for_timeout(random.uniform(1000, 2000))
 
-    # 移除广告元素
-    for elem in content_elem.find_all(['div'], class_=['RichText-ADLinkCardContainer']):
-        elem.decompose()
+    # 处理知乎回答页面的展开逻辑（含再次确保弹窗关闭）
+    try:
+        print("Playwright: 检查并关闭登录弹窗...")
+        print("Playwright: 开始查找展开按钮...")
+        modal_closed = False
+        for attempt in range(3):
+            try:
+                modal_backdrop = page.query_selector('.Modal-backdrop')
+                qrcode_modal = page.query_selector('.Qrcode-qrcode')
+                if modal_backdrop or qrcode_modal:
+                    print(f"Playwright: 发现登录弹窗，尝试关闭 (第{attempt+1}次)")
+                    modal_closed = try_close_modal_with_selectors(page, ZHIHU_SELECTORS['login_close']) or modal_closed
+                    if not modal_closed:
+                        page.keyboard.press('Escape')
+                        print("Playwright: 使用ESC键关闭弹窗")
+                        modal_closed = True
+                    page.wait_for_timeout(2000)
+                else:
+                    print("Playwright: 未发现登录弹窗")
+                    modal_closed = True
+                    break
+            except Exception as e:
+                print(f"Playwright: 关闭弹窗时出错: {e}")
+                page.keyboard.press('Escape')
+                page.wait_for_timeout(1000)
 
-    # 链接处理与标准化
-    _clean_zhihu_zhida_links(content_elem)
-    _clean_zhihu_external_links(content_elem)
-    _normalize_zhihu_links(content_elem)
+        if not modal_closed:
+            print("Playwright: 无法完全关闭登录弹窗，跳过展开按钮点击")
 
-    # 移除不可见与零宽字符
-    _strip_invisible_characters(content_elem)
+        # 等待页面完全加载
+        page.wait_for_timeout(2000)
+
+        # 点击展开按钮
+        _try_click_expand_buttons(page)
+    except Exception as e:
+        print(f"Playwright: 处理展开按钮时出错: {e}")
+
+    # 最后等待关键内容选择器
+    try:
+        page_type = _detect_zhihu_page_type(url)
+        key = 'answer' if page_type.is_answer_page else ('column' if page_type.is_column_page else 'unknown')
+        wait_for_selector_stable(page, WAIT_SELECTOR_BY_TYPE, page_type_key=key, timeout_ms=10000)
+    except Exception:
+        wait_for_selector_stable(page, WAIT_SELECTOR_BY_TYPE, page_type_key='unknown', timeout_ms=10000)
 
 def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理知乎的验证机制"""
@@ -751,7 +521,7 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
     try:
         # 分支1：共享 Browser（为每个 URL 新建 Context）
         if shared_browser is not None:
-            context, page = _new_context_and_page_from_shared(shared_browser)
+            context, page = new_context_and_page_from_shared(shared_browser)
 
             # 首页 → 目标文章流程
             try:
@@ -763,26 +533,7 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                     page.wait_for_timeout(random.uniform(2000, 4000))
                     try:
                         page.wait_for_timeout(random.uniform(500, 1500))
-                        login_selectors = [
-                            '.Modal-closeButton', '.SignFlow-close', '[aria-label="关闭"]',
-                            '.Modal-close', '.close-button', 'button[aria-label="关闭"]'
-                        ]
-                        login_close = None
-                        for selector in login_selectors:
-                            login_close = page.query_selector(selector)
-                            if login_close:
-                                break
-                        if login_close:
-                            try:
-                                login_close.click(timeout=3000)
-                            except:
-                                try:
-                                    login_close.click(force=True, timeout=2000)
-                                except:
-                                    try:
-                                        page.evaluate("arguments[0].click()", login_close)
-                                    except:
-                                        page.keyboard.press('Escape')
+                        if try_close_modal_with_selectors(page, ZHIHU_SELECTORS['home_login_close']):
                             page.wait_for_timeout(500)
                     except Exception:
                         pass
@@ -791,16 +542,11 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
 
             # 访问目标文章并准备内容
             print("Playwright: 直接访问目标文章...")
-            if on_detail:
-                try:
-                    on_detail("正在访问目标文章...")
-                except Exception:
-                    pass
-            _goto_target_and_prepare_content(page, url, page_type, on_detail)
+            _goto_target_and_prepare_content(page, url, on_detail)
 
-            html, title = _read_page_content_and_title(page, on_detail)
+            html, title = read_page_content_and_title(page, on_detail)
 
-            _teardown_shared_context_page(context, page)
+            teardown_context_page(context, page)
 
             return CrawlerResult(success=True, title=title, text_content=html)
 
@@ -896,10 +642,16 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                 on_detail("正在启动浏览器访问知乎...")
 
             # 优化的访问流程：首页 → 目标文章
-            _establish_home_session(page, on_detail)
+            try:
+                print("Playwright: 正在访问知乎首页建立会话...")
+                if on_detail:
+                    on_detail("正在访问知乎首页建立会话...")
+                establish_home_session(page, "https://www.zhihu.com/", ZHIHU_SELECTORS['home_login_close'], on_detail)
+            except Exception as e:
+                print(f"Playwright: 访问知乎首页失败: {e}")
 
             # 2. 直接访问目标URL并准备内容
-            _goto_target_and_prepare_content(page, url, page_type, on_detail)
+            _goto_target_and_prepare_content(page, url, on_detail)
 
             # 检查页面标题而不是响应状态，因为知乎可能返回200但内容是403页面
             try:
@@ -926,10 +678,11 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             page.mouse.wheel(0, random.randint(100, 400))
             page.wait_for_timeout(random.uniform(1000, 2000))
 
-            _wait_for_selector_stable(page, page_type, timeout_ms=10000)
+            key = 'answer' if page_type.is_answer_page else ('column' if page_type.is_column_page else 'unknown')
+            wait_for_selector_stable(page, WAIT_SELECTOR_BY_TYPE, page_type_key=key, timeout_ms=10000)
 
             # 获取页面内容
-            html, title = _read_page_content_and_title(page, on_detail)
+            html, title = read_page_content_and_title(page, on_detail)
             if title is not None:
                 try:
                     print(f"Playwright: 获取到标题: {title}")
@@ -958,6 +711,90 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             text_content="",
             error=f"Playwright error: {str(e)}"
         )
+
+def _build_zhihu_header_parts(soup: BeautifulSoup, url: str | None) -> tuple[str | None, list[str]]:
+    """构建Markdown头部信息片段（标题、来源、作者、时间），并返回 (title, parts)。"""
+    # 检测页面类型
+    page_type = _detect_zhihu_page_type(url)
+
+    header_parts: list[str] = []
+    title: str | None = _extract_zhihu_title(soup, page_type)
+    if title:
+        header_parts.append(f"# {title}")
+
+    if url:
+        header_parts.append(f"* 来源：{url}")
+
+    author_name, author_url, author_badge = _extract_zhihu_author(soup, page_type)
+    if author_name:
+        if author_url:
+            if author_badge:
+                header_parts.append(f"* 作者：[{author_name}]({author_url})  {author_badge}")
+            else:
+                header_parts.append(f"* 作者：[{author_name}]({author_url})")
+        else:
+            if author_badge:
+                header_parts.append(f"* 作者：{author_name}  {author_badge}")
+            else:
+                header_parts.append(f"* 作者：{author_name}")
+
+    publish_time = _extract_zhihu_time(soup, page_type)
+    if publish_time:
+        header_parts.append(f"* 时间：{publish_time}")
+
+    return title, header_parts
+
+def _build_zhihu_content_element(soup: BeautifulSoup, page_type: ZhihuPageType):
+    """定位并组装知乎页面的内容容器，返回用于转 Markdown 的根元素。
+    - 专栏页：优先 `div.Post-RichTextContainer`，回退若干候选
+    - 回答页：优先 `RichContent-inner`，回退若干候选
+    - 未知页：使用保守选择器回退
+    """
+    content_elem = None
+    if page_type.is_answer_page:
+        # 回答页：直接使用 RichContent-inner 作为正文容器
+        content_elem = soup.select_one('div.RichContent-inner')
+        if not content_elem:
+            # 回退：从 RichContent 容器内再取一次
+            rich_container = soup.select_one('div.RichContent.RichContent--unescapable')
+            if rich_container:
+                content_elem = rich_container.select_one('div.RichContent-inner')
+
+    elif page_type.is_column_page:
+        # 专栏页：严格使用 Post-RichTextContainer 作为正文容器
+        content_elem = soup.select_one('div.Post-RichTextContainer')
+
+    else:
+        # 未知类型：不做猜测，保持 None
+        content_elem = None
+
+    return content_elem
+
+def _clean_and_normalize_zhihu_content(content_elem, page_type: ZhihuPageType, soup: BeautifulSoup | None = None) -> None:
+    """清洗知乎内容容器，标准化图片与链接，移除噪音元素。"""
+    # 图片懒加载与占位符
+    for img in content_elem.find_all('img', {'data-src': True}):
+        img['src'] = img['data-src']
+        del img['data-src']
+    for img in content_elem.find_all('img', {'data-original': True}):
+        img['src'] = img['data-original']
+        del img['data-original']
+
+    # 移除脚本和样式
+    for script in content_elem.find_all(['script', 'style']):
+        script.decompose()
+
+    # 移除广告元素
+    for elem in content_elem.find_all(['div'], class_=['RichText-ADLinkCardContainer']):
+        elem.decompose()
+
+    # 链接处理与标准化
+    _clean_zhihu_zhida_links(content_elem)
+    _clean_zhihu_external_links(content_elem)
+    _normalize_zhihu_links(content_elem)
+
+    # 移除不可见与零宽字符
+    _strip_invisible_characters(content_elem)
 
 def _process_zhihu_content(html: str, title_hint: str | None = None, url: str | None = None) -> FetchResult:
     """处理知乎内容，拼接头部信息(标题、作者、发布日期)和正文，并返回 markdown 内容"""
