@@ -73,12 +73,37 @@ class ConvertService:
                     except Exception:
                         on_event(ProgressEvent(kind="detail", text=str(msg)))
 
+                # Handler级别的共享浏览器控制
+                # 某些handler（如微信）必须使用独立浏览器，即使全局开启共享浏览器
+                effective_shared_browser = shared_browser
+                if req.kind == "url" and isinstance(req.value, str):
+                    url = req.value.lower()
+                    if "mp.weixin.qq.com" in url:
+                        # 微信URL需要独立浏览器，先关闭共享浏览器
+                        if shared_browser is not None:
+                            print("微信URL检测到，关闭共享浏览器以使用独立浏览器")
+                            try:
+                                shared_browser.close()
+                                print("共享浏览器已关闭")
+                            except Exception as e:
+                                print(f"关闭共享浏览器时出错: {e}")
+                            shared_browser = None
+                            # 同时关闭playwright runtime
+                            if playwright_runtime is not None:
+                                try:
+                                    playwright_runtime.stop()
+                                    print("Playwright runtime已停止")
+                                except Exception as e:
+                                    print(f"停止Playwright runtime时出错: {e}")
+                                playwright_runtime = None
+                        effective_shared_browser = None
+                
                 payload = ConvertPayload(kind=req.kind, value=req.value, meta={
                     "out_dir": out_dir,
                     "on_detail": _emit_detail,
                     "should_stop": lambda: self._should_stop,
-                    # 仅在开启加速模式时传递共享 Browser
-                    "shared_browser": shared_browser,
+                    # 根据handler类型决定是否传递共享浏览器
+                    "shared_browser": effective_shared_browser,
                 })
                 try:
                     result = registry_convert(payload, session, options)
@@ -86,6 +111,24 @@ class ConvertService:
                     completed += 1
                     on_event(ProgressEvent(kind="detail", key="convert_detail_done", data={"path": out_path}))
                     on_event(ProgressEvent(kind="progress_step", current=completed, key="convert_progress_step", data={"completed": completed, "total": total}))
+                    
+                    # 如果刚处理完微信URL，需要重新创建共享浏览器供后续URL使用
+                    if req.kind == "url" and isinstance(req.value, str) and "mp.weixin.qq.com" in req.value.lower():
+                        # 检查是否还有后续URL需要处理
+                        remaining_urls = [r for r in requests_list[idx:] if r.kind == "url" and isinstance(r.value, str) and "mp.weixin.qq.com" not in r.value.lower()]
+                        if remaining_urls and getattr(options, "use_shared_browser", False):
+                            print("微信URL处理完成，重新创建共享浏览器供后续URL使用")
+                            try:
+                                from playwright.sync_api import sync_playwright
+                                playwright_runtime = sync_playwright().start()
+                                shared_browser = playwright_runtime.chromium.launch(headless=True)
+                                on_event(ProgressEvent(kind="detail", key="convert_shared_browser_restarted"))
+                                print("共享浏览器重新创建成功")
+                            except Exception as e:
+                                print(f"重新创建共享浏览器失败: {e}")
+                                shared_browser = None
+                                playwright_runtime = None
+                                
                 except Exception as e:
                     on_event(ProgressEvent(kind="error", key="convert_error", data={"url": req.value, "error": str(e)}))
 

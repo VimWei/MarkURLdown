@@ -63,5 +63,7 @@
   "images_dl_init": "开始并发下载 {total} 张图片…已完成 0%",
   "images_dl_progress": "开始并发下载 {total} 张图片…已完成 {percent}%",
   "images_dl_done": "开始并发下载 {total} 张图片…已完成 100%",
-  "images_dl_saving": "图片下载完成，正在保存文件…"
+  "images_dl_saving": "图片下载完成，正在保存文件…",
+  "convert_shared_browser_started": "共享浏览器已启动",
+  "convert_shared_browser_restarted": "共享浏览器已重新启动"
 }

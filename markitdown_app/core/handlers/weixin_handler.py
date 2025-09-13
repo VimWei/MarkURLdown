@@ -8,13 +8,6 @@ from typing import Optional, Callable, Any
 from bs4 import BeautifulSoup
 
 from markitdown_app.core.html_to_md import html_fragment_to_markdown
-from markitdown_app.services.playwright_driver import (
-    new_context_and_page_from_shared,
-    teardown_context_page,
-    apply_stealth_and_defaults,
-    establish_home_session,
-    read_page_content_and_title,
-)
 
 @dataclass
 class CrawlerResult:
@@ -32,39 +25,7 @@ class FetchResult:
 def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理微信的poc_token验证"""
     try:
-        # 若有共享 Browser，走共享路径：new_context → bootstrap → 访问 → 关闭 context
-        if shared_browser is not None:
-            context, page = new_context_and_page_from_shared(shared_browser, context_options={
-                'extra_http_headers': {
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Referer': 'https://mp.weixin.qq.com/',
-                }
-            })
-            try:
-                try:
-                    print("Playwright: 正在访问微信首页建立会话...")
-                    if on_detail:
-                        on_detail("正在访问微信首页建立会话...")
-                    establish_home_session(page, "https://mp.weixin.qq.com/", None, on_detail)
-                except Exception:
-                    pass
-                print(f"Playwright: 正在访问 {url}")
-                if on_detail:
-                    on_detail("正在访问目标文章...")
-                response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
-                if not response or response.status >= 400:
-                    return CrawlerResult(success=False, title=None, text_content="", error=f"HTTP {response.status if response else 'Unknown'}")
-                page.wait_for_timeout(random.uniform(3000, 6000))
-                html, title = read_page_content_and_title(page, on_detail)
-                return CrawlerResult(success=True, title=title, text_content=html)
-            finally:
-                teardown_context_page(context, page)
-        # 否则走原始的 per-URL 浏览器路径
+        # 无论是否共享，都强制使用独立浏览器实例
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             browser = p.chromium.launch(
@@ -100,7 +61,7 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                 }
             )
             page = context.new_page()
-            apply_stealth_and_defaults(page)
+            page.set_default_timeout(30000)
             print(f"Playwright: 正在访问 {url}")
             if on_detail:
                 on_detail("正在启动浏览器访问微信...")
@@ -108,7 +69,8 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                 print("Playwright: 正在访问微信首页建立会话...")
                 if on_detail:
                     on_detail("正在访问微信首页建立会话...")
-                establish_home_session(page, "https://mp.weixin.qq.com/", None, on_detail)
+                page.goto("https://mp.weixin.qq.com/", wait_until='domcontentloaded', timeout=15000)
+                page.wait_for_timeout(random.uniform(2000, 4000))
             except Exception as e:
                 print(f"Playwright: 访问微信首页失败: {e}")
             response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
@@ -118,7 +80,12 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                 browser.close()
                 return CrawlerResult(success=False, title=None, text_content="", error=f"HTTP {response.status if response else 'Unknown'}")
             page.wait_for_timeout(random.uniform(3000, 6000))
-            html, title = read_page_content_and_title(page, on_detail)
+            html = page.content()
+            title = None
+            try:
+                title = page.title()
+            except:
+                pass
             browser.close()
             return CrawlerResult(success=True, title=title, text_content=html)
 
@@ -138,7 +105,7 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
         )
 
 def _build_weixin_header_parts(soup: BeautifulSoup, url: str | None, title_hint: str | None = None) -> tuple[str | None, list[str]]:
-    """构建微信Markdown头部信息片段（标题、来源、作者、公众号、时间）。返回 (title, parts)。"""
+    """构建微信Markdown头部信息片段（标题、来源、作者、公众号、时间）。返回 (title, parts)"""
     title = title_hint
 
     # 标题

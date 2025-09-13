@@ -63,5 +63,7 @@
   "images_dl_init": "Starting concurrent download of {total} images… Completed 0%",
   "images_dl_progress": "Starting concurrent download of {total} images… Completed {percent}%",
   "images_dl_done": "Concurrent download of {total} images completed 100%",
-  "images_dl_saving": "Image downloads complete, saving file…"
+  "images_dl_saving": "Image downloads complete, saving file…",
+  "convert_shared_browser_started": "Shared browser started",
+  "convert_shared_browser_restarted": "Shared browser restarted"
 }

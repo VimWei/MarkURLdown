@@ -16,7 +16,6 @@ from markitdown_app.services.playwright_driver import (
     establish_home_session,
     try_close_modal_with_selectors,
     read_page_content_and_title,
-    apply_stealth_and_defaults,
     wait_for_selector_stable,
 )
 
@@ -397,6 +396,37 @@ def _clean_zhihu_external_links(content_elem):
             continue
 
 # 3. 中层业务函数（按调用关系排序）
+def _apply_zhihu_stealth_and_defaults(page: Any, default_timeout_ms: int = 30000) -> None:
+    """Apply Zhihu-specific stealth scripts and set default timeouts.
+
+    Zhihu requires more comprehensive stealth scripts.
+    """
+    try:
+        page.add_init_script(
+            """
+            // Hide webdriver
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            // Realistic navigator props
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
+            // Screen size
+            Object.defineProperty(screen, 'width', { get: () => 1920 });
+            Object.defineProperty(screen, 'height', { get: () => 1080 });
+            // Timezone
+            Object.defineProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', {
+                value: function() { return { timeZone: 'Asia/Shanghai' }; }
+            });
+            // 知乎特定的反检测
+            Object.defineProperty(navigator, 'permissions', { get: () => ({ query: () => Promise.resolve({ state: 'granted' }) }) });
+            """
+        )
+    except Exception:
+        pass
+    try:
+        page.set_default_timeout(default_timeout_ms)
+    except Exception:
+        pass
+
 def _get_wait_selector_for_page_type(page_type: ZhihuPageType) -> str:
     """根据页面类型返回等待用选择器。"""
     if page_type.is_answer_page:
@@ -521,7 +551,9 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
     try:
         # 分支1：共享 Browser（为每个 URL 新建 Context）
         if shared_browser is not None:
-            context, page = new_context_and_page_from_shared(shared_browser)
+            context, page = new_context_and_page_from_shared(shared_browser, apply_stealth=False)
+            # 应用知乎特定的反检测脚本
+            _apply_zhihu_stealth_and_defaults(page)
 
             # 首页 → 目标文章流程
             try:
