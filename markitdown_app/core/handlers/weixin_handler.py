@@ -104,8 +104,8 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             error=f"Playwright error: {str(e)}"
         )
 
-def _build_weixin_header_parts(soup: BeautifulSoup, url: str | None, title_hint: str | None = None) -> tuple[str | None, list[str]]:
-    """构建微信Markdown头部信息片段（标题、来源、作者、公众号、时间）。返回 (title, parts)"""
+def _build_weixin_header_parts(soup: BeautifulSoup, url: str | None, title_hint: str | None = None) -> tuple[str | None, str | None, list[str]]:
+    """构建微信Markdown头部信息片段（标题、来源、作者、公众号、时间）。返回 (title, account_name, header_parts)"""
     title = title_hint
 
     # 标题
@@ -172,7 +172,7 @@ def _build_weixin_header_parts(soup: BeautifulSoup, url: str | None, title_hint:
         if meta_parts:
             header_parts.append("* " + "  ".join(meta_parts))
 
-    return title, header_parts
+    return title, account_name, header_parts
 
 def _build_weixin_content_element(soup: BeautifulSoup):
     """定位并返回微信正文容器元素。"""
@@ -182,23 +182,63 @@ def _build_weixin_content_element(soup: BeautifulSoup):
     )
     return content_elem
 
-def _apply_style_removal_rules(root_elem, rules: list[dict]) -> None:
-    """根据规则删除包含特定内联样式的标签"""
+def _apply_removal_rules(root_elem, rules: list[dict]) -> None:
+    """
+    根据规则删除元素
+
+    支持的规则类型：
+    1. style 规则：根据内联样式过滤
+    2. class 规则：根据 CSS 类名过滤
+    3. id 规则：根据元素 ID 过滤
+    """
     try:
         for rule in rules:
-            tag = rule.get('tag') if isinstance(rule, dict) else None
-            styles = rule.get('styles') if isinstance(rule, dict) else None
-            if not tag or not styles:
+            if not isinstance(rule, dict):
                 continue
+
+            tag = rule.get('tag')
+            if not tag:
+                continue
+
             nodes = list(root_elem.find_all(tag))
             nodes_to_remove = []
+
             for node in nodes:
-                style_text = (node.get('style', '') or '').strip()
-                if not style_text:
-                    continue
-                # AND：该行 styles 全部命中
-                if all(sub in style_text for sub in styles):
+                should_remove = True  # 默认应该删除，需要所有条件都满足
+
+                # 处理 style 规则
+                styles = rule.get('styles')
+                if styles:
+                    style_text = (node.get('style', '') or '').strip()
+                    # styles 列表内为 AND 关系（必须全部匹配）
+                    if not style_text or not all(sub in style_text for sub in styles):
+                        should_remove = False
+
+                # 处理 class 规则
+                classes = rule.get('classes')
+                if classes:
+                    node_classes = node.get('class', [])
+                    if isinstance(node_classes, str):
+                        node_classes = [node_classes]
+                    # classes 列表内为 AND 关系（必须全部匹配）
+                    if not all(cls in node_classes for cls in classes):
+                        should_remove = False
+
+                # 处理 id 规则
+                ids = rule.get('ids')
+                if ids:
+                    node_id = node.get('id', '')
+                    # ids 列表内为 AND 关系（必须全部匹配）
+                    if not node_id or not all(id_val in node_id for id_val in ids):
+                        should_remove = False
+
+                # 如果没有任何过滤条件，则不删除
+                if not any([styles, classes, ids]):
+                    should_remove = False
+
+                if should_remove:
                     nodes_to_remove.append(node)
+
             # 统一删除，避免边遍历边修改导致遗漏
             for node in nodes_to_remove:
                 try:
@@ -208,7 +248,77 @@ def _apply_style_removal_rules(root_elem, rules: list[dict]) -> None:
     except Exception:
         pass
 
-def _clean_and_normalize_weixin_content(content_elem) -> None:
+def _get_account_specific_style_rules(account_name: str | None) -> list[dict]:
+    """
+    根据公众号名称获取过滤规则（包含通用规则和特定规则）
+
+    规则格式说明：
+    - 每个规则包含 'tag' 字段，以及以下过滤条件之一或多个：
+      - 'styles': 样式列表
+      - 'classes': CSS类名列表
+      - 'ids': 元素ID列表
+    - 同一条规则内，所有过滤条件都采用AND关系（必须全部匹配）
+    - 多条规则为OR关系（满足任一规则即删除）
+
+    使用示例：
+    要为某个公众号添加特殊过滤规则，只需在 ACCOUNT_SPECIFIC_RULES 中添加对应的条目
+    """
+
+    # 通用过滤规则（对所有公众号生效）
+    GENERAL_RULES = [
+        # 样式过滤规则
+        # {'tag': 'section', 'styles': ['border-width: 3px']},
+        # {'tag': 'section', 'styles': ['background-color: rgb(239, 239, 239)']},
+        # 类名过滤规则
+        {'tag': 'div', 'classes': ['qr_code_pc', 'qr_code_pc_inner']},
+        # ID过滤规则
+        # {'tag': 'div', 'ids': ['ad-banner', 'promotion-box']},
+    ]
+
+    # 按公众号名称分类的特定样式过滤规则
+    # 格式：{'公众号名称': [规则列表]}
+    ACCOUNT_SPECIFIC_RULES = {
+        # 示例规则（请根据实际需要修改或添加）：
+        # '某个公众号名称': [
+        #     # ID过滤
+        #     {'tag': 'div', 'ids': ['footer-ads']},
+        #     # 类名过滤：必须同时具有两个类名
+        #     {'tag': 'div', 'classes': ['advertisement', 'sponsored']},
+        #     # 样式过滤：必须同时匹配两个样式
+        #     {'tag': 'p', 'styles': ['color: #999999', 'font-size: 12px']},
+        #     # 组合过滤：必须同时满足样式和类名条件
+        #     {'tag': 'section', 'styles': ['border-width: 3px'], 'classes': ['promo-box']},
+        # ],
+        # '另一个公众号': [
+        #     # 如需OR关系，写多条规则：
+        #     {'tag': 'span', 'styles': ['display: none']},  # 规则1：隐藏的span
+        #     {'tag': 'div', 'styles': ['visibility: hidden']},  # 规则2：隐藏的div
+        #     {'tag': 'section', 'classes': ['advertisement']},  # 规则3：广告类名的section
+        #     {'tag': 'section', 'classes': ['sponsored']},  # 规则4：赞助类名的section
+        # ],
+
+        '券商中国': [
+            {'tag': 'img', 'classes': ['rich_pages', 'wxw-img', '__bg_gif']},
+            {'tag': 'section', 'classes': ['border: 1px solid rgb(170, 166, 149)']},
+            {'tag': 'section', 'styles': ['caret-color: rgb(255, 0, 0)', 'color: rgb(163, 163, 163)', 'text-align: center', 'widows: 1', 'line-height: 25.0746px']},
+            {'tag': 'section', 'styles': ['background-color: rgb(220, 194, 131)', 'border: 1px solid rgb(170, 166, 149)']},
+       ],
+        '中国基金报': [
+            {'tag': 'img', 'classes': ['rich_pages', 'wxw-img', '__bg_gif']},
+        ],
+        '一瑜中的': [
+            {'tag': 'section', 'styles': ['border-width: 3px']},
+            {'tag': 'section', 'styles': ['background-color: rgb(239, 239, 239)']},
+        ],
+    }
+    # 合并所有规则
+    all_rules = GENERAL_RULES.copy()
+    if account_name and account_name in ACCOUNT_SPECIFIC_RULES:
+        all_rules.extend(ACCOUNT_SPECIFIC_RULES[account_name])
+
+    return all_rules
+
+def _clean_and_normalize_weixin_content(content_elem, account_name: str | None = None) -> None:
     """清洗与标准化微信正文容器（可持续完善规则）。"""
     # 懒加载图片与占位符
     for img in content_elem.find_all('img', {'data-src': True}):
@@ -231,22 +341,10 @@ def _clean_and_normalize_weixin_content(content_elem) -> None:
         except Exception:
             pass
 
-    # 移除无用元素（可扩展）
-    for elem in content_elem.find_all(['div'], class_=['qr_code_pc', 'qr_code_pc_inner']):
-        try:
-            elem.decompose()
-        except Exception:
-            pass
-
-    # 移除特定样式的标签
-    # 一行一条规则，严格匹配，由 tag 和 styles 组成。
-    # 同一条规则内，style 列表为 AND 关系。
-    # 多条同 tag 规则，相当于 OR 关系。
-    STYLE_REMOVAL_RULES: list[dict] = [
-        {'tag': 'section', 'styles': ['border-width: 3px']},
-        {'tag': 'section', 'styles': ['background-color: rgb(239, 239, 239)']},
-    ]
-    _apply_style_removal_rules(content_elem, STYLE_REMOVAL_RULES)
+    # 应用过滤规则移除特定 tag 元素
+    removal_rules = _get_account_specific_style_rules(account_name)
+    if removal_rules:
+        _apply_removal_rules(content_elem, removal_rules)
 
 def _process_weixin_content(html: str, title: str | None = None, url: str | None = None) -> FetchResult:
     """处理微信内容，提取标题、作者、发布日期和正文"""
@@ -257,7 +355,7 @@ def _process_weixin_content(html: str, title: str | None = None, url: str | None
         return FetchResult(title=None, html_markdown="")
 
     # 头部信息
-    title, header_parts = _build_weixin_header_parts(soup, url, title)
+    title, account_name, header_parts = _build_weixin_header_parts(soup, url, title)
     header_str = ("\n".join(header_parts) + "\n\n") if header_parts else ""
 
     # 正文：定位并构建正文容器
@@ -265,7 +363,7 @@ def _process_weixin_content(html: str, title: str | None = None, url: str | None
 
     # 清洗与标准化正文（规则可持续完善）
     if content_elem:
-        _clean_and_normalize_weixin_content(content_elem)
+        _clean_and_normalize_weixin_content(content_elem, account_name)
         md = html_fragment_to_markdown(content_elem)
     else:
         md = ""
