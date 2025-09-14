@@ -6,8 +6,16 @@ WordPress网站处理器 - 专门处理WordPress站点，如skywind.me
 import time
 import random
 from dataclasses import dataclass
+from typing import Any
 from bs4 import BeautifulSoup
 from markitdown import MarkItDown
+
+from markitdown_app.services.playwright_driver import (
+    new_context_and_page,
+    teardown_context_page,
+    apply_stealth_and_defaults,
+    read_page_content_and_title
+)
 
 # =============================================================================
 # 1. 数据类
@@ -21,9 +29,7 @@ class FetchResult:
     success: bool = True
     error: str | None = None
 
-# =============================================================================
 # 2. 底层工具函数（按调用关系排序）
-# =============================================================================
 
 def _extract_wordpress_title(soup: BeautifulSoup, title_hint: str | None = None) -> str | None:
     """提取WordPress文章标题"""
@@ -239,9 +245,98 @@ def _convert_html_to_markdown_manual(soup) -> str:
 
     return '\n'.join(lines)
 
-# =============================================================================
 # 3. 中层业务函数（按调用关系排序）
-# =============================================================================
+
+def _try_httpx_with_filtering(session, url: str) -> FetchResult:
+    """策略1: 直接httpx + BeautifulSoup内容过滤"""
+    try:
+        print("尝试httpx + 内容过滤...")
+        import httpx
+
+        # 使用与session相同的User-Agent
+        headers = {
+            "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        }
+
+        # 如果session设置了no_proxy，则httpx也禁用代理
+        client_kwargs = {"headers": headers}
+        if hasattr(session, 'trust_env') and not session.trust_env:
+            client_kwargs["trust_env"] = False
+
+        with httpx.Client(**client_kwargs) as client:
+            response = client.get(url, timeout=30)
+            response.raise_for_status()
+
+            # 使用BeautifulSoup解析并过滤内容
+            return _process_wordpress_content(response.text, url)
+
+    except Exception as e:
+        return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
+
+def _try_playwright_with_filtering(url: str, shared_browser: Any | None = None) -> FetchResult:
+    """策略2: Playwright + BeautifulSoup内容过滤 - 支持共享浏览器"""
+    try:
+        print("尝试Playwright + 内容过滤...")
+
+        # 分支1：使用共享浏览器（为每个URL新建Context）
+        if shared_browser is not None:
+            print("使用共享浏览器...")
+            context, page = new_context_and_page(shared_browser, apply_stealth=False)
+
+            # 导航到页面
+            page.goto(url, wait_until='networkidle', timeout=30000)
+
+            # 等待页面稳定
+            import time
+            time.sleep(2)
+
+            # 获取页面内容和标题
+            html, title = read_page_content_and_title(page)
+
+            # 清理资源
+            teardown_context_page(context, page)
+
+            # 返回原始HTML，让上层处理
+            return FetchResult(title=title, html_markdown=html)
+
+        # 分支2：使用独立浏览器（兜底方案）
+        print("使用独立浏览器...")
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--no-first-run',
+                    '--no-default-browser-check',
+                    '--disable-extensions',
+                    '--disable-plugins',
+                ]
+            )
+
+            context, page = new_context_and_page(browser, apply_stealth=False)
+
+            # 导航到页面
+            page.goto(url, wait_until='networkidle', timeout=30000)
+
+            # 等待页面稳定
+            import time
+            time.sleep(2)
+
+            # 获取页面内容和标题
+            html, title = read_page_content_and_title(page)
+
+            # 返回原始HTML，让上层处理
+            return FetchResult(title=title, html_markdown=html)
+
+    except Exception as e:
+        return FetchResult(title=None, html_markdown="", success=False, error=f"Playwright异常: {e}")
 
 def _build_wordpress_header_parts(soup: BeautifulSoup, url: str | None = None, title_hint: str | None = None) -> tuple[str | None, list[str]]:
     """构建WordPress文章的Markdown头部信息片段（标题、来源、作者、时间等），并返回 (title, parts)"""
@@ -277,7 +372,6 @@ def _build_wordpress_header_parts(soup: BeautifulSoup, url: str | None = None, t
 
 def _build_wordpress_content_element(soup: BeautifulSoup):
     """定位并返回WordPress正文容器元素"""
-    # 优先查找 <div id="content" role="main"> 下的 <div class="entry-content">
     content_elem = None
 
     # 策略1: 查找 <div id="content" role="main"> 下的 <div class="entry-content">
@@ -379,18 +473,6 @@ def _clean_and_normalize_wordpress_content(content_elem) -> None:
             except Exception:
                 pass
 
-    # 额外过滤：基于文本内容的智能过滤
-    # 移除包含"相关阅读"、"相关文章"等关键词的段落
-    related_keywords = ["相关阅读", "相关文章", "推荐阅读", "更多文章", "similar posts", "related posts"]
-
-    for p in content_elem.find_all('p'):
-        text = p.get_text(strip=True)
-        if any(keyword in text for keyword in related_keywords):
-            # 检查是否包含链接（通常是相关阅读的特征）
-            if p.find('a'):
-                p.decompose()
-                print(f"移除了相关阅读段落: {text[:50]}...")
-
 def _process_wordpress_content(html: str, url: str | None = None, title_hint: str | None = None) -> FetchResult:
     """处理WordPress内容，提取标题、元数据和过滤后的正文"""
     try:
@@ -416,62 +498,6 @@ def _process_wordpress_content(html: str, url: str | None = None, title_hint: st
         except ImportError:
             # 兜底：使用手动转换
             md = _convert_html_to_markdown_manual(content_elem)
-    else:
-        print("未找到WordPress正文容器，使用兜底方案")
-        # 兜底方案：使用原来的完整HTML过滤方法
-        html_copy = BeautifulSoup(html, 'lxml')
-
-        # 定义需要移除的元素选择器
-        unwanted_selectors = [
-            'nav', '.nav', '.navigation', '.menu', '.main-navigation', '.site-navigation',
-            'head', '#header', '.header', '.site-header', '.page-header',
-            '.sidebar', '.widget', '.widget-area', '.secondary', '.sidebar-widget',
-            '.comments', '.comment', '#comments', '#respond', '.comment-form',
-            '.comment-list', '.comment-reply', '.comment-respond',
-            '.related-posts', '.more-posts', '.related', '.similar-posts',
-            '.post-navigation', '.nav-links', '.page-links',
-            '.social-share', '.share', '.social', '.social-links',
-            '.share-buttons', '.social-media',
-            '.breadcrumb', '.breadcrumbs', '.breadcrumb-trail',
-            '.advertisement', '.ads', '.ad', '.ad-container', '.ad-banner',
-            '#footer', '.footer', '.site-footer',
-            '.skip-link', '.screen-reader-text', '.sr-only',
-            '.related-reading', '.related-posts', '.more-posts', '.related', '.similar-posts',
-            '#entry-author-info', '.pvc_stats.pvc_load_by_ajax_update',
-            ".entry-utility", ".likebtn_container",
-            ".meta-prep.meta-prep-author", ".meta-sep", ".author.vcard"
-        ]
-
-        # 移除不需要的元素
-        removed_count = 0
-        for selector in unwanted_selectors:
-            elements = html_copy.select(selector)
-            for elem in elements:
-                elem.decompose()
-                removed_count += 1
-
-        # 额外过滤：基于文本内容的智能过滤
-        related_keywords = ["相关阅读", "相关文章", "推荐阅读", "更多文章", "similar posts", "related posts"]
-        for p in html_copy.find_all('p'):
-            text = p.get_text(strip=True)
-            if any(keyword in text for keyword in related_keywords):
-                if p.find('a'):
-                    p.decompose()
-                    removed_count += 1
-
-        print(f"兜底方案：从完整HTML中移除了 {removed_count} 个非内容元素")
-
-        # 使用MarkItDown转换过滤后的完整HTML
-        try:
-            md = MarkItDown()
-            result = md.convert(str(html_copy))
-            if result and getattr(result, "text_content", None):
-                md = result.text_content
-            else:
-                md = _convert_html_to_markdown_manual(html_copy)
-        except Exception as e:
-            print(f"MarkItDown转换失败: {e}")
-            md = _convert_html_to_markdown_manual(html_copy)
 
     # 最后拼接为全文
     if header_str:
@@ -483,81 +509,24 @@ def _process_wordpress_content(html: str, url: str | None = None, title_hint: st
         print(f"创建FetchResult失败: {e}")
         return FetchResult(title=None, html_markdown="")
 
-def _try_httpx_with_filtering(session, url: str) -> FetchResult:
-    """策略1: 直接httpx + BeautifulSoup内容过滤"""
-    try:
-        print("尝试httpx + 内容过滤...")
-        import httpx
-
-        # 使用与session相同的User-Agent
-        headers = {
-            "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        }
-
-        # 如果session设置了no_proxy，则httpx也禁用代理
-        client_kwargs = {"headers": headers}
-        if hasattr(session, 'trust_env') and not session.trust_env:
-            client_kwargs["trust_env"] = False
-
-        with httpx.Client(**client_kwargs) as client:
-            response = client.get(url, timeout=30)
-            response.raise_for_status()
-
-            # 使用BeautifulSoup解析并过滤内容
-            return _process_wordpress_content(response.text, url)
-
-    except Exception as e:
-        return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
-
-def _try_playwright_with_filtering(url: str) -> FetchResult:
-    """策略2: Playwright + BeautifulSoup内容过滤"""
-    try:
-        print("尝试Playwright + 内容过滤...")
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-
-            # 设置用户代理
-            page.set_extra_http_headers({
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            })
-
-            page.goto(url, wait_until='networkidle')
-            time.sleep(2)  # 等待页面稳定
-
-            # 获取页面内容
-            html = page.content()
-            title = page.title()
-            browser.close()
-
-        # 使用BeautifulSoup解析并过滤内容
-        return _process_wordpress_content(html, url, title_hint=title)
-
-    except Exception as e:
-        return FetchResult(title=None, html_markdown="", success=False, error=f"Playwright异常: {e}")
-
-# =============================================================================
 # 4. 主入口函数
-# =============================================================================
 
-def fetch_wordpress_article(session, url: str) -> FetchResult:
+def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None) -> FetchResult:
     """
     获取WordPress文章内容
 
     使用多策略方案：
     1. 直接httpx + BeautifulSoup内容过滤
-    2. Playwright + BeautifulSoup内容过滤
+    2. Playwright + BeautifulSoup内容过滤 (支持共享浏览器)
     """
 
     # 定义爬虫策略，按优先级排序
     crawler_strategies = [
-        # 策略1: 直接httpx + 内容过滤
+        # 策略1: 直接httpx + 内容过滤 (临时禁用用于测试)
         lambda: _try_httpx_with_filtering(session, url),
 
-        # 策略2: Playwright + 内容过滤
-        lambda: _try_playwright_with_filtering(url),
+        # 策略2: Playwright + 内容过滤 (支持共享浏览器)
+        lambda: _try_playwright_with_filtering(url, shared_browser),
     ]
 
     # 尝试各种策略，增加重试机制
@@ -575,7 +544,14 @@ def fetch_wordpress_article(session, url: str) -> FetchResult:
                 result = strategy()
                 if result.success:
                     print(f"WordPress策略 {i} 成功!")
-                    return result
+
+                    # 两阶段处理：先获取原始HTML，再处理内容
+                    if result.html_markdown:
+                        print("正在处理WordPress内容...")
+                        processed_result = _process_wordpress_content(result.html_markdown, url, title_hint=result.title)
+                        return processed_result
+                    else:
+                        return result
                 else:
                     print(f"WordPress策略 {i} 失败: {result.error}")
                     if retry < max_retries - 1:

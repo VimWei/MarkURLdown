@@ -146,7 +146,9 @@ def _wordpress_handler(payload: ConvertPayload, session, options: ConversionOpti
         return None
     
     try:
-        fetched = fetch_wordpress_article(session, url)
+        # 透传共享 Browser（若开启加速模式）
+        shared_browser = payload.meta.get("shared_browser")
+        fetched = fetch_wordpress_article(session, url, shared_browser)
 
         # 检查内容质量
         content = fetched.html_markdown or ""
