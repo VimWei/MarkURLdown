@@ -107,6 +107,14 @@ class ConvertService:
                                 except Exception as e:
                                     print(f"停止Playwright runtime时出错: {e}")
                                 playwright_runtime = None
+                            
+                        # 使用异步等待，确保资源完全释放
+                        try:
+                            import asyncio
+                            asyncio.run(asyncio.sleep(0.1))  # 等待100ms
+                            print("等待资源释放完成...")
+                        except Exception as e:
+                            print(f"异步等待时出错: {e}")
                         effective_shared_browser = None
                 
                 payload = ConvertPayload(kind=req.kind, value=req.value, meta={
