@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Protocol
 import os
 
 from markitdown_app.core.handlers.generic_handler import convert_url
@@ -14,7 +14,41 @@ from markitdown_app.core.normalize import normalize_markdown_headings
 from markitdown_app.app_types import ConvertPayload, ConversionOptions, ConvertResult
 
 
-Handler = Callable[[ConvertPayload, any, ConversionOptions], ConvertResult | None]
+class HandlerWrapper:
+    """Handler包装器，支持元数据声明"""
+    def __init__(self, func: Callable, name: str, prefers_shared_browser: bool = True):
+        self.func = func
+        self._name = name
+        self._prefers_shared_browser = prefers_shared_browser
+    
+    def __call__(self, payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult | None:
+        return self.func(payload, session, options)
+    
+    @property
+    def prefers_shared_browser(self) -> bool:
+        """声明是否偏好使用共享浏览器"""
+        return self._prefers_shared_browser
+    
+    @property
+    def handler_name(self) -> str:
+        """Handler名称，用于调试和日志"""
+        return self._name
+
+
+class Handler(Protocol):
+    """Handler协议，支持共享浏览器偏好声明"""
+    def __call__(self, payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult | None:
+        ...
+    
+    @property
+    def prefers_shared_browser(self) -> bool:
+        """声明是否偏好使用共享浏览器。默认为True（支持共享浏览器）"""
+        return True
+    
+    @property
+    def handler_name(self) -> str:
+        """Handler名称，用于调试和日志"""
+        return self.__class__.__name__
 
 
 def _weixin_handler(payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult | None:
@@ -200,7 +234,46 @@ def _is_wordpress_site(url: str) -> bool:
     return any(indicator in url.lower() for indicator in wordpress_indicators)
 
 
-HANDLERS: list[Handler] = [_weixin_handler, _zhihu_handler, _wordpress_handler, _nextjs_handler]
+HANDLERS: list[Handler] = [
+    HandlerWrapper(_weixin_handler, "WeixinHandler", prefers_shared_browser=False),  # 微信必须使用独立浏览器
+    HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True),    # 知乎支持共享浏览器
+    HandlerWrapper(_wordpress_handler, "WordPressHandler", prefers_shared_browser=True),  # WordPress支持共享浏览器
+    HandlerWrapper(_nextjs_handler, "NextJSHandler", prefers_shared_browser=True),  # NextJS支持共享浏览器
+]
+
+
+def get_handler_for_url(url: str) -> Handler | None:
+    """根据URL找到对应的handler，用于检查共享浏览器偏好"""
+    if not url:
+        return None
+    
+    # 直接通过URL模式匹配，避免调用handler函数
+    url_lower = url.lower()
+    
+    for handler in HANDLERS:
+        # 根据handler名称和URL模式进行匹配
+        handler_name = handler.handler_name
+        
+        if handler_name == "WeixinHandler" and "mp.weixin.qq.com" in url_lower:
+            return handler
+        elif handler_name == "ZhihuHandler" and ("zhuanlan.zhihu.com" in url_lower or "zhihu.com" in url_lower):
+            return handler
+        elif handler_name == "WordPressHandler" and ("skywind.me/blog" in url_lower or _is_wordpress_site(url)):
+            return handler
+        elif handler_name == "NextJSHandler" and "guangzhengli.com/blog" in url_lower:
+            return handler
+    
+    return None
+
+
+def should_use_shared_browser_for_url(url: str) -> bool:
+    """检查URL是否应该使用共享浏览器"""
+    handler = get_handler_for_url(url)
+    if handler is None:
+        # 如果没有匹配的handler，使用默认行为（支持共享浏览器）
+        return True
+    
+    return handler.prefers_shared_browser
 
 
 def convert(payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult:

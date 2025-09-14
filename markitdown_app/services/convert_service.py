@@ -74,14 +74,25 @@ class ConvertService:
                         on_event(ProgressEvent(kind="detail", text=str(msg)))
 
                 # Handler级别的共享浏览器控制
-                # 某些handler（如微信）必须使用独立浏览器，即使全局开启共享浏览器
+                # 根据handler声明自动决定是否使用共享浏览器
                 effective_shared_browser = shared_browser
                 if req.kind == "url" and isinstance(req.value, str):
-                    url = req.value.lower()
-                    if "mp.weixin.qq.com" in url:
-                        # 微信URL需要独立浏览器，先关闭共享浏览器
+                    url = req.value
+                    from markitdown_app.core.registry import should_use_shared_browser_for_url
+                    
+                    if not should_use_shared_browser_for_url(url):
+                        # 当前URL的handler声明不使用共享浏览器，先关闭共享浏览器
+                        handler_name = "Unknown"
+                        try:
+                            from markitdown_app.core.registry import get_handler_for_url
+                            handler = get_handler_for_url(url)
+                            if handler:
+                                handler_name = handler.handler_name
+                        except:
+                            pass
+                        
                         if shared_browser is not None:
-                            print("微信URL检测到，关闭共享浏览器以使用独立浏览器")
+                            print(f"{handler_name}检测到，关闭共享浏览器以使用独立浏览器")
                             try:
                                 shared_browser.close()
                                 print("共享浏览器已关闭")
@@ -112,12 +123,20 @@ class ConvertService:
                     on_event(ProgressEvent(kind="detail", key="convert_detail_done", data={"path": out_path}))
                     on_event(ProgressEvent(kind="progress_step", current=completed, key="convert_progress_step", data={"completed": completed, "total": total}))
                     
-                    # 如果刚处理完微信URL，需要重新创建共享浏览器供后续URL使用
-                    if req.kind == "url" and isinstance(req.value, str) and "mp.weixin.qq.com" in req.value.lower():
+                    # 如果刚处理完不使用共享浏览器的URL，需要重新创建共享浏览器供后续URL使用
+                    if req.kind == "url" and isinstance(req.value, str) and not should_use_shared_browser_for_url(req.value):
                         # 检查是否还有后续URL需要处理
-                        remaining_urls = [r for r in requests_list[idx:] if r.kind == "url" and isinstance(r.value, str) and "mp.weixin.qq.com" not in r.value.lower()]
+                        remaining_urls = [r for r in requests_list[idx:] if r.kind == "url" and isinstance(r.value, str) and should_use_shared_browser_for_url(r.value)]
                         if remaining_urls and getattr(options, "use_shared_browser", False):
-                            print("微信URL处理完成，重新创建共享浏览器供后续URL使用")
+                            handler_name = "Unknown"
+                            try:
+                                handler = get_handler_for_url(req.value)
+                                if handler:
+                                    handler_name = handler.handler_name
+                            except:
+                                pass
+                            
+                            print(f"{handler_name}URL处理完成，重新创建共享浏览器供后续URL使用")
                             try:
                                 from playwright.sync_api import sync_playwright
                                 playwright_runtime = sync_playwright().start()
