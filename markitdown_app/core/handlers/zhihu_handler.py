@@ -555,31 +555,10 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             # 应用知乎特定的反检测脚本
             _apply_zhihu_stealth_and_defaults(page)
 
-            # 首页 → 目标文章流程
-            try:
-                print("Playwright: 正在访问知乎首页建立会话...")
-                if on_detail:
-                    on_detail("正在访问知乎首页建立会话...")
-                home_response = page.goto("https://www.zhihu.com/", wait_until='domcontentloaded', timeout=15000)
-                if home_response and home_response.status == 200:
-                    page.wait_for_timeout(random.uniform(2000, 4000))
-                    try:
-                        page.wait_for_timeout(random.uniform(500, 1500))
-                        if try_close_modal_with_selectors(page, ZHIHU_SELECTORS['home_login_close']):
-                            page.wait_for_timeout(500)
-                    except Exception:
-                        pass
-            except Exception as e:
-                print(f"Playwright: 访问知乎首页失败: {e}")
-
-            # 访问目标文章并准备内容
-            print("Playwright: 直接访问目标文章...")
+            # 访问目标URL
             _goto_target_and_prepare_content(page, url, on_detail)
-
             html, title = read_page_content_and_title(page, on_detail)
-
             teardown_context_page(context, page)
-
             return CrawlerResult(success=True, title=title, text_content=html)
 
         # 分支2：每 URL 独立 Browser（原路径）
@@ -673,16 +652,7 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             if on_detail:
                 on_detail("正在启动浏览器访问知乎...")
 
-            # 优化的访问流程：首页 → 目标文章
-            try:
-                print("Playwright: 正在访问知乎首页建立会话...")
-                if on_detail:
-                    on_detail("正在访问知乎首页建立会话...")
-                establish_home_session(page, "https://www.zhihu.com/", ZHIHU_SELECTORS['home_login_close'], on_detail)
-            except Exception as e:
-                print(f"Playwright: 访问知乎首页失败: {e}")
-
-            # 2. 直接访问目标URL并准备内容
+            # 访问目标URL
             _goto_target_and_prepare_content(page, url, on_detail)
 
             # 检查页面标题而不是响应状态，因为知乎可能返回200但内容是403页面

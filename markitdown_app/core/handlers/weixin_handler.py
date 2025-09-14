@@ -62,17 +62,9 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             )
             page = context.new_page()
             page.set_default_timeout(30000)
-            print(f"Playwright: 正在访问 {url}")
             if on_detail:
                 on_detail("正在启动浏览器访问微信...")
-            try:
-                print("Playwright: 正在访问微信首页建立会话...")
-                if on_detail:
-                    on_detail("正在访问微信首页建立会话...")
-                page.goto("https://mp.weixin.qq.com/", wait_until='domcontentloaded', timeout=15000)
-                page.wait_for_timeout(random.uniform(2000, 4000))
-            except Exception as e:
-                print(f"Playwright: 访问微信首页失败: {e}")
+            print("Playwright: 直接访问目标文章...")
             response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
             if on_detail:
                 on_detail("正在访问目标文章...")
