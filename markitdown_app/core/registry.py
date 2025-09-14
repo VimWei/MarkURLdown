@@ -188,7 +188,9 @@ def _nextjs_handler(payload: ConvertPayload, session, options: ConversionOptions
         return None
 
     try:
-        fetched = fetch_nextjs_article(session, url)
+        # 透传共享 Browser（若开启加速模式）
+        shared_browser = payload.meta.get("shared_browser")
+        fetched = fetch_nextjs_article(session, url, shared_browser)
 
         content = fetched.html_markdown or ""
         if not content.strip():

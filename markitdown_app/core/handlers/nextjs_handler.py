@@ -7,9 +7,17 @@ Next.js Blog 处理器 - 专门处理 Next.js 静态博客（如 guangzhengli.co
 import time
 import random
 from dataclasses import dataclass
+from typing import Any
 from bs4 import BeautifulSoup
 from markitdown import MarkItDown
 
+from markitdown_app.services.playwright_driver import (
+    new_context_and_page,
+    teardown_context_page,
+    read_page_content_and_title
+)
+
+# 1. 数据类
 
 @dataclass
 class FetchResult:
@@ -19,262 +27,597 @@ class FetchResult:
     success: bool = True
     error: str | None = None
 
+# 2. 底层工具函数（按调用关系排序）
 
-def fetch_nextjs_article(session, url: str) -> FetchResult:
-    """
-    获取 Next.js 博客文章内容 - 针对常见 Next.js 博客主题优化
+def _extract_nextjs_title(soup: BeautifulSoup, title_hint: str | None = None) -> str | None:
+    """提取Next.js博客文章标题"""
+    title = None
 
-    多策略：
-    1) httpx + BeautifulSoup 过滤
-    2) Playwright + BeautifulSoup 过滤（备用）
-    """
-
-    crawler_strategies = [
-        lambda: _try_httpx_with_filtering(session, url),
-        lambda: _try_playwright_with_filtering(url),
+    # 策略1: 优先查找主内容区域的标题
+    title_selectors = [
+        'main div.max-w-4xl div:first-child h1',  # 针对特定Next.js博客结构
+        'article h1',
+        '.post h1',
+        '.blog-post h1',
+        '.content h1',
+        '.entry-content h1',
+        'h1.post-title',
+        'h1.entry-title',
+        'h1.page-title',
+        'h1'
     ]
 
-    max_retries = 2
+    for selector in title_selectors:
+        title_elem = soup.select_one(selector)
+        if title_elem:
+            title = title_elem.get_text(strip=True)
+            break
+
+    # 策略2: 如果策略1没找到，使用 Playwright 获取的标题
+    if not title and title_hint:
+        title = title_hint
+
+    # 策略3: 最后的兜底方案，使用页面标题
+    if not title:
+        title_elem = soup.select_one('title')
+        if title_elem:
+            title = title_elem.get_text(strip=True)
+            # 页面标题经常包含网站名称，需要清理
+            if ' - ' in title:
+                title = title.split(' - ')[0]
+
+    return title
+
+def _extract_nextjs_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
+    """提取Next.js博客文章的元数据（作者、发布时间等）"""
+    metadata = {
+        'author': None,
+        'publish_time': None,
+        'categories': None,
+        'tags': None
+    }
+
+    # 提取作者信息
+    author_selectors = [
+        '.author',
+        '.post-author',
+        '.blog-author',
+        '.entry-author',
+        '.byline',
+        '.author-name',
+        '[data-author]',
+        '.meta-author',
+        '.post-meta .author'
+    ]
+
+    for selector in author_selectors:
+        author_elem = soup.select_one(selector)
+        if author_elem:
+            # 尝试获取链接文本或直接文本
+            author_link = author_elem.find('a')
+            if author_link:
+                metadata['author'] = author_link.get_text(strip=True)
+            else:
+                metadata['author'] = author_elem.get_text(strip=True)
+            break
+
+    # 提取发布时间
+    time_selectors = [
+        'main div.max-w-4xl div.my-4 p.text-sm', 
+        '.text-sm',
+        'time[datetime]',
+        '.publish-date',
+        '.post-date',
+        '.entry-date',
+        '.blog-date',
+        '.date',
+        '.meta-date',
+        '.post-meta .date',
+        '[data-date]'
+    ]
+
+    for selector in time_selectors:
+        time_elem = soup.select_one(selector)
+        if time_elem:
+            # 优先使用datetime属性
+            datetime_attr = time_elem.get('datetime')
+            if datetime_attr:
+                metadata['publish_time'] = datetime_attr
+            else:
+                metadata['publish_time'] = time_elem.get_text(strip=True)
+            break
+
+    # 提取分类
+    category_selectors = [
+        '.categories a',
+        '.post-categories a',
+        '.blog-categories a',
+        '.entry-categories a',
+        '.category a',
+        '.meta-category a',
+        '.post-meta .category a',
+        'a[rel="category"]'
+    ]
+
+    categories = []
+    for selector in category_selectors:
+        category_elems = soup.select(selector)
+        for elem in category_elems:
+            cat_text = elem.get_text(strip=True)
+            if cat_text and cat_text not in categories:
+                categories.append(cat_text)
+
+    if categories:
+        metadata['categories'] = ', '.join(categories)
+
+    # 提取标签
+    tag_selectors = [
+        '.tags a',
+        '.post-tags a',
+        '.blog-tags a',
+        '.entry-tags a',
+        '.tag a',
+        '.meta-tags a',
+        '.post-meta .tags a',
+        'a[rel="tag"]'
+    ]
+
+    tags = []
+    for selector in tag_selectors:
+        tag_elems = soup.select(selector)
+        for elem in tag_elems:
+            tag_text = elem.get_text(strip=True)
+            if tag_text and tag_text not in tags:
+                tags.append(tag_text)
+
+    if tags:
+        metadata['tags'] = ', '.join(tags)
+
+    return metadata
+
+def _convert_html_to_markdown_manual(soup) -> str:
+    """手动将HTML转换为Markdown，保留图片和链接"""
+    # 处理图片
+    for img in soup.find_all('img'):
+        src = img.get('src', '')
+        alt = img.get('alt', '')
+        if src:
+            # 创建Markdown图片语法
+            markdown_img = f"![{alt}]({src})"
+            img.replace_with(markdown_img)
+
+    # 处理链接
+    for link in soup.find_all('a'):
+        href = link.get('href', '')
+        text = link.get_text(strip=True)
+        if href and text:
+            # 创建Markdown链接语法
+            markdown_link = f"[{text}]({href})"
+            link.replace_with(markdown_link)
+
+    # 处理标题
+    for i in range(1, 7):
+        for heading in soup.find_all(f'h{i}'):
+            text = heading.get_text(strip=True)
+            if text:
+                markdown_heading = f"{'#' * i} {text}"
+                heading.replace_with(markdown_heading)
+
+    # 处理代码块
+    for pre in soup.find_all('pre'):
+        code = pre.get_text()
+        if code:
+            markdown_code = f"```\n{code}\n```"
+            pre.replace_with(markdown_code)
+
+    # 处理内联代码
+    for code in soup.find_all('code'):
+        text = code.get_text()
+        if text:
+            markdown_inline_code = f"`{text}`"
+            code.replace_with(markdown_inline_code)
+
+    # 处理列表
+    for ul in soup.find_all('ul'):
+        items = []
+        for li in ul.find_all('li'):
+            text = li.get_text(strip=True)
+            if text:
+                items.append(f"- {text}")
+        if items:
+            markdown_list = '\n'.join(items)
+            ul.replace_with(markdown_list)
+
+    for ol in soup.find_all('ol'):
+        items = []
+        for i, li in enumerate(ol.find_all('li'), 1):
+            text = li.get_text(strip=True)
+            if text:
+                items.append(f"{i}. {text}")
+        if items:
+            markdown_list = '\n'.join(items)
+            ol.replace_with(markdown_list)
+
+    # 处理段落
+    for p in soup.find_all('p'):
+        text = p.get_text(strip=True)
+        if text:
+            p.replace_with(text + '\n\n')
+
+    # 处理换行
+    for br in soup.find_all('br'):
+        br.replace_with('\n')
+
+    # 获取最终文本，保留空行
+    text = soup.get_text(separator='\n')
+
+    # 清理多余的空行，但保留必要的空行
+    lines = []
+    prev_empty = False
+    for line in text.split('\n'):
+        line_stripped = line.strip()
+        if line_stripped:
+            lines.append(line_stripped)
+            prev_empty = False
+        elif not prev_empty:
+            lines.append('')
+            prev_empty = True
+
+    return '\n'.join(lines)
+
+# 3. 中层业务函数（按调用关系排序）
+
+def _try_httpx_with_filtering(session, url: str) -> FetchResult:
+    """策略1: 直接httpx + BeautifulSoup内容过滤"""
+    try:
+        print("尝试httpx + 内容过滤...")
+        import httpx
+
+        # 使用与session相同的User-Agent
+        headers = {
+            "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        }
+
+        # 如果session设置了no_proxy，则httpx也禁用代理
+        client_kwargs = {"headers": headers}
+        if hasattr(session, 'trust_env') and not session.trust_env:
+            client_kwargs["trust_env"] = False
+
+        with httpx.Client(**client_kwargs) as client:
+            response = client.get(url, timeout=30)
+            response.raise_for_status()
+
+            # 返回原始HTML，让上层进行两阶段处理
+            return FetchResult(title=None, html_markdown=response.text)
+
+    except Exception as e:
+        return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
+
+def _try_playwright_with_filtering(url: str, shared_browser: Any | None = None) -> FetchResult:
+    """策略2: Playwright + BeautifulSoup内容过滤 - 支持共享浏览器"""
+    try:
+        print("尝试Playwright + 内容过滤...")
+
+        # 分支1：使用共享浏览器（为每个URL新建Context）
+        if shared_browser is not None:
+            print("使用共享浏览器...")
+            context, page = new_context_and_page(shared_browser, apply_stealth=False)
+
+            # 导航到页面
+            page.goto(url, wait_until='networkidle', timeout=30000)
+
+            # 等待页面稳定
+            import time
+            time.sleep(2)
+
+            # 获取页面内容和标题
+            html, title = read_page_content_and_title(page)
+
+            # 清理资源
+            teardown_context_page(context, page)
+
+            # 返回原始HTML，让上层处理
+            return FetchResult(title=title, html_markdown=html)
+
+        # 分支2：使用独立浏览器（兜底方案）
+        print("使用独立浏览器...")
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--no-first-run',
+                    '--no-default-browser-check',
+                    '--disable-extensions',
+                    '--disable-plugins',
+                ]
+            )
+
+            context, page = new_context_and_page(browser, apply_stealth=False)
+
+            # 导航到页面
+            page.goto(url, wait_until='networkidle', timeout=30000)
+
+            # 等待页面稳定
+            import time
+            time.sleep(2)
+
+            # 获取页面内容和标题
+            html, title = read_page_content_and_title(page)
+
+            # 返回原始HTML，让上层处理
+            return FetchResult(title=title, html_markdown=html)
+
+    except Exception as e:
+        return FetchResult(title=None, html_markdown="", success=False, error=f"Playwright异常: {e}")
+
+def _build_nextjs_header_parts(soup: BeautifulSoup, url: str | None = None, title_hint: str | None = None) -> tuple[str | None, list[str]]:
+    """构建Next.js博客文章的Markdown头部信息片段（标题、来源、作者、时间等），并返回 (title, parts)"""
+    header_parts: list[str] = []
+
+    # 提取标题
+    title = _extract_nextjs_title(soup, title_hint)
+    if title:
+        header_parts.append(f"# {title}")
+
+    # 添加来源URL
+    if url:
+        header_parts.append(f"* 来源：{url}")
+
+    # 提取并添加元数据
+    metadata = _extract_nextjs_metadata(soup)
+
+    # 将元数据合并为一行，借鉴weixin_handler的处理方式
+    if metadata['author'] or metadata['publish_time'] or metadata['categories'] or metadata['tags']:
+        meta_parts = []
+        if metadata['author']:
+            meta_parts.append(f"{metadata['author']}")
+        if metadata['publish_time']:
+            meta_parts.append(f"{metadata['publish_time']}")
+        if metadata['categories']:
+            meta_parts.append(f"{metadata['categories']}")
+        if metadata['tags']:
+            meta_parts.append(f"{metadata['tags']}")
+        if meta_parts:
+            header_parts.append("* " + "  ".join(meta_parts))
+
+    return title, header_parts
+
+def _build_nextjs_content_element(soup: BeautifulSoup):
+    """定位并返回Next.js博客正文容器元素"""
+    content_elem = None
+
+    # 策略1: 查找主内容区域
+    content_selectors = [
+        'div.max-w-4xl.mx-auto.w-full.px-6',
+        'main',
+        'main article',
+        'main .post',
+        'main .blog-post',
+        'main .content',
+        'main .entry-content',
+        'article .post-content',
+        'article .content',
+        'article .entry-content',
+        '.post .content',
+        '.blog-post .content',
+        '.entry-content',
+        '.post-content',
+        '.content'
+    ]
+
+    for selector in content_selectors:
+        content_elem = soup.select_one(selector)
+        if content_elem:
+            break
+
+    # 策略2: 如果没找到，尝试查找包含h1的容器
+    if not content_elem:
+        h1_elem = soup.find('h1')
+        if h1_elem:
+            # 向上查找包含h1的内容容器
+            for parent in h1_elem.parents:
+                if parent.name in ['article', 'main', 'div'] and parent.get('class'):
+                    content_elem = parent
+                    break
+
+    return content_elem
+
+def _clean_and_normalize_nextjs_content(content_elem) -> None:
+    """清洗与标准化Next.js博客正文容器"""
+    if not content_elem:
+        return
+
+    # 懒加载图片与占位符处理
+    for img in content_elem.find_all('img', {'data-src': True}):
+        img['src'] = img['data-src']
+        try:
+            del img['data-src']
+        except Exception:
+            pass
+
+    for img in content_elem.find_all('img', {'data-original': True}):
+        img['src'] = img['data-original']
+        try:
+            del img['data-original']
+        except Exception:
+            pass
+
+    # 移除脚本和样式
+    for script in content_elem.find_all(['script', 'style']):
+        try:
+            script.decompose()
+        except Exception:
+            pass
+
+    # 移除Next.js特定的非内容元素
+    unwanted_in_content = [
+        # 标题 和 meta
+        'h1', 'p.text-sm',
+
+        # 导航和菜单
+        'nav', '.nav', '.navigation', '.menu', '.navbar',
+        'header', '.header', '#header',
+
+        # 侧边栏和目录
+        'aside', '.sidebar', '.toc', '#toc', '.table-of-contents',
+        '.on-this-page', '.toc-container', '.toc-sidebar',
+        ".hidden.text-sm.xl\\:block", '.hydrated',
+
+        # 评论相关
+        '.comments', '#comments', '.comment-list', '.comment-form',
+
+        # 页脚
+        'footer', '.footer', '.site-footer',
+
+        # 社交分享
+        '.social', '.social-links', '.share', '.share-buttons',
+        '.social-media', '.social-share',
+
+        # 面包屑
+        '.breadcrumb', '.breadcrumbs',
+
+        # 广告
+        '.advertisement', '.ads', '.ad', '.ad-container', '.ad-banner',
+        '.promo', '.sponsored', '.affiliate',
+
+        # 相关文章推荐
+        '.related-posts', '.more-posts', '.related', '.similar-posts',
+        '.post-navigation', '.nav-links', '.page-links',
+
+        # 作者信息（在正文中重复的）
+        '.author-info', '.post-author', '.blog-author',
+
+        # 元数据（在正文中重复的）
+        '.post-meta', '.entry-meta', '.meta', '.meta-info',
+
+        # 其他非内容元素
+        '.screen-reader-text', '.sr-only', '.skip-link',
+        '.loading', '.spinner', '.placeholder'
+    ]
+
+    for selector in unwanted_in_content:
+        elements = content_elem.select(selector)
+        for elem in elements:
+            try:
+                elem.decompose()
+            except Exception:
+                pass
+
+def _process_nextjs_content(html: str, url: str | None = None, title_hint: str | None = None) -> FetchResult:
+    """处理Next.js内容，提取标题、元数据和过滤后的正文"""
+    try:
+        soup = BeautifulSoup(html, 'lxml')
+    except Exception as e:
+        print(f"BeautifulSoup解析失败: {e}")
+        return FetchResult(title=None, html_markdown="")
+
+    # 构建头部信息（包含标题抽取）
+    title, header_parts = _build_nextjs_header_parts(soup, url, title_hint)
+    header_str = ("\n".join(header_parts) + "\n\n") if header_parts else ""
+
+    # 正文：定位并构建正文容器
+    content_elem = _build_nextjs_content_element(soup)
+
+    # 清洗与标准化正文
+    if content_elem:
+        _clean_and_normalize_nextjs_content(content_elem)
+        # 使用 html_fragment_to_markdown 转换正文内容
+        try:
+            from markitdown_app.core.html_to_md import html_fragment_to_markdown
+            md = html_fragment_to_markdown(content_elem)
+        except ImportError:
+            # 兜底：使用手动转换
+            md = _convert_html_to_markdown_manual(content_elem)
+    else:
+        # 如果没找到内容容器，使用整个页面但移除不需要的元素
+        _clean_and_normalize_nextjs_content(soup)
+        try:
+            from markitdown_app.core.html_to_md import html_fragment_to_markdown
+            md = html_fragment_to_markdown(soup)
+        except ImportError:
+            # 兜底：使用手动转换
+            md = _convert_html_to_markdown_manual(soup)
+
+    # 最后拼接为全文
+    if header_str:
+        md = header_str + md if md else header_str
+
+    try:
+        return FetchResult(title=title, html_markdown=md)
+    except Exception as e:
+        print(f"创建FetchResult失败: {e}")
+        return FetchResult(title=None, html_markdown="")
+
+# 4. 主入口函数
+
+def fetch_nextjs_article(session, url: str, shared_browser: Any | None = None) -> FetchResult:
+    """
+    获取Next.js博客文章内容
+
+    使用多策略方案：
+    1. 直接httpx + BeautifulSoup内容过滤
+    2. Playwright + BeautifulSoup内容过滤 (支持共享浏览器)
+    """
+
+    # 定义爬虫策略，按优先级排序
+    crawler_strategies = [
+        # 策略1: 直接httpx + 内容过滤
+        lambda: _try_httpx_with_filtering(session, url),
+
+        # 策略2: Playwright + 内容过滤 (支持共享浏览器)
+        lambda: _try_playwright_with_filtering(url, shared_browser),
+    ]
+
+    # 尝试各种策略，增加重试机制
+    max_retries = 2  # 每个策略最多重试2次
 
     for i, strategy in enumerate(crawler_strategies, 1):
         for retry in range(max_retries):
             try:
                 if retry > 0:
                     print(f"尝试Next.js获取策略 {i} (重试 {retry}/{max_retries-1})...")
-                    time.sleep(random.uniform(2, 4))
+                    time.sleep(random.uniform(2, 4))  # 重试时等待
                 else:
                     print(f"尝试Next.js获取策略 {i}...")
 
                 result = strategy()
                 if result.success:
                     print(f"Next.js策略 {i} 成功!")
-                    return result
+
+                    # 两阶段处理：先获取原始HTML，再处理内容
+                    if result.html_markdown:
+                        print("正在处理Next.js内容...")
+                        processed_result = _process_nextjs_content(result.html_markdown, url, title_hint=result.title)
+                        return processed_result
+                    else:
+                        return result   
                 else:
                     print(f"Next.js策略 {i} 失败: {result.error}")
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print("Next.js策略重试用尽，切换下一策略")
+                        print(f"Next.js策略 {i} 重试次数用尽，尝试下一个策略")
                         break
+
             except Exception as e:
                 print(f"Next.js策略 {i} 异常: {e}")
                 if retry < max_retries - 1:
                     continue
                 else:
-                    print("Next.js策略重试用尽，切换下一策略")
+                    print(f"Next.js策略 {i} 重试次数用尽，尝试下一个策略")
                     break
 
+        # 策略间等待
         if i < len(crawler_strategies):
             time.sleep(random.uniform(1, 2))
 
+    # 所有策略都失败，返回空结果
     return FetchResult(title=None, html_markdown="", success=False, error="所有策略都失败")
-
-
-def _try_httpx_with_filtering(session, url: str) -> FetchResult:
-    try:
-        import httpx
-
-        headers = {
-            "User-Agent": session.headers.get(
-                "User-Agent",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            )
-        }
-
-        client_kwargs = {"headers": headers}
-        if hasattr(session, "trust_env") and not session.trust_env:
-            client_kwargs["trust_env"] = False
-
-        with httpx.Client(**client_kwargs) as client:
-            resp = client.get(url, timeout=30)
-            resp.raise_for_status()
-            return _process_nextjs_content(resp.text, url)
-    except Exception as e:
-        return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
-
-
-def _try_playwright_with_filtering(url: str) -> FetchResult:
-    try:
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-            page.set_extra_http_headers(
-                {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
-                }
-            )
-            page.goto(url, wait_until="networkidle")
-            time.sleep(2)
-            html = page.content()
-            title = page.title()
-            browser.close()
-
-        return _process_nextjs_content(html, url, title_hint=title)
-    except Exception as e:
-        return FetchResult(title=None, html_markdown="", success=False, error=f"Playwright异常: {e}")
-
-
-def _process_nextjs_content(html: str, url: str | None = None, title_hint: str | None = None) -> FetchResult:
-    """保持完整HTML，仅删除确定性非内容元素；然后交给 MarkItDown。"""
-    try:
-        soup = BeautifulSoup(html, "lxml")
-    except Exception as e:
-        print(f"BeautifulSoup解析失败: {e}")
-        return FetchResult(title=None, html_markdown="")
-
-    title = None
-    if title_hint:
-        title = title_hint
-        if " - " in title:
-            title = title.split(" - ")[0]
-
-    if not title:
-        for selector in ["h1", "title"]:
-            node = soup.select_one(selector)
-            if node:
-                title = node.get_text(strip=True)
-                if " - " in title:
-                    title = title.split(" - ")[0]
-                break
-
-    html_copy = BeautifulSoup(html, "lxml")
-
-    unwanted_selectors = [
-        # 文档头
-        "head",
-
-        # 常见 Next.js 博客导航/侧栏/页脚/社交/文档目录
-        "nav",
-        ".nav",
-        ".navigation",
-        ".menu",
-        "header",
-        ".header",
-        "#header",
-        "aside",
-        ".sidebar",
-        ".toc",
-        "#toc",
-        ".table-of-contents",
-        ".on-this-page",
-        ".toc-container",
-        ".toc-sidebar",
-        ".hidden.text-sm.xl\\:block",
-        ".hydrated",
-        ".comments",
-        "#comments",
-        ".comment-list",
-        ".comment-form",
-        "footer",
-        ".footer",
-        ".site-footer",
-        ".social",
-        ".social-links",
-        ".share",
-        ".share-buttons",
-        ".breadcrumb",
-        ".breadcrumbs",
-        ".advertisement",
-        ".ads",
-        ".ad",
-        ".ad-container",
-        ".ad-banner",
-    ]
-
-    removed = 0
-    for selector in unwanted_selectors:
-        for elem in html_copy.select(selector):
-            elem.decompose()
-            removed += 1
-
-    try:
-        md = MarkItDown()
-        result = md.convert(str(html_copy))
-        if result and getattr(result, "text_content", None):
-            # 在标题下添加来源URL
-            markdown_content = result.text_content
-            if title and url:
-                # 查找标题位置并插入来源行
-                lines = markdown_content.split('\n')
-                new_lines = []
-                title_added = False
-                for i, line in enumerate(lines):
-                    new_lines.append(line)
-                    # 如果找到标题行且还没有添加来源行
-                    if line.strip() == f"# {title}" and not title_added:
-                        new_lines.append(f"来源：{url}")
-                        title_added = True
-                markdown_content = '\n'.join(new_lines)
-            return FetchResult(title=title, html_markdown=markdown_content)
-    except Exception as e:
-        print(f"MarkItDown转换失败: {e}")
-
-    # 兜底的简单手动转换（尽量保持简洁）
-    markdown_content = _convert_html_to_markdown_manual(html_copy)
-    if title and url:
-        # 在标题下添加来源URL
-        lines = markdown_content.split('\n')
-        new_lines = []
-        title_added = False
-        for i, line in enumerate(lines):
-            new_lines.append(line)
-            # 如果找到标题行且还没有添加来源行
-            if line.strip() == f"# {title}" and not title_added:
-                new_lines.append(f"来源：{url}")
-                title_added = True
-        markdown_content = '\n'.join(new_lines)
-    return FetchResult(title=title, html_markdown=markdown_content)
-
-
-def _convert_html_to_markdown_manual(soup) -> str:
-    # 图片
-    for img in soup.find_all("img"):
-        src = img.get("src", "")
-        alt = img.get("alt", "")
-        if src:
-            img.replace_with(f"![{alt}]({src})")
-
-    # 链接
-    for a in soup.find_all("a"):
-        href = a.get("href", "")
-        text = a.get_text(strip=True)
-        if href and text:
-            a.replace_with(f"[{text}]({href})")
-
-    # 标题
-    for i in range(1, 7):
-        for h in soup.find_all(f"h{i}"):
-            t = h.get_text(strip=True)
-            if t:
-                h.replace_with(f"{'#' * i} {t}")
-
-    # 代码块
-    for pre in soup.find_all("pre"):
-        code = pre.get_text()
-        if code:
-            pre.replace_with(f"```\n{code}\n```")
-
-    # 段落与换行
-    for br in soup.find_all("br"):
-        br.replace_with("\n")
-    for p in soup.find_all("p"):
-        text = p.get_text(strip=True)
-        if text:
-            p.replace_with(text + "\n\n")
-
-    text = soup.get_text(separator="\n")
-    lines = []
-    prev_empty = False
-    for line in text.split("\n"):
-        s = line.strip()
-        if s:
-            lines.append(s)
-            prev_empty = False
-        elif not prev_empty:
-            lines.append("")
-            prev_empty = True
-    return "\n".join(lines)
-
-
