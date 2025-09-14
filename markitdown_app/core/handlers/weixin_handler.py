@@ -69,7 +69,6 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             if on_detail:
                 on_detail("正在访问目标文章...")
             if not response or response.status >= 400:
-                browser.close()
                 return CrawlerResult(success=False, title=None, text_content="", error=f"HTTP {response.status if response else 'Unknown'}")
             page.wait_for_timeout(random.uniform(3000, 6000))
             html = page.content()
@@ -78,7 +77,6 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                 title = page.title()
             except:
                 pass
-            browser.close()
             return CrawlerResult(success=True, title=title, text_content=html)
 
     except ImportError:

@@ -574,7 +574,6 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             _goto_target_and_prepare_content(page, url, on_detail)
             html, title = read_page_content_and_title(page, on_detail)
 
-            browser.close()
             return CrawlerResult(success=True, title=title, text_content=html)
 
     except ImportError:
