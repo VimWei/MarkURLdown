@@ -13,13 +13,10 @@ from markitdown import MarkItDown
 from markitdown_app.services.playwright_driver import (
     new_context_and_page,
     teardown_context_page,
-    apply_stealth_and_defaults,
     read_page_content_and_title
 )
 
-# =============================================================================
 # 1. 数据类
-# =============================================================================
 
 @dataclass
 class FetchResult:
