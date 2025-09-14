@@ -61,6 +61,10 @@ ZHIHU_SELECTORS = {
         '.el-dialog__close',
         '.Qrcode-close',
     ],
+    'modal_detection': [
+        '.Modal-backdrop',
+        '.Qrcode-qrcode',
+    ],
     'expand_buttons': [
         'button.ContentItem-expandButton',
         'button:has-text("展开阅读全文")',
@@ -479,57 +483,33 @@ def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callabl
         pass
 
     # 初步等待
-    page.wait_for_timeout(random.uniform(1000, 2000))
+    page.wait_for_timeout(random.uniform(2000, 3000))
 
-    # 先关一次登录弹窗
-    try:
-        if try_close_modal_with_selectors(page, ZHIHU_SELECTORS['login_close']):
-            page.wait_for_timeout(1000)
-        else:
-            print("Playwright: 未发现登录弹窗")
-    except Exception as e:
-        print(f"Playwright: 处理登录弹窗异常: {e}")
-        try:
-            page.keyboard.press('Escape')
-            print("Playwright: 使用ESC键作为备用方案")
-        except Exception:
-            pass
-
-    # 再等待一小会，确保稳定
-    page.wait_for_timeout(random.uniform(1000, 2000))
-
-    # 处理知乎回答页面的展开逻辑（含再次确保弹窗关闭）
+    # 关闭登录弹窗
     try:
         print("Playwright: 检查并关闭登录弹窗...")
-        print("Playwright: 开始查找展开按钮...")
-        modal_closed = False
-        for attempt in range(3):
-            try:
-                modal_backdrop = page.query_selector('.Modal-backdrop')
-                qrcode_modal = page.query_selector('.Qrcode-qrcode')
-                if modal_backdrop or qrcode_modal:
-                    print(f"Playwright: 发现登录弹窗，尝试关闭 (第{attempt+1}次)")
-                    modal_closed = try_close_modal_with_selectors(page, ZHIHU_SELECTORS['login_close']) or modal_closed
-                    if not modal_closed:
-                        page.keyboard.press('Escape')
-                        print("Playwright: 使用ESC键关闭弹窗")
-                        modal_closed = True
-                    page.wait_for_timeout(2000)
-                else:
-                    print("Playwright: 未发现登录弹窗")
-                    modal_closed = True
-                    break
-            except Exception as e:
-                print(f"Playwright: 关闭弹窗时出错: {e}")
-                page.keyboard.press('Escape')
-                page.wait_for_timeout(1000)
+        
+        # 使用增强的弹窗关闭函数，包含重试机制和特定弹窗检测
+        modal_closed = try_close_modal_with_selectors(
+            page, 
+            ZHIHU_SELECTORS['login_close'],
+            max_attempts=3,
+            modal_detection_selectors=ZHIHU_SELECTORS['modal_detection'],
+            use_escape_fallback=True
+        )
 
         if not modal_closed:
-            print("Playwright: 无法完全关闭登录弹窗，跳过展开按钮点击")
+            print("Playwright: 无法完全关闭登录弹窗")
+    except Exception as e:
+        print(f"Playwright: 处理登录弹窗时出错: {e}")
 
-        # 等待页面完全加载
-        page.wait_for_timeout(2000)
+    # 等待页面稳定
+    page.wait_for_timeout(random.uniform(1000, 2000))
 
+    # 处理知乎回答页面的展开逻辑
+    try:
+        print("Playwright: 开始查找展开按钮...")
+        
         # 点击展开按钮
         _try_click_expand_buttons(page)
     except Exception as e:

@@ -93,31 +93,99 @@ def apply_stealth_and_defaults(page: Any, default_timeout_ms: int = 30000) -> No
 
 # --- Page operations ---
 
-def try_close_modal_with_selectors(page: Any, selectors: Iterable[str]) -> bool:
-    """Try to close a modal by trying a list of selectors. Return True if closed."""
-    try:
-        for selector in selectors:
-            try:
-                close_btn = page.query_selector(selector)
-                if close_btn and (not hasattr(close_btn, 'is_visible') or close_btn.is_visible()):
+def try_close_modal_with_selectors(page: Any, selectors: Iterable[str], max_attempts: int = 3, 
+                                 modal_detection_selectors: Optional[Iterable[str]] = None,
+                                 use_escape_fallback: bool = True) -> bool:
+    """Try to close a modal by trying a list of selectors with enhanced retry logic.
+    
+    Args:
+        page: Playwright page object
+        selectors: List of selectors to try for closing the modal
+        max_attempts: Maximum number of attempts to close the modal
+        modal_detection_selectors: Optional selectors to detect if modal is present
+        use_escape_fallback: Whether to use Escape key as fallback
+    
+    Returns:
+        True if modal was successfully closed, False otherwise
+    """
+    modal_closed = False
+    
+    for attempt in range(max_attempts):
+        try:
+            # Check if modal is present using detection selectors
+            modal_present = False
+            if modal_detection_selectors:
+                for detection_selector in modal_detection_selectors:
                     try:
-                        close_btn.click(timeout=3000)
-                        return True
+                        modal_element = page.query_selector(detection_selector)
+                        if modal_element:
+                            modal_present = True
+                            break
                     except Exception:
-                        try:
-                            close_btn.click(force=True, timeout=2000)
-                            return True
-                        except Exception:
+                        continue
+            
+            # If no detection selectors provided, assume modal might be present
+            if not modal_detection_selectors:
+                modal_present = True
+            
+            if modal_present:
+                print(f"Playwright: 发现弹窗，尝试关闭 (第{attempt+1}次)")
+                
+                # Try to close using provided selectors
+                for selector in selectors:
+                    try:
+                        close_btn = page.query_selector(selector)
+                        if close_btn and (not hasattr(close_btn, 'is_visible') or close_btn.is_visible()):
                             try:
-                                page.evaluate("arguments[0].click()", close_btn)
-                                return True
+                                close_btn.click(timeout=3000)
+                                print(f"Playwright: 成功通过选择器关闭弹窗: {selector}")
+                                modal_closed = True
+                                break
                             except Exception:
-                                pass
-            except Exception:
-                continue
-    except Exception:
-        pass
-    return False
+                                try:
+                                    close_btn.click(force=True, timeout=2000)
+                                    print(f"Playwright: 强制点击关闭弹窗: {selector}")
+                                    modal_closed = True
+                                    break
+                                except Exception:
+                                    try:
+                                        page.evaluate("arguments[0].click()", close_btn)
+                                        print(f"Playwright: 通过JavaScript关闭弹窗: {selector}")
+                                        modal_closed = True
+                                        break
+                                    except Exception:
+                                        pass
+                    except Exception:
+                        continue
+                
+                # If selectors didn't work and escape fallback is enabled
+                if not modal_closed and use_escape_fallback:
+                    try:
+                        page.keyboard.press('Escape')
+                        print("Playwright: 使用ESC键关闭弹窗")
+                        modal_closed = True
+                    except Exception as e:
+                        print(f"Playwright: ESC键关闭弹窗失败: {e}")
+                
+                # Wait between attempts
+                if attempt < max_attempts - 1:
+                    page.wait_for_timeout(2000)
+            else:
+                print("Playwright: 未发现弹窗")
+                modal_closed = True
+                break
+                
+        except Exception as e:
+            print(f"Playwright: 关闭弹窗时出错: {e}")
+            if use_escape_fallback:
+                try:
+                    page.keyboard.press('Escape')
+                    print("Playwright: 异常情况下使用ESC键")
+                except Exception:
+                    pass
+            page.wait_for_timeout(1000)
+    
+    return modal_closed
 
 def establish_home_session(page: Any, home_url: str, home_modal_selectors: Optional[Iterable[str]] = None, on_detail: Optional[callable] = None) -> None:
     """Visit a site home to warm up cookies and optionally close an initial login modal."""
