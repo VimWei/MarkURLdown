@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from markitdown_app.core.html_to_md import html_fragment_to_markdown
 from markitdown_app.core.handlers import generic_handler as _generic
 from markitdown_app.services.playwright_driver import (
-    new_context_and_page_from_shared,
+    new_context_and_page,
     teardown_context_page,
     establish_home_session,
     try_close_modal_with_selectors,
@@ -551,7 +551,7 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
     try:
         # 分支1：共享 Browser（为每个 URL 新建 Context）
         if shared_browser is not None:
-            context, page = new_context_and_page_from_shared(shared_browser, apply_stealth=False)
+            context, page = new_context_and_page(shared_browser, apply_stealth=False)
             # 应用知乎特定的反检测脚本
             _apply_zhihu_stealth_and_defaults(page)
 
@@ -564,7 +564,7 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
         # 分支2：每 URL 独立 Browser（原路径）
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
-            # 启动真实的Chrome浏览器，使用成功的反检测配置
+            # 启动Chrome浏览器，使用必要的反检测配置
             browser = p.chromium.launch(
                 headless=False,  # 使用非headless模式以绕过检测
                 channel="chrome",  # 使用系统安装的Chrome
@@ -585,119 +585,17 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                 ]
             )
 
-            # 创建上下文，模拟真实用户环境
-            context = browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                locale='zh-CN',
-                timezone_id='Asia/Shanghai',
-                geolocation={'latitude': 39.9042, 'longitude': 116.4074},  # 北京坐标
-                permissions=['geolocation'],
-                extra_http_headers={
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Sec-Fetch-Dest': 'document',
-                    'Sec-Fetch-Mode': 'navigate',
-                    'Sec-Fetch-Site': 'none',
-                    'Sec-Fetch-User': '?1',
-                    'Cache-Control': 'max-age=0',
-                }
-            )
-
-            # 创建页面
-            page = context.new_page()
-
-            # 注入反检测脚本
-            page.add_init_script("""
-                // 隐藏webdriver属性
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined,
-                });
-
-                // 模拟真实的navigator属性
-                Object.defineProperty(navigator, 'plugins', {
-                    get: () => [1, 2, 3, 4, 5],
-                });
-
-                Object.defineProperty(navigator, 'languages', {
-                    get: () => ['zh-CN', 'zh', 'en'],
-                });
-
-                // 模拟真实的屏幕属性
-                Object.defineProperty(screen, 'width', {
-                    get: () => 1920,
-                });
-
-                Object.defineProperty(screen, 'height', {
-                    get: () => 1080,
-                });
-
-                // 模拟真实的时区
-                Object.defineProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', {
-                    value: function() {
-                        return { timeZone: 'Asia/Shanghai' };
-                    }
-                });
-            """)
-
-            # 设置超时
-            page.set_default_timeout(30000)
-
-            # 访问页面
-            print(f"Playwright: 正在访问 {url}")
-            if on_detail:
-                on_detail("正在启动浏览器访问知乎...")
+            # 创建独立的上下文和页面
+            context, page = new_context_and_page(browser, apply_stealth=False)
+            # 应用知乎特定的反检测脚本
+            _apply_zhihu_stealth_and_defaults(page)
 
             # 访问目标URL
             _goto_target_and_prepare_content(page, url, on_detail)
-
-            # 检查页面标题而不是响应状态，因为知乎可能返回200但内容是403页面
-            try:
-                page_title = page.title()
-                print(f"Playwright: 获取到标题: {page_title}")
-                if "403" in page_title or "Forbidden" in page_title:
-                    browser.close()
-                    return CrawlerResult(
-                        success=False,
-                        title=None,
-                        text_content="",
-                        error=f"Page title indicates 403: {page_title}"
-                    )
-            except Exception as e:
-                print(f"Playwright: 获取标题失败: {e}")
-                # 继续执行，可能页面正在加载
-
-            # 模拟真实用户阅读行为
-            page.wait_for_timeout(random.uniform(3000, 6000))
-
-            # 模拟鼠标移动和滚动
-            page.mouse.move(random.randint(300, 700), random.randint(300, 600))
-            page.wait_for_timeout(random.uniform(500, 1500))
-            page.mouse.wheel(0, random.randint(100, 400))
-            page.wait_for_timeout(random.uniform(1000, 2000))
-
-            key = 'answer' if page_type.is_answer_page else ('column' if page_type.is_column_page else 'unknown')
-            wait_for_selector_stable(page, WAIT_SELECTOR_BY_TYPE, page_type_key=key, timeout_ms=10000)
-
-            # 获取页面内容
             html, title = read_page_content_and_title(page, on_detail)
-            if title is not None:
-                try:
-                    print(f"Playwright: 获取到标题: {title}")
-                except Exception:
-                    pass
 
             browser.close()
-
-            return CrawlerResult(
-                success=True,
-                title=title,
-                text_content=html
-            )
+            return CrawlerResult(success=True, title=title, text_content=html)
 
     except ImportError:
         return CrawlerResult(

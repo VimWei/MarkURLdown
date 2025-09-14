@@ -5,9 +5,10 @@ from typing import Optional, Any, Iterable, Mapping
 
 # --- Lifecycle helpers ---
 
-def new_context_and_page_from_shared(shared_browser: Any, context_options: Optional[dict] = None, apply_stealth: bool = True) -> tuple[Any, Any]:
-    """Create a fresh BrowserContext and Page from a shared Browser.
+def new_context_and_page(browser: Any, context_options: Optional[dict] = None, apply_stealth: bool = True) -> tuple[Any, Any]:
+    """Create a fresh BrowserContext and Page from a Browser instance.
 
+    browser: Browser instance (can be shared or independent)
     context_options can override defaults such as UA/locale/headers.
     apply_stealth: whether to apply stealth scripts (default: True)
     """
@@ -35,7 +36,7 @@ def new_context_and_page_from_shared(shared_browser: Any, context_options: Optio
     if context_options:
         options.update(context_options)
 
-    context = shared_browser.new_context(**options)
+    context = browser.new_context(**options)
     page = context.new_page()
     
     # 根据参数决定是否应用反检测脚本
