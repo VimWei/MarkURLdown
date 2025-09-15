@@ -187,28 +187,6 @@ def try_close_modal_with_selectors(page: Any, selectors: Iterable[str], max_atte
     
     return modal_closed
 
-def establish_home_session(page: Any, home_url: str, home_modal_selectors: Optional[Iterable[str]] = None, on_detail: Optional[callable] = None) -> None:
-    """Visit a site home to warm up cookies and optionally close an initial login modal."""
-    try:
-        if on_detail:
-            try:
-                on_detail("正在访问站点首页建立会话...")
-            except Exception:
-                pass
-        page.goto(home_url, wait_until='domcontentloaded', timeout=15000)
-        page.wait_for_timeout(random.uniform(2000, 4000))
-        try:
-            page.mouse.move(random.randint(100, 800), random.randint(100, 400))
-            page.wait_for_timeout(random.uniform(500, 1500))
-        except Exception:
-            pass
-        if home_modal_selectors:
-            page.wait_for_timeout(random.uniform(500, 1500))
-            if try_close_modal_with_selectors(page, home_modal_selectors):
-                page.wait_for_timeout(500)
-    except Exception:
-        pass
-
 def wait_for_selector_stable(page: Any, selector_or_mapping: str | Mapping[str, str], page_type_key: Optional[str] = None, timeout_ms: int = 10000) -> None:
     """Wait for a selector to appear. Accepts direct selector or a mapping by page type key."""
     try:

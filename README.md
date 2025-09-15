@@ -13,23 +13,24 @@ MarkURLDown is a sophisticated desktop application designed to effortlessly conv
 *   **Modern & Intuitive GUI:** A clean and responsive graphical interface built with PySide6.
 *   **Batch Conversion:** Convert multiple URLs in a single session with progress tracking and real-time status updates.
 *   **Advanced Crawler Technology:** Multi-strategy crawler system with automatic fallback:
-    *   **Playwright:** Modern browser automation for complex anti-bot scenarios
-    *   **httpx:** High-performance HTTP/2 client for fast requests
-    *   **Requests:** Lightweight HTTP client for simple scenarios
+    *   **Playwright:** Modern browser automation for complex anti-bot scenarios with advanced stealth techniques
+    *   **httpx:** High-performance HTTP/2 client for fast requests with session management
+    *   **Requests:** Lightweight HTTP client for simple scenarios with robust error handling
     *   **Anti-Detection Measures:** Advanced browser automation with realistic user behavior simulation, geolocation spoofing, and stealth techniques
     *   **Dynamic Content Processing:** Handles JavaScript-rendered content, lazy-loaded images, and interactive elements
     *   **Smart Retry Logic:** Automatic retry with exponential backoff for failed requests and rate limiting
+    *   **Session Pre-warming:** Establishes legitimate sessions before accessing target content to improve success rates
 *   **Smart Content Extraction:** Intelligently cleans up clutter like ads, navigation bars, and footers to grab only the main article content.
 *   **Specialized Site Handlers:** Dedicated processors for complex websites:
-    *   **WeChat Official Account Articles:** Advanced handling with multi-strategy crawling and anti-detection measures
+    *   **WeChat Official Account Articles:** Advanced handling with multi-strategy crawling and anti-detection measures, with configurable filtering rules for each account
     *   **Zhihu.com:** Supports both Zhihu column articles and answer pages with Smart Content Detection
-    *   **WordPress Blogs:** Optimized processing for WordPress-based websites
-    *   **Next.js Blogs:** Tuned for common static Next.js blog themes
-    *   **Generic Handler:** Intelligent fallback for all other websites
+    *   **WordPress Blogs:** Optimized processing for WordPress-based websites with metadata extraction
+    *   **Next.js Blogs:** Tuned for common static Next.js blog themes with enhanced content processing
+    *   **Generic Handler:** Intelligent fallback for all other websites with multi-strategy implementation
 *   **Advanced Options:**
     *   **Proxy Support:** Configurable proxy settings with system proxy detection
     *   **SSL Verification:** Optional SSL certificate verification bypass for problematic sites
-    *   **Image Handling:** Downloads all images from articles and saves them locally for complete, offline-first archives
+    *   **Image Handling:** Downloads all images from articles and saves them locally for complete, offline-first archives with format detection and correction
     *   **Content Filtering:** Removes typical site chrome (nav, header, footer, TOC, comments) before conversion for Generic Handler
     *   **Speed Mode (Shared Browser):** Reuse one Playwright browser per batch, new context per URL for improved performance
 *   **Session Management:**
@@ -107,7 +108,12 @@ Once installed, you can launch the application without needing to open a command
 2.  Add as many URLs as you need to the list.
 3.  Use the up/down arrows to reorder URLs if needed.
 4.  Choose your desired output directory using the "Choose..." button.
-5.  Configure your options
+5.  Configure your options:
+    *   **Use System Proxy:** Enable if you're behind a corporate firewall
+    *   **Ignore SSL Verification:** Enable for sites with certificate issues
+    *   **Download Images:** Download and save images locally (recommended)
+    *   **Filter Non-content Elements:** Remove navigation, ads, and other non-article content for Generic Handler
+    *   **Speed Mode (Shared Browser):** Enable for faster batch processing
 6.  Click the "Convert to Markdown" button to begin the conversion process.
 
 ## Acknowledgements

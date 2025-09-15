@@ -13,7 +13,6 @@ from markitdown_app.core.handlers import generic_handler as _generic
 from markitdown_app.services.playwright_driver import (
     new_context_and_page,
     teardown_context_page,
-    establish_home_session,
     try_close_modal_with_selectors,
     read_page_content_and_title,
     wait_for_selector_stable,
