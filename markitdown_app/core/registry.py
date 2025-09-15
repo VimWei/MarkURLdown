@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Callable, Protocol
 import os
+from datetime import datetime
 
 from markitdown_app.core.handlers.generic_handler import convert_url
 from markitdown_app.core.handlers.weixin_handler import fetch_weixin_article
@@ -79,6 +80,9 @@ def _weixin_handler(payload: ConvertPayload, session, options: ConversionOptions
 
     text = normalize_markdown_headings(fetched.html_markdown, fetched.title)
 
+    # 生成统一时间戳，确保markdown文件名和图片文件名一致
+    conversion_timestamp = datetime.now()
+
     if options.download_images:
         images_dir = payload.meta.get("images_dir")
         if not images_dir and payload.meta.get("out_dir"):
@@ -86,9 +90,9 @@ def _weixin_handler(payload: ConvertPayload, session, options: ConversionOptions
         if images_dir:
             should_stop_cb = payload.meta.get("should_stop") or (lambda: False)
             on_detail_cb = payload.meta.get("on_detail")
-            text = download_images_and_rewrite(text, url, images_dir, session, should_stop=should_stop_cb, on_detail=on_detail_cb)
+            text = download_images_and_rewrite(text, url, images_dir, session, should_stop=should_stop_cb, on_detail=on_detail_cb, timestamp=conversion_timestamp)
 
-    filename = derive_md_filename(fetched.title, url)
+    filename = derive_md_filename(fetched.title, url, conversion_timestamp)
     return ConvertResult(title=fetched.title, markdown=text, suggested_filename=filename)
 
 
@@ -119,6 +123,9 @@ def _zhihu_handler(payload: ConvertPayload, session, options: ConversionOptions)
 
         text = normalize_markdown_headings(fetched.html_markdown, fetched.title)
 
+        # 生成统一时间戳，确保markdown文件名和图片文件名一致
+        conversion_timestamp = datetime.now()
+
         if options.download_images:
             images_dir = payload.meta.get("images_dir")
             if not images_dir and payload.meta.get("out_dir"):
@@ -126,9 +133,9 @@ def _zhihu_handler(payload: ConvertPayload, session, options: ConversionOptions)
             if images_dir:
                 should_stop_cb = payload.meta.get("should_stop") or (lambda: False)
                 on_detail_cb = payload.meta.get("on_detail")
-                text = download_images_and_rewrite(text, url, images_dir, session, should_stop=should_stop_cb, on_detail=on_detail_cb)
+                text = download_images_and_rewrite(text, url, images_dir, session, should_stop=should_stop_cb, on_detail=on_detail_cb, timestamp=conversion_timestamp)
 
-        filename = derive_md_filename(fetched.title, url)
+        filename = derive_md_filename(fetched.title, url, conversion_timestamp)
         return ConvertResult(title=fetched.title, markdown=text, suggested_filename=filename)
     except Exception as e:
         # 如果知乎处理器失败，返回None让系统回退到通用转换器
@@ -162,6 +169,9 @@ def _wordpress_handler(payload: ConvertPayload, session, options: ConversionOpti
 
         text = normalize_markdown_headings(fetched.html_markdown, fetched.title)
 
+        # 生成统一时间戳，确保markdown文件名和图片文件名一致
+        conversion_timestamp = datetime.now()
+
         if options.download_images:
             images_dir = payload.meta.get("images_dir")
             if not images_dir and payload.meta.get("out_dir"):
@@ -169,9 +179,9 @@ def _wordpress_handler(payload: ConvertPayload, session, options: ConversionOpti
             if images_dir:
                 should_stop_cb = payload.meta.get("should_stop") or (lambda: False)
                 on_detail_cb = payload.meta.get("on_detail")
-                text = download_images_and_rewrite(text, url, images_dir, session, should_stop=should_stop_cb, on_detail=on_detail_cb)
+                text = download_images_and_rewrite(text, url, images_dir, session, should_stop=should_stop_cb, on_detail=on_detail_cb, timestamp=conversion_timestamp)
 
-        filename = derive_md_filename(fetched.title, url)
+        filename = derive_md_filename(fetched.title, url, conversion_timestamp)
         return ConvertResult(title=fetched.title, markdown=text, suggested_filename=filename)
     except Exception as e:
         # 如果WordPress处理器失败，返回None让系统回退到通用转换器
@@ -202,6 +212,9 @@ def _nextjs_handler(payload: ConvertPayload, session, options: ConversionOptions
 
         text = normalize_markdown_headings(fetched.html_markdown, fetched.title)
 
+        # 生成统一时间戳，确保markdown文件名和图片文件名一致
+        conversion_timestamp = datetime.now()
+
         if options.download_images:
             images_dir = payload.meta.get("images_dir")
             if not images_dir and payload.meta.get("out_dir"):
@@ -216,9 +229,10 @@ def _nextjs_handler(payload: ConvertPayload, session, options: ConversionOptions
                     session,
                     should_stop=should_stop_cb,
                     on_detail=on_detail_cb,
+                    timestamp=conversion_timestamp,
                 )
 
-        filename = derive_md_filename(fetched.title, url)
+        filename = derive_md_filename(fetched.title, url, conversion_timestamp)
         return ConvertResult(title=fetched.title, markdown=text, suggested_filename=filename)
     except Exception as e:
         print(f"Next.js handler failed: {e}")

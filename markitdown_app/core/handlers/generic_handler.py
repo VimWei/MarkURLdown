@@ -7,6 +7,7 @@ import time
 import random
 from urllib.parse import urlparse
 from dataclasses import dataclass
+from datetime import datetime
 from markitdown import MarkItDown
 from markitdown_app.app_types import ConvertPayload, ConversionOptions, ConvertResult
 from markitdown_app.io.session import build_requests_session
@@ -247,6 +248,9 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
                         # 标准化处理
                         text = normalize_markdown_headings(result.text_content, result.title)
 
+                        # 生成统一时间戳，确保markdown文件名和图片文件名一致
+                        conversion_timestamp = datetime.now()
+
                         # 图片处理（可选）
                         if options.download_images:
                             images_dir = payload.meta.get("images_dir") or (payload.meta.get("out_dir") and (payload.meta["out_dir"] + "/img"))
@@ -255,10 +259,10 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
                                 on_detail_cb = payload.meta.get("on_detail")
                                 text = download_images_and_rewrite(
                                     text, url, images_dir, session,
-                                    should_stop=should_stop_cb, on_detail=on_detail_cb
+                                    should_stop=should_stop_cb, on_detail=on_detail_cb, timestamp=conversion_timestamp
                                 )
 
-                        filename = derive_md_filename(result.title, url)
+                        filename = derive_md_filename(result.title, url, conversion_timestamp)
                         return ConvertResult(title=result.title, markdown=text, suggested_filename=filename)
                     else:
                         print(f"策略 {i} 获取到无效内容，重试...")
