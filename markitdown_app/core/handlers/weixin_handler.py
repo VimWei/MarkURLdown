@@ -8,6 +8,10 @@ from typing import Optional, Callable, Any
 from bs4 import BeautifulSoup
 
 from markitdown_app.core.html_to_md import html_fragment_to_markdown
+from markitdown_app.services.playwright_driver import (
+    new_context_and_page,
+    read_page_content_and_title,
+)
 
 @dataclass
 class CrawlerResult:
@@ -21,6 +25,19 @@ class CrawlerResult:
 class FetchResult:
     title: str | None
     html_markdown: str
+
+def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callable[[str], None]] = None) -> None:
+    """访问目标URL并准备内容 - 微信版本"""
+    if on_detail:
+        on_detail("正在访问微信文章...")
+    print("Playwright: 直接访问目标文章...")
+    
+    try:
+        page.goto(url, wait_until='domcontentloaded', timeout=30000)
+    except Exception:
+        pass  # 微信机制：即使URL错误也会返回错误页面，真正的异常检测在内容层面
+    
+    page.wait_for_timeout(random.uniform(3000, 6000))
 
 def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理微信的poc_token验证"""
@@ -45,38 +62,16 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                     '--disable-javascript',  # 禁用JavaScript，避免检测
                 ]
             )
-            context = browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                locale='zh-CN',
-                timezone_id='Asia/Shanghai',
-                extra_http_headers={
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Referer': 'https://mp.weixin.qq.com/',
-                }
-            )
-            page = context.new_page()
-            page.set_default_timeout(30000)
-            if on_detail:
-                on_detail("正在启动浏览器访问微信...")
-            print("Playwright: 直接访问目标文章...")
-            response = page.goto(url, wait_until='domcontentloaded', timeout=30000)
-            if on_detail:
-                on_detail("正在访问目标文章...")
-            if not response or response.status >= 400:
-                return CrawlerResult(success=False, title=None, text_content="", error=f"HTTP {response.status if response else 'Unknown'}")
-            page.wait_for_timeout(random.uniform(3000, 6000))
-            html = page.content()
-            title = None
-            try:
-                title = page.title()
-            except:
-                pass
+            
+            # 创建独立的上下文和页面
+            context, page = new_context_and_page(browser, apply_stealth=False)            
+            
+            # 访问目标URL并准备内容
+            _goto_target_and_prepare_content(page, url, on_detail)
+            
+            # 使用 playwright_driver 的 read_page_content_and_title
+            html, title = read_page_content_and_title(page, on_detail)
+            
             return CrawlerResult(success=True, title=title, text_content=html)
 
     except ImportError:
