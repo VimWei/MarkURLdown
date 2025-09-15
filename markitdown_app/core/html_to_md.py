@@ -1,8 +1,40 @@
 from __future__ import annotations
 
 import re
+from markitdown import MarkItDown
+from markitdown._stream_info import StreamInfo
+import io
 
 def html_fragment_to_markdown(root) -> str:
+    """
+    使用 markitdown 将 HTML 片段转换为 Markdown
+    
+    Args:
+        root: BeautifulSoup 元素或 HTML 字符串
+        
+    Returns:
+        str: 转换后的 Markdown 文本
+    """
+    try:
+        # 如果输入是 BeautifulSoup 元素，转换为字符串
+        if hasattr(root, '__str__'):
+            html_content = str(root)
+        else:
+            html_content = str(root)
+        
+        # 使用 HtmlConverter.convert_string 方法，可能更稳定
+        from markitdown.converters._html_converter import HtmlConverter
+        converter = HtmlConverter()
+        result = converter.convert_string(html_content)
+        return result.markdown
+        
+    except Exception as e:
+        # 如果 markitdown 转换失败，回退到原来的实现
+        print(f"markitdown 转换失败，回退到自定义转换器: {e}")
+        return _legacy_html_fragment_to_markdown(root)
+
+def _legacy_html_fragment_to_markdown(root) -> str:
+    """原来的自定义转换实现，作为回退方案"""
     def node_to_md(node, in_heading: bool = False) -> str:
         if getattr(node, 'name', None) is None:
             return str(node)
