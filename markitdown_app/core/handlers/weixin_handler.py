@@ -31,12 +31,12 @@ def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callabl
     if on_detail:
         on_detail("正在访问微信文章...")
     print("Playwright: 直接访问目标文章...")
-    
+
     try:
         page.goto(url, wait_until='domcontentloaded', timeout=30000)
     except Exception:
         pass  # 微信机制：即使URL错误也会返回错误页面，真正的异常检测在内容层面
-    
+
     page.wait_for_timeout(random.uniform(3000, 6000))
 
 def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> CrawlerResult:
@@ -62,16 +62,16 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
                     '--disable-javascript',  # 禁用JavaScript，避免检测
                 ]
             )
-            
+
             # 创建独立的上下文和页面
-            context, page = new_context_and_page(browser, apply_stealth=False)            
-            
+            context, page = new_context_and_page(browser, apply_stealth=False)
+
             # 访问目标URL并准备内容
             _goto_target_and_prepare_content(page, url, on_detail)
-            
+
             # 使用 playwright_driver 的 read_page_content_and_title
             html, title = read_page_content_and_title(page, on_detail)
-            
+
             return CrawlerResult(success=True, title=title, text_content=html)
 
     except ImportError:
@@ -281,7 +281,10 @@ def _get_account_specific_style_rules(account_name: str | None) -> list[dict]:
         #     {'tag': 'section', 'classes': ['advertisement']},  # 规则3：广告类名的section
         #     {'tag': 'section', 'classes': ['sponsored']},  # 规则4：赞助类名的section
         # ],
-
+        '央视财经': [
+            {'tag': 'div', 'classes': ['js_mpvedio_wrapper_wxv_4156197472454262787']},
+            {'tag': 'section', 'classes': ['js_darkmode__21']},
+       ],
         '券商中国': [
             {'tag': 'img', 'classes': ['rich_pages', 'wxw-img', '__bg_gif']},
             {'tag': 'section', 'classes': ['border: 1px solid rgb(170, 166, 149)']},
