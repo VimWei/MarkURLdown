@@ -16,9 +16,6 @@ run_tests.py
 .venv/
 venv/
 
-# uv
-uv.lock
-
 # IDE
 *.swp
 .vscode/
