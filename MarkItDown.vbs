@@ -1,5 +1,5 @@
-' This script activates a Conda environment and runs a Python script without a visible command window.
-' Optimized for faster startup
+' This script runs a Python script using uv without a visible command window.
+' Modern approach using uv's built-in environment management
 
 Set WshShell = CreateObject("WScript.Shell")
 
@@ -7,22 +7,19 @@ Set WshShell = CreateObject("WScript.Shell")
 appDir = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName)
 
 ' --- User Configuration ---
-' NOTE: Please ensure these paths are correct for your system.
-condaPath = "C:\Users\chenw\miniconda3"
-condaEnvName = "markitdown"
 entryScript = "MarkURLdown.pyw"
 ' --------------------------
 
 ' Use chr(34) to represent the double-quote character (") for clarity.
 q = chr(34)
 
-' Optimized command: Use direct python path instead of activation
-pythonPath = q & condaPath & "\envs\" & condaEnvName & "\pythonw.exe" & q
+' Use uv run to automatically manage environment
+uvPath = "uv"
 cdCmd = "cd /D " & q & appDir & q
-pythonCmd = pythonPath & " " & q & entryScript & q
+uvCmd = uvPath & " run python " & q & entryScript & q
 
-' Simplified command without conda activation overhead
-fullCommand = cdCmd & " & " & pythonCmd
+' Command using uv run
+fullCommand = cdCmd & " & " & uvCmd
 
 ' Create the final command to be executed by cmd.exe, wrapped in quotes.
 cmdToRun = "cmd.exe /C " & q & fullCommand & q

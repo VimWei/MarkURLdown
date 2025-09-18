@@ -49,41 +49,34 @@ To set up the project locally, you will need a working Python environment (Pytho
     cd Markitdown
     ```
 
-2.  **Create and activate a virtual environment (recommended):**
+2.  **Install uv (fast Python package manager):**
     ```bash
-    # Using venv
-    python -m venv markitdown_env
-    source markitdown_env/bin/activate  # On Windows: markitdown_env\Scripts\activate
-
-    # Or using conda
-    conda create --name markitdown python=3.10 -y
-    conda activate markitdown
-    ```
-
-    Using uv (fast installer/runner):
-    ```bash
-    # Install uv (Linux/macOS)
+    # Linux/macOS
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    # On Windows (PowerShell)
-    iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex
-
-    # Create and activate venv
-    uv venv
-    # Linux/macOS (bash/zsh)
-    source .venv/bin/activate
+    
     # Windows (PowerShell)
-    .\.venv\Scripts\Activate.ps1
-    # Windows (Command Prompt)
-    .venv\Scripts\activate
+    iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex
     ```
 
-3.  **Install the required dependencies:**
+3.  **Install dependencies and run the application:**
     ```bash
-    # Using pip
-    pip install -r requirements.txt
+    # One command to install dependencies and run
+    uv run python MarkURLdown.pyw
+    ```
 
-    # Or using uv (faster)
-    uv pip install -r requirements.txt
+    **Alternative manual setup:**
+    ```bash
+    # Create virtual environment
+    uv venv
+    
+    # Activate environment (Windows)
+    .venv\Scripts\activate
+    
+    # Install dependencies
+    uv pip install -e .
+    
+    # Run application
+    python MarkURLdown.pyw
     ```
 
 4.  **Install Playwright browsers (for advanced crawling):**

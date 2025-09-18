@@ -1,11 +1,34 @@
+# Application data
 log/
 output/
 sessions/
 reference/
 tests/
 run_tests.py
+
+# Python
 **/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+
+# uv
+uv.lock
+
+# IDE
 *.swp
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
 GEMINI.md
 .cursorignore
 .cursorrules
