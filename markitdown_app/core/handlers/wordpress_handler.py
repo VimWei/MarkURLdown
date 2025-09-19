@@ -485,6 +485,9 @@ def _process_wordpress_content(html: str, url: str | None = None, title_hint: st
     # 正文：定位并构建正文容器
     content_elem = _build_wordpress_content_element(soup)
 
+    # 初始化md变量
+    md = ""
+
     # 清洗与标准化正文
     if content_elem:
         _clean_and_normalize_wordpress_content(content_elem)
@@ -546,6 +549,13 @@ def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None
                     if result.html_markdown:
                         print("正在处理WordPress内容...")
                         processed_result = _process_wordpress_content(result.html_markdown, url, title_hint=result.title)
+                        
+                        # 检查内容质量，如果内容太短，继续尝试下一个策略
+                        content = processed_result.html_markdown or ""
+                        if len(content) < 200:
+                            print(f"WordPress策略 {i} 内容太短 ({len(content)} 字符)，继续尝试下一个策略")
+                            break
+                        
                         return processed_result
                     else:
                         return result

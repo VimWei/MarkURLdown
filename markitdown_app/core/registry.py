@@ -161,11 +161,6 @@ def _wordpress_handler(payload: ConvertPayload, session, options: ConversionOpti
         content = fetched.html_markdown or ""
         if not content.strip():
             return None
-        
-        # 如果内容太短，可能没有正确提取
-        if len(content) < 200:
-            print(f"WordPress内容太短 ({len(content)} 字符)，可能提取失败")
-            return None
 
         text = normalize_markdown_headings(fetched.html_markdown, fetched.title)
 
@@ -204,10 +199,6 @@ def _nextjs_handler(payload: ConvertPayload, session, options: ConversionOptions
 
         content = fetched.html_markdown or ""
         if not content.strip():
-            return None
-
-        if len(content) < 200:
-            print(f"Next.js内容太短 ({len(content)} 字符)，可能提取失败")
             return None
 
         text = normalize_markdown_headings(fetched.html_markdown, fetched.title)

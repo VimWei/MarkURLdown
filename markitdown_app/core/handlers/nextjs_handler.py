@@ -596,6 +596,13 @@ def fetch_nextjs_article(session, url: str, shared_browser: Any | None = None) -
                     if result.html_markdown:
                         print("正在处理Next.js内容...")
                         processed_result = _process_nextjs_content(result.html_markdown, url, title_hint=result.title)
+                        
+                        # 检查内容质量，如果内容太短，继续尝试下一个策略
+                        content = processed_result.html_markdown or ""
+                        if len(content) < 200:
+                            print(f"Next.js策略 {i} 内容太短 ({len(content)} 字符)，继续尝试下一个策略")
+                            break
+                        
                         return processed_result
                     else:
                         return result   
