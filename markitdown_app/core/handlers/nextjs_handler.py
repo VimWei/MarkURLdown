@@ -267,10 +267,10 @@ def _convert_html_to_markdown_manual(soup) -> str:
 
 # 3. 中层业务函数（按调用关系排序）
 
-def _try_httpx_with_filtering(session, url: str) -> FetchResult:
-    """策略1: 直接httpx + BeautifulSoup内容过滤"""
+def _try_httpx_crawler(session, url: str) -> FetchResult:
+    """策略1: 使用httpx爬取原始HTML"""
     try:
-        print("尝试httpx + 内容过滤...")
+        print("尝试httpx 爬取原始HTML...")
         import httpx
 
         # 使用与session相同的User-Agent
@@ -293,10 +293,10 @@ def _try_httpx_with_filtering(session, url: str) -> FetchResult:
     except Exception as e:
         return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
 
-def _try_playwright_with_filtering(url: str, shared_browser: Any | None = None) -> FetchResult:
-    """策略2: Playwright + BeautifulSoup内容过滤 - 支持共享浏览器"""
+def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> FetchResult:
+    """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
-        print("尝试Playwright + 内容过滤...")
+        print("尝试Playwright 爬取原始HTML...")
 
         # 分支1：使用共享浏览器（为每个URL新建Context）
         if shared_browser is not None:
@@ -563,17 +563,17 @@ def fetch_nextjs_article(session, url: str, shared_browser: Any | None = None) -
     获取Next.js博客文章内容
 
     使用多策略方案：
-    1. 直接httpx + BeautifulSoup内容过滤
-    2. Playwright + BeautifulSoup内容过滤 (支持共享浏览器)
+    1. 使用httpx获取原始HTML，然后统一进行内容过滤
+    2. 使用Playwright获取原始HTML，然后统一进行内容过滤 (支持共享浏览器)
     """
 
     # 定义爬虫策略，按优先级排序
     crawler_strategies = [
-        # 策略1: 直接httpx + 内容过滤
-        lambda: _try_httpx_with_filtering(session, url),
+        # 策略1: 使用httpx爬取原始HTML
+        lambda: _try_httpx_crawler(session, url),
 
-        # 策略2: Playwright + 内容过滤 (支持共享浏览器)
-        lambda: _try_playwright_with_filtering(url, shared_browser),
+        # 策略2: 使用Playwright爬取原始HTML (支持共享浏览器)
+        lambda: _try_playwright_crawler(url, shared_browser),
     ]
 
     # 尝试各种策略，增加重试机制
