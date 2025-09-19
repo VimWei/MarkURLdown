@@ -23,6 +23,8 @@ class ImageDomainConfig:
         # 微信图片CDN
         'qpic.cn': 'exact',
         'mmbiz.qpic.cn': 'exact',
+        # 少数派图片CDN
+        'cdnfile.sspai.com': 'exact',
     }
     
     # 通常格式正确的CDN域名（不需要格式检测）
@@ -327,7 +329,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
             # 准备请求头
             extra_headers = {}
             host = parsed.netloc.lower()
-            if ("mp.weixin.qq.com" in host) or host.endswith(".qpic.cn") or ("weixin" in host) or ("wechat" in host):
+            if ("mp.weixin.qq.com" in host) or host.endswith(".qpic.cn") or ("weixin" in host) or ("wechat" in host) or ("cdnfile.sspai.com" in host):
                 extra_headers.update({
                     "Referer": base_url,
                     "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0"),

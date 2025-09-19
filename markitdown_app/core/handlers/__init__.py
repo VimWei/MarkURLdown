@@ -20,6 +20,7 @@ from .weixin_handler import fetch_weixin_article
 from .zhihu_handler import fetch_zhihu_article  
 from .wordpress_handler import fetch_wordpress_article
 from .nextjs_handler import fetch_nextjs_article
+from .sspai_handler import fetch_sspai_article
 
 # 提供统一的处理器接口
 __all__ = [
@@ -28,6 +29,7 @@ __all__ = [
     'fetch_zhihu_article', 
     'fetch_wordpress_article',
     'fetch_nextjs_article',
+    'fetch_sspai_article',
 ]
 
 # 处理器类型说明
@@ -37,4 +39,5 @@ HANDLER_TYPES = {
     'zhihu': '知乎处理器 - 专门处理知乎文章和回答',
     'wordpress': 'WordPress处理器 - 专门处理WordPress网站',
     'nextjs': 'Next.js处理器 - 专门处理Next.js博客网站',
+    'sspai': '少数派处理器 - 专门处理少数派网站文章',
 }
