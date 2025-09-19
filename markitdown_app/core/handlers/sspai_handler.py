@@ -8,7 +8,8 @@ import random
 from dataclasses import dataclass
 from typing import Any
 from bs4 import BeautifulSoup
-from markitdown import MarkItDown
+from bs4 import NavigableString
+import re
 
 from markitdown_app.services.playwright_driver import (
     new_context_and_page,
@@ -36,7 +37,7 @@ def _extract_sspai_title(soup: BeautifulSoup, title_hint: str | None = None) -> 
     title_selectors = [
         'div#article-title',
         'h1.entry-title',
-        'h1.post-title', 
+        'h1.post-title',
         'article h1',
         'main h1',
         '.entry-content h1',
@@ -70,7 +71,6 @@ def _extract_sspai_title(soup: BeautifulSoup, title_hint: str | None = None) -> 
 
     return title
 
-
 def _extract_sspai_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
     """提取少数派文章元数据（作者、发布时间、分类、标签）"""
     metadata = {
@@ -85,7 +85,7 @@ def _extract_sspai_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
         'div.article-author > div.author-box > div > span > span > div > span',
         'div.article-author > div.author-box > div > span > span > div > a > div > span',
     ]
-    
+
     for selector in author_selectors:
         author_elem = soup.select_one(selector)
         if author_elem:
@@ -98,7 +98,7 @@ def _extract_sspai_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
     time_selectors = [
         '.timer',
     ]
-    
+
     for selector in time_selectors:
         time_elem = soup.select_one(selector)
         if time_elem:
@@ -110,13 +110,13 @@ def _extract_sspai_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
     category_selectors = [
         '.series-title a',
     ]
-    
+
     for selector in category_selectors:
         for elem in soup.select(selector):
             text = elem.get_text(strip=True)
             if text and text not in categories:
                 categories.append(text)
-    
+
     if categories:
         metadata['categories'] = ', '.join(categories)
 
@@ -131,18 +131,17 @@ def _extract_sspai_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
         '.entry-meta .tags a',
         '.post-meta .tags a'
     ]
-    
+
     for selector in tag_selectors:
         for elem in soup.select(selector):
             text = elem.get_text(strip=True)
             if text and text not in tags:
                 tags.append(text)
-    
+
     if tags:
         metadata['tags'] = ', '.join(tags)
 
     return metadata
-
 
 def _build_sspai_header_parts(soup: BeautifulSoup, url: str | None = None, title_hint: str | None = None) -> tuple[str | None, list[str]]:
     """构建少数派文章Markdown头部信息片段"""
@@ -171,21 +170,103 @@ def _build_sspai_header_parts(soup: BeautifulSoup, url: str | None = None, title
 
     return title, parts
 
-
 def _build_sspai_content_element(soup: BeautifulSoup):
     """定位并返回少数派文章正文容器元素"""
     content_elem = None
     candidates = [
         'article div.article-body div.article__main__content.wangEditor-txt',
     ]
-    
+
     for selector in candidates:
         content_elem = soup.select_one(selector)
         if content_elem:
             break
-    
+
     return content_elem
 
+def _preprocess_inline_sup_footnotes(
+    content_elem,
+    selector: str = 'sup.ss-footnote',
+    id_attrs: list[str] | tuple[str, ...] = ('footnote-id', 'data-footnote-id'),
+    text_attrs: list[str] | tuple[str, ...] = ('title', 'data-footnote', 'aria-label'),
+    inline_expand: bool = True,
+) -> dict[str, str]:
+    """将内联脚注直接展开为括号说明。
+
+    - 定位匹配 selector 的 <sup> 元素
+    - 以 id_attrs/text_attrs 读取编号与文本
+    - 用全角括号“（注：...）”替换原 <sup>，不保留 [^id]
+
+    返回 {编号: 文本} 的映射，便于统计或后续处理。
+    """
+    if not content_elem:
+        return {}
+
+    try:
+        sups = content_elem.select(selector)
+        footnote_map: dict[str, str] = {}
+
+        for sup in sups:
+            fid = None
+            for a in id_attrs:
+                v = sup.get(a)
+                if v and str(v).strip():
+                    fid = str(v).strip()
+                    break
+            if not fid:
+                txt = sup.get_text(strip=True)
+                if txt:
+                    fid = txt.strip()
+            if not fid:
+                continue
+
+            fcontent = ''
+            for a in text_attrs:
+                v = sup.get(a)
+                if v and str(v).strip():
+                    fcontent = str(v).strip()
+                    break
+
+            if fcontent and fid not in footnote_map:
+                footnote_map[fid] = fcontent
+
+            try:
+                if inline_expand and fcontent:
+                    # 展开为括号说明，不保留 [^id]
+                    sup.replace_with(NavigableString(f"（注：{fcontent}）"))
+                else:
+                    # 无有效内容时，移除脚注标记
+                    sup.decompose()
+            except Exception:
+                pass
+
+        if not footnote_map:
+            return {}
+
+        return footnote_map
+    except Exception:
+        return {}
+
+def _strip_invisible_characters(content_elem):
+    """移除内容中的不可见字符（如零宽空格），以避免转为Markdown后产生空行。
+
+    说明：页面中常包含 U+200B/U+200C/U+200D 等零宽字符，以及 BOM 等不可见字符，
+    这些字符在转Markdown时可能表现为额外的空段落。这里在 HTML 阶段统一清理。
+    """
+    # 扩展覆盖：零宽字符、BOM、Word Joiner、NBSP、段落/行分隔符
+    invisible_chars_pattern = re.compile(r"[\u200b\u200c\u200d\u200e\u200f\ufeff\u2060\u00a0\u2028\u2029]")
+
+    # 遍历所有文本节点并清理不可见字符
+    for text_node in list(content_elem.find_all(string=True)):
+        original_text = str(text_node)
+        cleaned_text = invisible_chars_pattern.sub("", original_text)
+        if cleaned_text != original_text:
+            cleaned_text_stripped = cleaned_text.strip()
+            if cleaned_text_stripped == "":
+                # 如果清理后为空，则直接移除该文本节点，避免产生空行
+                text_node.extract()
+            else:
+                text_node.replace_with(cleaned_text)
 
 def _clean_and_normalize_sspai_content(content_elem) -> None:
     """清理和规范化少数派文章内容"""
@@ -199,7 +280,7 @@ def _clean_and_normalize_sspai_content(content_elem) -> None:
             del img['data-src']
         except Exception:
             pass
-    
+
     for img in content_elem.find_all('img', {'data-original': True}):
         img['src'] = img['data-original']
         try:
@@ -248,7 +329,7 @@ def _clean_and_normalize_sspai_content(content_elem) -> None:
         # 订阅和关注相关
         '.subscribe', '.follow', '.follow-author',
     ]
-    
+
     for selector in unwanted_in_content:
         for elem in content_elem.select(selector):
             try:
@@ -256,33 +337,34 @@ def _clean_and_normalize_sspai_content(content_elem) -> None:
             except Exception:
                 pass
 
-    # 清除第一个<h4>标签及其之后的所有内容（限定在正文容器内）
+    # 移除包含特定推广链接的段落
     try:
-        first_h4 = content_elem.find('h4')
-        if first_h4 is not None:
-            # 找到包含该<h4>且直接属于content容器的顶级节点
-            cutoff_node = first_h4
-            while cutoff_node is not None and cutoff_node.parent is not content_elem:
-                cutoff_node = cutoff_node.parent
-
-            if cutoff_node is None:
-                cutoff_node = first_h4
-
-            # 从该顶级节点开始，删除它以及其后所有兄弟节点
-            current = cutoff_node
-            while current is not None:
-                next_sibling = current.next_sibling
+        promo_hrefs = {
+            'https://sspai.com/page/client',
+            'https://sspai.com/mall',
+            'https://sspai.com/link?target=https%3A%2F%2Fwww.xiaohongshu.com%2Fuser%2Fprofile%2F63f5d65d000000001001d8d4',
+        }
+        for href in promo_hrefs:
+            for a in content_elem.select(f'a[href="{href}"]'):
+                # 优先删除所在<p>，否则删除最近的块级父节点
+                container = a.find_parent('p') or a.parent
+                if container is None:
+                    container = a
                 try:
-                    current.decompose()
+                    container.decompose()
                 except Exception:
                     try:
-                        current.extract()
+                        container.extract()
                     except Exception:
                         pass
-                current = next_sibling
     except Exception:
         pass
 
+    # 处理脚注：将内联脚注直接展开为括号说明
+    _preprocess_inline_sup_footnotes(content_elem, inline_expand=True)
+
+    # 移除不可见与零宽字符
+    _strip_invisible_characters(content_elem)
 
 def _process_sspai_content(html: str, url: str | None = None, title_hint: str | None = None) -> FetchResult:
     """处理少数派文章内容"""
@@ -309,7 +391,6 @@ def _process_sspai_content(html: str, url: str | None = None, title_hint: str | 
     md = header_str + md if header_str else md
     return FetchResult(title=title, html_markdown=md)
 
-
 # 3. 抓取策略
 
 def _try_httpx_crawler(session, url: str) -> FetchResult:
@@ -332,7 +413,6 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
             return FetchResult(title=None, html_markdown=resp.text)
     except Exception as e:
         return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
-
 
 def _try_playwright_crawler(url: str, on_detail=None, shared_browser: Any | None = None) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
@@ -373,7 +453,6 @@ def _try_playwright_crawler(url: str, on_detail=None, shared_browser: Any | None
     except Exception as e:
         return FetchResult(title=None, html_markdown="", success=False, error=f"Playwright异常: {e}")
 
-
 # 4. 主入口函数
 
 def fetch_sspai_article(session, url: str, on_detail=None, shared_browser: Any | None = None) -> FetchResult:
@@ -398,13 +477,13 @@ def fetch_sspai_article(session, url: str, on_detail=None, shared_browser: Any |
                     # 统一处理：策略层只负责获取HTML，这里统一解析/清理/转换
                     if r.html_markdown:
                         processed = _process_sspai_content(r.html_markdown, url, title_hint=r.title)
-                        
+
                         # 检查内容质量，如果内容太短，继续尝试下一个策略
                         content = processed.html_markdown or ""
                         if len(content) < 200:
                             print(f"少数派策略 {i} 内容太短 ({len(content)} 字符)，继续尝试下一个策略")
                             break
-                        
+
                         return processed
                     else:
                         return r
