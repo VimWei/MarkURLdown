@@ -151,96 +151,6 @@ def _extract_wordpress_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
 
     return metadata
 
-def _convert_html_to_markdown_manual(soup) -> str:
-    """手动将HTML转换为Markdown，保留图片和链接"""
-
-    # 处理图片
-    for img in soup.find_all('img'):
-        src = img.get('src', '')
-        alt = img.get('alt', '')
-        if src:
-            # 创建Markdown图片语法
-            markdown_img = f"![{alt}]({src})"
-            img.replace_with(markdown_img)
-
-    # 处理链接
-    for link in soup.find_all('a'):
-        href = link.get('href', '')
-        text = link.get_text(strip=True)
-        if href and text:
-            # 创建Markdown链接语法
-            markdown_link = f"[{text}]({href})"
-            link.replace_with(markdown_link)
-
-    # 处理标题
-    for i in range(1, 7):
-        for heading in soup.find_all(f'h{i}'):
-            text = heading.get_text(strip=True)
-            if text:
-                markdown_heading = f"{'#' * i} {text}"
-                heading.replace_with(markdown_heading)
-
-    # 处理代码块
-    for pre in soup.find_all('pre'):
-        code = pre.get_text()
-        if code:
-            markdown_code = f"```\n{code}\n```"
-            pre.replace_with(markdown_code)
-
-    # 处理内联代码
-    for code in soup.find_all('code'):
-        text = code.get_text()
-        if text:
-            markdown_inline_code = f"`{text}`"
-            code.replace_with(markdown_inline_code)
-
-    # 处理列表
-    for ul in soup.find_all('ul'):
-        items = []
-        for li in ul.find_all('li'):
-            text = li.get_text(strip=True)
-            if text:
-                items.append(f"- {text}")
-        if items:
-            markdown_list = '\n'.join(items)
-            ul.replace_with(markdown_list)
-
-    for ol in soup.find_all('ol'):
-        items = []
-        for i, li in enumerate(ol.find_all('li'), 1):
-            text = li.get_text(strip=True)
-            if text:
-                items.append(f"{i}. {text}")
-        if items:
-            markdown_list = '\n'.join(items)
-            ol.replace_with(markdown_list)
-
-    # 处理段落
-    for p in soup.find_all('p'):
-        text = p.get_text(strip=True)
-        if text:
-            p.replace_with(text + '\n\n')
-
-    # 处理换行
-    for br in soup.find_all('br'):
-        br.replace_with('\n')
-
-    # 获取最终文本，保留空行
-    text = soup.get_text(separator='\n')
-
-    # 清理多余的空行，但保留必要的空行
-    lines = []
-    prev_empty = False
-    for line in text.split('\n'):
-        line_stripped = line.strip()
-        if line_stripped:
-            lines.append(line_stripped)
-            prev_empty = False
-        elif not prev_empty:
-            lines.append('')
-            prev_empty = True
-
-    return '\n'.join(lines)
 
 # 3. 中层业务函数（按调用关系排序）
 
@@ -492,12 +402,8 @@ def _process_wordpress_content(html: str, url: str | None = None, title_hint: st
     if content_elem:
         _clean_and_normalize_wordpress_content(content_elem)
         # 使用 html_fragment_to_markdown 转换正文内容
-        try:
-            from markitdown_app.core.html_to_md import html_fragment_to_markdown
-            md = html_fragment_to_markdown(content_elem)
-        except ImportError:
-            # 兜底：使用手动转换
-            md = _convert_html_to_markdown_manual(content_elem)
+        from markitdown_app.core.html_to_md import html_fragment_to_markdown
+        md = html_fragment_to_markdown(content_elem)
 
     # 最后拼接为全文
     if header_str:
