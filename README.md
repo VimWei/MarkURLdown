@@ -45,7 +45,7 @@ To set up the project locally, you will need a working Python environment (Pytho
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/VimWei/MarkURLdown
     cd Markitdown
     ```
 
@@ -53,7 +53,7 @@ To set up the project locally, you will need a working Python environment (Pytho
     ```bash
     # Linux/macOS
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    
+
     # Windows (PowerShell)
     iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex
     ```
@@ -68,13 +68,13 @@ To set up the project locally, you will need a working Python environment (Pytho
     ```bash
     # Create virtual environment
     uv venv
-    
+
     # Activate environment (Windows)
     .venv\Scripts\activate
-    
+
     # Install dependencies
     uv pip install -e .
-    
+
     # Run application
     python MarkURLdown.pyw
     ```
