@@ -5,6 +5,8 @@ import time
 import random
 from typing import Optional, Callable, Any
 
+import re
+from bs4 import NavigableString
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
@@ -300,10 +302,9 @@ def _strip_invisible_characters(content_elem):
     说明：知乎页面中常包含 U+200B/U+200C/U+200D 等零宽字符，以及 BOM 等不可见字符，
     这些字符在转Markdown时可能表现为额外的空段落。这里在 HTML 阶段统一清理。
     """
-    import re
-    from bs4 import NavigableString
 
-    invisible_chars_pattern = re.compile(r"[\u200b\u200c\u200d\u200e\u200f\ufeff]")
+    # 扩展覆盖：零宽字符、BOM、Word Joiner、NBSP、段落/行分隔符
+    invisible_chars_pattern = re.compile(r"[\u200b\u200c\u200d\u200e\u200f\ufeff\u2060\u00a0\u2028\u2029]")
 
     # 遍历所有文本节点并清理不可见字符
     for text_node in list(content_elem.find_all(string=True)):
