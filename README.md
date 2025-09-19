@@ -46,7 +46,7 @@ To set up the project locally, you will need a working Python environment (Pytho
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/VimWei/MarkURLdown
-    cd Markitdown
+    cd MarkURLdown
     ```
 
 2.  **Install uv (fast Python package manager):**
