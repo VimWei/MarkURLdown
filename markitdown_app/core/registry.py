@@ -10,6 +10,7 @@ from markitdown_app.core.handlers.zhihu_handler import fetch_zhihu_article
 from markitdown_app.core.handlers.wordpress_handler import fetch_wordpress_article
 from markitdown_app.core.handlers.nextjs_handler import fetch_nextjs_article
 from markitdown_app.core.handlers.sspai_handler import fetch_sspai_article
+from markitdown_app.core.handlers.appinn_handler import fetch_appinn_article
 from markitdown_app.core.images import download_images_and_rewrite
 from markitdown_app.core.filename import derive_md_filename
 from markitdown_app.core.normalize import normalize_markdown_headings
@@ -296,12 +297,65 @@ def _sspai_handler(payload: ConvertPayload, session, options: ConversionOptions)
         return None
 
 
+def _appinn_handler(payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult | None:
+    """appinn.com 文章处理器"""
+    url = payload.value
+    if "appinn.com" not in url:
+        return None
+    
+    try:
+        # 透传 UI 提示回调到 appinn handler，用于状态栏显示
+        on_detail_cb = payload.meta.get("on_detail")
+        # 透传共享 Browser（若开启加速模式）
+        shared_browser = payload.meta.get("shared_browser")
+        fetched = fetch_appinn_article(session, url, on_detail=on_detail_cb, shared_browser=shared_browser)
+
+        # 检查内容质量
+        content = fetched.html_markdown or ""
+        if not content.strip():
+            return None
+        
+        # 如果内容长度小于200字符，认为是无效内容
+        if len(content) < 200:
+            return None
+
+        text = normalize_markdown_headings(fetched.html_markdown, fetched.title)
+
+        # 生成统一时间戳，确保markdown文件名和图片文件名一致
+        conversion_timestamp = datetime.now()
+
+        if options.download_images:
+            images_dir = payload.meta.get("images_dir")
+            if not images_dir and payload.meta.get("out_dir"):
+                images_dir = os.path.join(payload.meta["out_dir"], "img")
+            if images_dir:
+                should_stop_cb = payload.meta.get("should_stop") or (lambda: False)
+                on_detail_cb = payload.meta.get("on_detail")
+                text = download_images_and_rewrite(
+                    text,
+                    url,
+                    images_dir,
+                    session,
+                    should_stop=should_stop_cb,
+                    on_detail=on_detail_cb,
+                    timestamp=conversion_timestamp,
+                )
+
+        filename = derive_md_filename(fetched.title, url, conversion_timestamp)
+        return ConvertResult(title=fetched.title, markdown=text, suggested_filename=filename)
+    except Exception as e:
+        print(f"appinn.com handler failed: {e}")
+        print("🔄 正在回退到通用转换器...")
+        return None
+
+
 HANDLERS: list[Handler] = [
     HandlerWrapper(_weixin_handler, "WeixinHandler", prefers_shared_browser=False),  # 微信必须使用独立浏览器
     HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True),    # 知乎支持共享浏览器
     HandlerWrapper(_wordpress_handler, "WordPressHandler", prefers_shared_browser=True),  # WordPress支持共享浏览器
     HandlerWrapper(_nextjs_handler, "NextJSHandler", prefers_shared_browser=True),  # NextJS支持共享浏览器
     HandlerWrapper(_sspai_handler, "SspaiHandler", prefers_shared_browser=True),  # 少数派支持共享浏览器
+    HandlerWrapper(_appinn_handler, "AppinnHandler", prefers_shared_browser=True),  # appinn.com支持共享浏览器
 ]
 
 
@@ -326,6 +380,8 @@ def get_handler_for_url(url: str) -> Handler | None:
         elif handler_name == "NextJSHandler" and "guangzhengli.com/blog" in url_lower:
             return handler
         elif handler_name == "SspaiHandler" and "sspai.com" in url_lower:
+            return handler
+        elif handler_name == "AppinnHandler" and "appinn.com" in url_lower:
             return handler
     
     return None

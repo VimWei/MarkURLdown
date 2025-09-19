@@ -329,7 +329,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
             # 准备请求头
             extra_headers = {}
             host = parsed.netloc.lower()
-            if ("mp.weixin.qq.com" in host) or host.endswith(".qpic.cn") or ("weixin" in host) or ("wechat" in host) or ("cdnfile.sspai.com" in host):
+            if ("mp.weixin.qq.com" in host) or host.endswith(".qpic.cn") or ("weixin" in host) or ("wechat" in host) or ("cdnfile.sspai.com" in host) or ("appinn.com" in host) or ("do-cdn.appinn.com" in host):
                 extra_headers.update({
                     "Referer": base_url,
                     "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0"),
