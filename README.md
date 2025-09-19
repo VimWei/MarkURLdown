@@ -24,6 +24,7 @@ MarkURLDown is a sophisticated desktop application designed to effortlessly conv
 *   **Specialized Site Handlers:** Dedicated processors for complex websites:
     *   **WeChat Official Account Articles:** Advanced handling with multi-strategy crawling and anti-detection measures, with configurable filtering rules for each account
     *   **Zhihu.com:** Supports both Zhihu column articles and answer pages with Smart Content Detection
+    *   **sspai.com:** Aggressive ad/promo cleanup, inline footnote expansion and zero-width char stripping
     *   **WordPress Blogs:** Optimized processing for WordPress-based websites with metadata extraction
     *   **Next.js Blogs:** Tuned for common static Next.js blog themes with enhanced content processing
     *   **Generic Handler:** Intelligent fallback for all other websites with multi-strategy implementation
