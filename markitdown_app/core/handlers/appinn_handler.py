@@ -267,6 +267,7 @@ def _clean_and_normalize_appinn_content(content_elem) -> None:
         '.sidebar', '.widget', '.widget-area',  # 侧边栏
         '.entry-tags', '.post-tags',  # 标签（已在 header 中处理）
         '.entry-categories', '.post-categories',  # 分类（已在 header 中处理）
+        'mark.has-inline-color.has-white-color',
     ]
     
     for sel in unwanted_in_content:
