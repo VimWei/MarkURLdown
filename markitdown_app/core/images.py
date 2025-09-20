@@ -27,6 +27,22 @@ class ImageDomainConfig:
         'cdnfile.sspai.com': 'exact',
     }
     
+    # 需要特殊请求头的域名（这些域名需要Referer等特殊请求头才能正常访问）
+    SPECIAL_HEADERS_DOMAINS = {
+        # 微信相关域名
+        'mp.weixin.qq.com': 'exact',
+        'qpic.cn': 'exact',
+        'mmbiz.qpic.cn': 'exact',
+        # 包含微信关键词的域名
+        'weixin': 'contains',
+        'wechat': 'contains',
+        # 少数派
+        'cdnfile.sspai.com': 'exact',
+        # 小众软件
+        'appinn.com': 'exact',
+        'do-cdn.appinn.com': 'exact',
+    }
+    
     # 通常格式正确的CDN域名（不需要格式检测）
     RELIABLE_CDN_PREFIXES = [
         'cdn.',
@@ -54,6 +70,21 @@ class ImageDomainConfig:
         """判断是否是可靠的CDN域名"""
         host = host.lower()
         return any(host.startswith(prefix) for prefix in cls.RELIABLE_CDN_PREFIXES)
+    
+    @classmethod
+    def needs_special_headers(cls, host: str) -> bool:
+        """判断域名是否需要特殊请求头"""
+        host = host.lower()
+        
+        for domain, match_type in cls.SPECIAL_HEADERS_DOMAINS.items():
+            if match_type == 'exact' and host == domain:
+                return True
+            elif match_type == 'wildcard' and (host == domain or host.endswith('.' + domain)):
+                return True
+            elif match_type == 'contains' and domain in host:
+                return True
+        
+        return False
 
 def _convert_github_url(url: str) -> str:
     """将GitHub的旧格式URL转换为新格式，避免重定向问题"""
@@ -329,7 +360,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
             # 准备请求头
             extra_headers = {}
             host = parsed.netloc.lower()
-            if ("mp.weixin.qq.com" in host) or host.endswith(".qpic.cn") or ("weixin" in host) or ("wechat" in host) or ("cdnfile.sspai.com" in host) or ("appinn.com" in host) or ("do-cdn.appinn.com" in host):
+            if ImageDomainConfig.needs_special_headers(host):
                 extra_headers.update({
                     "Referer": base_url,
                     "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0"),
