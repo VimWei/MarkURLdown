@@ -72,6 +72,8 @@ To set up the project locally, you will need a working Python environment (Pytho
 
     # Activate environment (Windows)
     .venv\Scripts\activate
+    # Activate environment (Linux/macOS)
+    source .venv/bin/activate
 
     # Install dependencies
     uv pip install -e .
