@@ -181,7 +181,6 @@ def _extract_nextjs_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
 def _try_httpx_crawler(session, url: str) -> FetchResult:
     """策略1: 使用httpx爬取原始HTML"""
     try:
-        print("尝试httpx 爬取原始HTML...")
         import httpx
 
         # 使用与session相同的User-Agent

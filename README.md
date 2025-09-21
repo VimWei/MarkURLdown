@@ -61,14 +61,14 @@ To set up the project locally, you will need a working Python environment (Pytho
 
 3. **Install dependencies:**
    ```bash
-   # Install all dependencies with exact versions (recommended)
+   # Install all dependencies with exact versions
    uv sync
    ```
 
 4. **Install Playwright browsers:**
    ```bash
    playwright install
-    ```
+   ```
 
 ## Usage
 
@@ -76,14 +76,14 @@ To set up the project locally, you will need a working Python environment (Pytho
 
 Once installed, you can launch the application in two ways:
 
-**Option 1: Double-click launcher (Windows only)**
-
-Double-click the **`MarkItDown.vbs`** file.
-
-**Option 2: Using uv run (Windows/Linux/macOS)**
+**Option 1: Using uv run (Windows/Linux/macOS)**
 ```bash
 uv run python MarkURLdown.pyw
 ```
+
+**Option 2: Double-click launcher (Windows only)**
+
+Double-click the **`MarkItDown.vbs`** file.
 
 ### Basic Usage
 
