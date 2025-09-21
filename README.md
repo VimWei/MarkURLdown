@@ -59,40 +59,29 @@ To set up the project locally, you will need a working Python environment (Pytho
     iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex
     ```
 
-3.  **Install dependencies and run the application:**
+3.  **Install dependencies:**
     ```bash
-    # One command to install dependencies and run
-    uv run python MarkURLdown.pyw
+    # Install all dependencies with exact versions (recommended)
+    uv sync
     ```
 
-    **Alternative manual setup:**
-    ```bash
-    # Create virtual environment
-    uv venv
-
-    # Activate environment (Windows)
-    .venv\Scripts\activate
-    # Activate environment (Linux/macOS)
-    source .venv/bin/activate
-
-    # Install dependencies
-    uv pip install -e .
-
-    # Run application
-    python MarkURLdown.pyw
-    ```
-
-4.  **Install Playwright browsers (for advanced crawling):**
+4.  **Install Playwright browsers:**
     ```bash
     playwright install
     ```
 
 ## Usage
 
-Once installed, you can launch the application without needing to open a command line.
-
 ### Launching the Application
 
+Once installed, you can launch the application in two ways:
+
+**Option 1: Using uv run (recommended for developers)**
+```bash
+uv run python MarkURLdown.pyw
+```
+
+**Option 2: Double-click launcher (recommended for end users)**
 1.  Navigate to the project directory in your file explorer.
 2.  Double-click the **`MarkItDown.vbs`** file.
 3.  The application will start with a professional splash screen and then show the main window.
