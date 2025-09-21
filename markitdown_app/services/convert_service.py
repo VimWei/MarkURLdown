@@ -157,7 +157,12 @@ class ConvertService:
                                 playwright_runtime = None
                                 
                 except Exception as e:
+                    print(f"Error processing URL {req.value}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     on_event(ProgressEvent(kind="error", key="convert_error", data={"url": req.value, "error": str(e)}))
+                    # Continue processing remaining URLs instead of stopping
+                    continue
 
             on_event(ProgressEvent(kind="progress_done", key="convert_progress_done", data={"completed": completed, "total": total}))
         finally:
