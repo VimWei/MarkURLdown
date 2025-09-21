@@ -23,8 +23,8 @@ class ViewModel:
         self.state = ViewState()
         self._service = ConvertService()
 
-    def start(self, requests_list: list[SourceRequest], out_dir: str, options: ConversionOptions, on_event: OnEvent) -> None:
-        self._service.run(requests_list, out_dir, options, on_event)
+    def start(self, requests_list: list[SourceRequest], out_dir: str, options: ConversionOptions, on_event: OnEvent, signals=None) -> None:
+        self._service.run(requests_list, out_dir, options, on_event, signals)
 
     def stop(self, on_event: OnEvent) -> None:
         self._service.stop()

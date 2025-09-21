@@ -43,6 +43,9 @@ class Translator:
 
 class ProgressSignals(QObject):
     progress_event = Signal(object)
+    
+    def __init__(self):
+        super().__init__()
 
 class PySideApp(QMainWindow):
     def __init__(self, root_dir: str, settings: dict | None = None):
@@ -73,6 +76,9 @@ class PySideApp(QMainWindow):
         self._setup_ui()
         self._retranslate_ui()
         self._connect_signals()
+        
+        # 连接信号槽，确保线程安全的UI更新
+        self.signals.progress_event.connect(self._on_event_thread_safe)
         self.ui_ready = True
 
     def closeEvent(self, event):
@@ -378,50 +384,70 @@ class PySideApp(QMainWindow):
             filter_site_chrome=self.filter_site_chrome_cb.isChecked(),
             use_shared_browser=self.use_shared_browser_cb.isChecked(),
         )
-        self.vm.start(reqs, out_dir, options, self._on_event)
+        self.vm.start(reqs, out_dir, options, self._on_event, self.signals)
 
     def _stop(self):
         self.vm.stop(self._on_event)
 
+    def _on_event_thread_safe(self, ev: ProgressEvent):
+        """线程安全的UI事件处理，通过信号槽机制调用"""
+        try:
+            self._on_event(ev)
+        except Exception as e:
+            print(f"Error in thread-safe UI event handler: {e}")
+            import traceback
+            traceback.print_exc()
+
     def _on_event(self, ev: ProgressEvent):
-        t = self.translator.t
+        """UI事件处理的核心逻辑"""
+        try:
+            t = self.translator.t
 
-        # Generate message from key or use raw text
-        message = ""
-        if ev.key:
-            message = t(ev.key, **(ev.data or {}))
-        elif ev.text:
-            message = ev.text
+            # Generate message from key or use raw text
+            message = ""
+            if ev.key:
+                message = t(ev.key, **(ev.data or {}))
+            elif ev.text:
+                message = ev.text
 
-        if ev.kind == "progress_init":
-            self.progress.setRange(0, max(ev.total or 1, 1))
-            self.progress.setValue(0)
-            if message:
-                self.status_label.setText(message)
-        elif ev.kind == "status":
-            if message:
-                self.status_label.setText(message)
-        elif ev.kind == "detail":
-            if message:
-                self.detail_label.setText(message)
-        elif ev.kind == "progress_step":
-            current = self.progress.value()
-            self.progress.setValue(current + 1)
-            if message:
-                self.detail_label.setText(message)
-        elif ev.kind == "progress_done":
-            self.progress.setValue(self.progress.maximum())
-            self.status_label.setText(message or t('status_done'))
-            self.is_running = False
-            self.convert_btn.setText(t('convert_button'))
-        elif ev.kind == "stopped":
-            self.status_label.setText(message or t('status_stopped'))
-            self.is_running = False
-            self.convert_btn.setText(t('convert_button'))
-        elif ev.kind == "error":
-            self.detail_label.setText(message or t('status_error'))
-            self.is_running = False
-            self.convert_btn.setText(t('convert_button'))
+            if ev.kind == "progress_init":
+                self.progress.setRange(0, max(ev.total or 1, 1))
+                self.progress.setValue(0)
+                if message:
+                    self.status_label.setText(message)
+            elif ev.kind == "status":
+                if message:
+                    self.status_label.setText(message)
+            elif ev.kind == "detail":
+                if message:
+                    self.detail_label.setText(message)
+            elif ev.kind == "progress_step":
+                current = self.progress.value()
+                self.progress.setValue(current + 1)
+                if message:
+                    self.detail_label.setText(message)
+            elif ev.kind == "progress_done":
+                self.progress.setValue(self.progress.maximum())
+                self.status_label.setText(message or t('status_done'))
+                self.is_running = False
+                self.convert_btn.setText(t('convert_button'))
+            elif ev.kind == "stopped":
+                self.status_label.setText(message or t('status_stopped'))
+                self.is_running = False
+                self.convert_btn.setText(t('convert_button'))
+            elif ev.kind == "error":
+                self.detail_label.setText(message or t('status_error'))
+                self.is_running = False
+                self.convert_btn.setText(t('convert_button'))
+                
+            # 强制UI更新，确保绘制完成
+            self.update()
+            QApplication.processEvents()
+            
+        except Exception as e:
+            print(f"Error in UI event handler: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _add_url_from_entry(self):
         raw = self.url_entry.text().strip()
