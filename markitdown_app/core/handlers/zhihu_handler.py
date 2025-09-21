@@ -635,6 +635,35 @@ def _clean_and_normalize_zhihu_content(content_elem, page_type: ZhihuPageType, s
         img['src'] = img['data-original']
         del img['data-original']
 
+    # 知乎回答文章特有的图片去重处理
+    if page_type.is_answer_page:
+        # 处理figure容器中的重复图片结构
+        figures = content_elem.find_all('figure')
+        for figure in figures:
+            imgs = figure.find_all('img')
+            if len(imgs) > 1:
+                # 优先保留noscript中的图片，移除div中的重复图片
+                keep_img = None
+                for img in imgs:
+                    parent = img.parent
+                    if parent and parent.name == 'noscript':
+                        # 保留noscript中的图片
+                        keep_img = img
+                        break
+                
+                # 如果没有noscript图片，保留第一张非SVG图片
+                if not keep_img:
+                    for img in imgs:
+                        src = img.get('src', '')
+                        if src and not src.startswith('data:image/svg+xml'):
+                            keep_img = img
+                            break
+                
+                # 移除其他图片
+                for img in imgs:
+                    if img != keep_img:
+                        img.decompose()
+
     # 移除脚本和样式
     for script in content_elem.find_all(['script', 'style']):
         script.decompose()
