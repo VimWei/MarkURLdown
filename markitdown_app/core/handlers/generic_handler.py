@@ -58,7 +58,6 @@ def _try_lightweight_markitdown(url: str, session) -> CrawlerResult:
 def _try_enhanced_markitdown(url: str, session) -> CrawlerResult:
     """策略2: 增强MarkItDown - 使用Playwright，处理复杂网站"""
     try:
-        print("尝试增强MarkItDown (Playwright)...")
         from playwright.sync_api import sync_playwright
         
         with sync_playwright() as p:
@@ -141,7 +140,6 @@ def _try_direct_httpx(url: str, session) -> CrawlerResult:
 def _try_generic_with_filtering(url: str, session) -> CrawlerResult:
     """策略0: 先拉取HTML并按保守选择器过滤，然后交给 MarkItDown。"""
     try:
-        print("尝试通用过滤策略(HTML预过滤)...")
         resp = session.get(url, timeout=30)
         resp.raise_for_status()
 
@@ -163,7 +161,6 @@ def _try_generic_with_filtering(url: str, session) -> CrawlerResult:
                 merged.append(s)
 
         filtered_html, removed = apply_dom_filters(raw_html, merged)
-        print(f"DOM过滤：移除了 {removed} 个元素")
 
         md = MarkItDown()
         md._requests_session.headers.update({
@@ -234,18 +231,23 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
         for retry in range(max_retries):
             try:
                 if retry > 0:
-                    print(f"尝试普通网站策略 {i} (重试 {retry}/{max_retries-1})...")
+                    print(f"[抓取] 通用策略 {i} 重试 {retry}/{max_retries-1}...")
                     time.sleep(random.uniform(2, 4))
                 else:
-                    print(f"尝试普通网站策略 {i}...")
+                    print(f"[抓取] 通用策略 {i}...")
 
                 result = strategy()
                 if result.success:
                     # 内容质量检测 - 简单验证
                     if result.text_content and len(result.text_content.strip()) > 100:
-                        print(f"策略 {i} 成功获取到有效内容!")
+                        print(f"[抓取] 成功获取内容")
+                        print("[解析] 提取标题和正文...")
+                        if result.title:
+                            print(f"[解析] 标题: {result.title}")
 
                         # 标准化处理
+                        print("[清理] 移除广告和无关内容...")
+                        print("[转换] 标准化处理...")
                         text = normalize_markdown_headings(result.text_content, result.title)
 
                         # 生成统一时间戳，确保markdown文件名和图片文件名一致
@@ -263,28 +265,27 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
                                 )
 
                         filename = derive_md_filename(result.title, url, conversion_timestamp)
+                        print("[组装] 文档生成完成")
                         return ConvertResult(title=result.title, markdown=text, suggested_filename=filename)
                     else:
-                        print(f"策略 {i} 获取到无效内容，重试...")
+                        print(f"[解析] 策略 {i} 获取到无效内容，重试...")
                         if retry < max_retries - 1:
                             continue
                         else:
-                            print(f"策略 {i} 重试次数用尽，尝试下一个策略")
+                            print(f"[抓取] 策略 {i} 重试次数用尽，尝试下一个策略")
                             break
                 else:
-                    print(f"策略 {i} 失败: {result.error}")
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print(f"策略 {i} 重试次数用尽，尝试下一个策略")
+                        print(f"[抓取] 策略 {i} 失败，尝试下一个策略")
                         break
 
-            except Exception as e:
-                print(f"策略 {i} 异常: {e}")
+            except Exception:
                 if retry < max_retries - 1:
                     continue
                 else:
-                    print(f"策略 {i} 重试次数用尽，尝试下一个策略")
+                    print(f"[抓取] 策略 {i} 异常，尝试下一个策略")
                     break
 
         # 策略间等待

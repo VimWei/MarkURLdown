@@ -128,32 +128,27 @@ def _extract_zhihu_title(soup: BeautifulSoup, page_type: ZhihuPageType) -> str |
             node = soup.find('h1', class_='QuestionHeader-title')
             if node:
                 title = node.get_text(strip=True)
-                print(f"从回答页h1获取标题: {title}")
             else:
                 node = soup.find('h1')
                 if node:
                     title = node.get_text(strip=True)
-                    print(f"从回答页备用h1获取标题: {title}")
 
         elif page_type.is_column_page and not title:
             node = soup.find('h1', class_='Post-Title')
             if node:
                 title = node.get_text(strip=True)
-                print(f"从专栏h1获取标题: {title}")
             else:
                 meta_node = soup.find('meta', attrs={'property': 'og:title'})
                 if meta_node:
                     content_val = meta_node.get('content', '')
                     if content_val:
                         title = content_val.strip()
-                        print(f"从专栏<meta og:title>获取标题: {title}")
 
         # 通用回退
         if not title:
             node = soup.find('h1')
             if node:
                 title = node.get_text(strip=True)
-                print(f"从通用h1获取标题: {title}")
 
         if not title:
             meta_node = soup.find('meta', attrs={'property': 'og:title'})
@@ -161,15 +156,13 @@ def _extract_zhihu_title(soup: BeautifulSoup, page_type: ZhihuPageType) -> str |
                 content_val = meta_node.get('content', '')
                 if content_val:
                     title = content_val.strip()
-                    print(f"从<meta og:title>获取标题: {title}")
 
         if not title:
             node = soup.find('title')
             if node:
                 title = node.get_text(strip=True)
-                print(f"从<head><title>获取标题: {title}")
-    except Exception as e:
-        print(f"标题提取异常: {e}")
+    except Exception:
+        pass
 
     return title
 
@@ -376,20 +369,16 @@ def _clean_zhihu_external_links(content_elem):
 
                 # 更新链接的href属性
                 link['href'] = decoded_url
-                print(f"Playwright: 恢复外部链接: {href} -> {decoded_url}")
             else:
                 # 如果target参数为空或不存在，将链接转换为纯文本
                 link_text = link.get_text(strip=True)
                 if link_text:
                     text_node = NavigableString(link_text)
                     link.replace_with(text_node)
-                    print(f"Playwright: 转换无效重定向链接为纯文本: {href}")
                 else:
                     link.decompose()
-                    print(f"Playwright: 移除空的重定向链接: {href}")
 
-        except Exception as e:
-            print(f"Playwright: 处理重定向链接异常: {e}")
+        except Exception:
             # 异常情况下也转换为纯文本
             link_text = link.get_text(strip=True)
             if link_text:
@@ -447,23 +436,17 @@ def _try_click_expand_buttons(page) -> bool:
             try:
                 expand_buttons = page.query_selector_all(selector)
                 if expand_buttons:
-                    print(f"Playwright: 找到展开按钮 ({selector}): {len(expand_buttons)}个")
                     for button in expand_buttons:
                         try:
                             if not hasattr(button, 'is_visible') or button.is_visible():
                                 button.scroll_into_view_if_needed()
                                 page.wait_for_timeout(500)
                                 button.click(timeout=3000)
-                                print("Playwright: 成功点击展开按钮")
                                 page.wait_for_timeout(3000)
                                 return True
-                        except Exception as e:
-                            print(f"Playwright: 点击展开按钮失败: {e}")
+                        except Exception:
                             continue
-                else:
-                    print(f"Playwright: 未找到展开按钮 ({selector})")
-            except Exception as e:
-                print(f"Playwright: 查找展开按钮失败 ({selector}): {e}")
+            except Exception:
                 continue
     except Exception:
         pass
@@ -487,8 +470,6 @@ def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callabl
 
     # 关闭登录弹窗
     try:
-        print("Playwright: 检查并关闭登录弹窗...")
-        
         # 使用增强的弹窗关闭函数，包含重试机制和特定弹窗检测
         modal_closed = try_close_modal_with_selectors(
             page, 
@@ -497,23 +478,18 @@ def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callabl
             modal_detection_selectors=ZHIHU_SELECTORS['modal_detection'],
             use_escape_fallback=True
         )
-
-        if not modal_closed:
-            print("Playwright: 无法完全关闭登录弹窗")
-    except Exception as e:
-        print(f"Playwright: 处理登录弹窗时出错: {e}")
+    except Exception:
+        pass
 
     # 等待页面稳定
     page.wait_for_timeout(random.uniform(1000, 2000))
 
     # 处理知乎回答页面的展开逻辑
     try:
-        print("Playwright: 开始查找展开按钮...")
-        
         # 点击展开按钮
         _try_click_expand_buttons(page)
-    except Exception as e:
-        print(f"Playwright: 处理展开按钮时出错: {e}")
+    except Exception:
+        pass
 
     # 最后等待关键内容选择器
     try:
@@ -738,31 +714,33 @@ def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], N
     for retry in range(max_retries):
         try:
             if retry > 0:
-                print(f"尝试知乎获取 (重试 {retry}/{max_retries-1})...")
+                print(f"[抓取] 知乎策略重试 {retry}/{max_retries-1}...")
                 time.sleep(random.uniform(3, 6))  # 重试时等待更长时间
             else:
-                print("尝试知乎获取...")
+                print("[抓取] 知乎策略...")
 
             result = _try_playwright_crawler(url, on_detail, shared_browser)
             if result.success:
-                # 显示内容获取成功状态
-                if on_detail:
-                    on_detail("知乎内容获取成功，正在处理...")
+                print("[抓取] 成功获取内容")
+                print("[解析] 提取标题和正文...")
 
                 # 处理内容并检查质量（将 Playwright 的标题作为提示，不作为最终值）
                 processed_result = _process_zhihu_content(result.text_content, result.title, url)
+                print("[清理] 移除广告和无关内容...")
 
                 # 检查是否获取到验证页面 - 更精确的检测
                 content = processed_result.html_markdown or ""
                 if content and len(content) > 1000:  # 如果内容足够长，说明不是验证页面
-                    print("成功获取到内容!")
+                    if processed_result.title:
+                        print(f"[解析] 标题: {processed_result.title}")
+                    print("[转换] 转换为Markdown完成")
                     return processed_result
                 elif content and ("验证" in content or "登录" in content or "访问被拒绝" in content or "403" in content or "404" in content):
-                    print("获取到验证页面，重试...")
+                    print("[解析] 检测到验证页面，重试...")
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print("重试次数用尽")
+                        print("[抓取] 重试次数用尽")
                         break
 
                 # 检查标题是否包含验证信息
@@ -771,19 +749,16 @@ def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], N
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print("重试次数用尽")
+                        print("[抓取] 重试次数用尽")
                         break
 
-                print("成功!")
                 return processed_result
             else:
-                print(f"获取失败: {result.error}")
                 if retry < max_retries - 1:
                     continue
                 else:
                     break
-        except Exception as e:
-            print(f"获取异常: {e}")
+        except Exception:
             if retry < max_retries - 1:
                 continue
             else:

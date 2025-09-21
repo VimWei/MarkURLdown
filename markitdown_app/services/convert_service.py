@@ -58,6 +58,7 @@ class ConvertService:
     def _worker(self, requests_list: list[SourceRequest], out_dir: str, options: ConversionOptions, on_event: EventCallback) -> None:
         try:
             total = len(requests_list)
+            print(f"\n🚀 开始批量处理 {total} 个URL...")
             self._emit_event_safe(ProgressEvent(kind="progress_init", total=total, key="convert_init", data={"total": total}), on_event)
             session = build_requests_session(ignore_ssl=options.ignore_ssl, use_proxy=options.use_proxy)
 
@@ -111,29 +112,26 @@ class ConvertService:
                             pass
                         
                         if shared_browser is not None:
-                            print(f"{handler_name}检测到，关闭共享浏览器以使用独立浏览器")
+                            print(f"[浏览器] {handler_name}需要独立浏览器，关闭共享浏览器")
                             try:
                                 shared_browser.close()
-                                print("共享浏览器已关闭")
-                            except Exception as e:
-                                print(f"关闭共享浏览器时出错: {e}")
+                            except Exception:
+                                pass
                             shared_browser = None
                             # 同时关闭playwright runtime
                             if playwright_runtime is not None:
                                 try:
                                     playwright_runtime.stop()
-                                    print("Playwright runtime已停止")
-                                except Exception as e:
-                                    print(f"停止Playwright runtime时出错: {e}")
+                                except Exception:
+                                    pass
                                 playwright_runtime = None
                             
                         # 使用异步等待，确保资源完全释放
                         try:
                             import asyncio
                             asyncio.run(asyncio.sleep(0.1))  # 等待100ms
-                            print("等待资源释放完成...")
-                        except Exception as e:
-                            print(f"异步等待时出错: {e}")
+                        except Exception:
+                            pass
                         effective_shared_browser = None
                 
                 payload = ConvertPayload(kind=req.kind, value=req.value, meta={
@@ -144,9 +142,11 @@ class ConvertService:
                     "shared_browser": effective_shared_browser,
                 })
                 try:
+                    print(f"开始处理 URL: {url}")
                     result = registry_convert(payload, session, options)
                     out_path = write_markdown(out_dir, result.suggested_filename, result.markdown)
                     completed += 1
+                    print(f"✅ URL处理成功: {result.title or '无标题'}")
                     self._emit_event_safe(ProgressEvent(kind="detail", key="convert_detail_done", data={"path": out_path}), on_event)
                     self._emit_event_safe(ProgressEvent(kind="progress_step", current=completed, key="convert_progress_step", data={"completed": completed, "total": total}), on_event)
                     
@@ -163,29 +163,33 @@ class ConvertService:
                             except:
                                 pass
                             
-                            print(f"{handler_name}URL处理完成，重新创建共享浏览器供后续URL使用")
+                            print(f"[浏览器] {handler_name}处理完成，重新创建共享浏览器")
                             try:
                                 from playwright.sync_api import sync_playwright
                                 playwright_runtime = sync_playwright().start()
                                 shared_browser = playwright_runtime.chromium.launch(headless=True)
                                 self._emit_event_safe(ProgressEvent(kind="detail", key="convert_shared_browser_restarted"), on_event)
-                                print("共享浏览器重新创建成功")
-                            except Exception as e:
-                                print(f"重新创建共享浏览器失败: {e}")
+                            except Exception:
                                 shared_browser = None
                                 playwright_runtime = None
                                 
                 except Exception as e:
-                    print(f"Error processing URL {req.value}: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    print(f"❌ URL处理失败: {url} - {str(e)}")
                     self._emit_event_safe(ProgressEvent(kind="error", key="convert_error", data={"url": req.value, "error": str(e)}), on_event)
                     # Continue processing remaining URLs instead of stopping
                     continue
 
+            # 输出总体处理情况摘要
+            failed_count = total - completed
+            print(f"\n📊 处理完成摘要:")
+            print(f"   ✅ 成功: {completed} 个URL")
+            print(f"   ❌ 失败: {failed_count} 个URL")
+            print(f"   📈 成功率: {completed/total*100:.1f}%")
+            
             self._emit_event_safe(ProgressEvent(kind="progress_done", key="convert_progress_done", data={"completed": completed, "total": total}), on_event)
         finally:
             # 关闭共享 Browser
+            print(f"[浏览器] 关闭共享浏览器...")
             try:
                 if shared_browser is not None:
                     shared_browser.close()

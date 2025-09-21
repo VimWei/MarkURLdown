@@ -207,11 +207,9 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
 def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
-        print("尝试Playwright 爬取原始HTML...")
 
         # 分支1：使用共享浏览器（为每个URL新建Context）
         if shared_browser is not None:
-            print("使用共享浏览器...")
             context, page = new_context_and_page(shared_browser, apply_stealth=False)
 
             # 导航到页面
@@ -481,43 +479,45 @@ def fetch_nextjs_article(session, url: str, shared_browser: Any | None = None) -
         for retry in range(max_retries):
             try:
                 if retry > 0:
-                    print(f"尝试Next.js获取策略 {i} (重试 {retry}/{max_retries-1})...")
+                    print(f"[抓取] Next.js策略 {i} 重试 {retry}/{max_retries-1}...")
                     time.sleep(random.uniform(2, 4))  # 重试时等待
                 else:
-                    print(f"尝试Next.js获取策略 {i}...")
+                    print(f"[抓取] Next.js策略 {i}...")
 
                 result = strategy()
                 if result.success:
-                    print(f"Next.js策略 {i} 成功!")
+                    print(f"[抓取] 成功获取内容")
 
                     # 两阶段处理：先获取原始HTML，再处理内容
                     if result.html_markdown:
-                        print("正在处理Next.js内容...")
+                        print("[解析] 提取标题和正文...")
                         processed_result = _process_nextjs_content(result.html_markdown, url, title_hint=result.title)
                         
                         # 检查内容质量，如果内容太短，继续尝试下一个策略
                         content = processed_result.html_markdown or ""
                         if len(content) < 200:
-                            print(f"Next.js策略 {i} 内容太短 ({len(content)} 字符)，继续尝试下一个策略")
+                            print(f"[解析] 内容太短 ({len(content)} 字符)，尝试下一个策略")
                             break
                         
+                        if processed_result.title:
+                            print(f"[解析] 标题: {processed_result.title}")
+                        print("[清理] 移除广告和无关内容...")
+                        print("[转换] 转换为Markdown完成")
                         return processed_result
                     else:
                         return result   
                 else:
-                    print(f"Next.js策略 {i} 失败: {result.error}")
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print(f"Next.js策略 {i} 重试次数用尽，尝试下一个策略")
+                        print(f"[抓取] 策略 {i} 失败，尝试下一个策略")
                         break
 
             except Exception as e:
-                print(f"Next.js策略 {i} 异常: {e}")
                 if retry < max_retries - 1:
                     continue
                 else:
-                    print(f"Next.js策略 {i} 重试次数用尽，尝试下一个策略")
+                    print(f"[抓取] 策略 {i} 异常，尝试下一个策略")
                     break
 
         # 策略间等待

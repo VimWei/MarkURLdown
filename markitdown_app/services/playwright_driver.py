@@ -129,8 +129,6 @@ def try_close_modal_with_selectors(page: Any, selectors: Iterable[str], max_atte
                 modal_present = True
             
             if modal_present:
-                print(f"Playwright: 发现弹窗，尝试关闭 (第{attempt+1}次)")
-                
                 # Try to close using provided selectors
                 for selector in selectors:
                     try:
@@ -138,19 +136,16 @@ def try_close_modal_with_selectors(page: Any, selectors: Iterable[str], max_atte
                         if close_btn and (not hasattr(close_btn, 'is_visible') or close_btn.is_visible()):
                             try:
                                 close_btn.click(timeout=3000)
-                                print(f"Playwright: 成功通过选择器关闭弹窗: {selector}")
                                 modal_closed = True
                                 break
                             except Exception:
                                 try:
                                     close_btn.click(force=True, timeout=2000)
-                                    print(f"Playwright: 强制点击关闭弹窗: {selector}")
                                     modal_closed = True
                                     break
                                 except Exception:
                                     try:
                                         page.evaluate("arguments[0].click()", close_btn)
-                                        print(f"Playwright: 通过JavaScript关闭弹窗: {selector}")
                                         modal_closed = True
                                         break
                                     except Exception:
@@ -162,25 +157,21 @@ def try_close_modal_with_selectors(page: Any, selectors: Iterable[str], max_atte
                 if not modal_closed and use_escape_fallback:
                     try:
                         page.keyboard.press('Escape')
-                        print("Playwright: 使用ESC键关闭弹窗")
                         modal_closed = True
-                    except Exception as e:
-                        print(f"Playwright: ESC键关闭弹窗失败: {e}")
+                    except Exception:
+                        pass
                 
                 # Wait between attempts
                 if attempt < max_attempts - 1:
                     page.wait_for_timeout(2000)
             else:
-                print("Playwright: 未发现弹窗")
                 modal_closed = True
                 break
                 
-        except Exception as e:
-            print(f"Playwright: 关闭弹窗时出错: {e}")
+        except Exception:
             if use_escape_fallback:
                 try:
                     page.keyboard.press('Escape')
-                    print("Playwright: 异常情况下使用ESC键")
                 except Exception:
                     pass
             page.wait_for_timeout(1000)

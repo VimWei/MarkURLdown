@@ -171,8 +171,6 @@ async def _download_single_image(session: aiohttp.ClientSession, url: str, local
     try:
         # 转换GitHub URL以避免重定向问题
         converted_url = _convert_github_url(url)
-        if converted_url != url:
-            print(f"转换GitHub URL: {url} -> {converted_url}")
 
         timeout = aiohttp.ClientTimeout(total=30)  # 30秒超时
         async with session.get(converted_url, headers=extra_headers, timeout=timeout) as response:
@@ -227,16 +225,12 @@ async def _download_single_image(session: aiohttp.ClientSession, url: str, local
                             os.remove(temp_path)
                     except Exception:
                         pass
-                    print(f"下载图片写入失败: {converted_url}, 错误: {e}")
                     return False, local_path
             else:
-                print(f"下载图片失败: {converted_url}, 状态码: {response.status}")
                 return False, local_path
     except asyncio.TimeoutError:
-        print(f"下载图片超时: {converted_url}")
         return False, local_path
-    except Exception as e:
-        print(f"下载图片异常: {converted_url}, 错误: {e}")
+    except Exception:
         return False, local_path
 
 async def _download_images_async(image_tasks: list[Tuple[str, str, Optional[Dict[str, str]]]],
@@ -319,6 +313,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
     if total == 0:
         return md_text
 
+    print(f"[图片] 发现 {total} 张图片，开始下载...")
     if on_detail:
         on_detail({"key": "images_found_start", "data": {"count": total}})
 
@@ -420,8 +415,8 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
                             new_name = os.path.basename(new_path)
                             if url in url_to_local:
                                 url_to_local[url] = url_to_local[url].replace(old_name, new_name)
-                        except Exception as e:
-                            print(f"重命名图片文件失败: {e}")
+                        except Exception:
+                            pass
 
         # 事后紧凑重命名：按文章内首次出现顺序为"唯一图片文件"重新分配连续序号
         # 默认禁用，保留原始文件名以便调试和问题诊断
@@ -497,8 +492,8 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
                     # 更新所有 URL 映射为新相对路径
                     for url, rel in list(url_to_local.items()):
                         url_to_local[url] = rel_rename_map.get(rel, rel)
-            except Exception as e:
-                print(f"图片紧凑重命名失败: {e}")
+            except Exception:
+                pass
 
     # 替换markdown中的图片链接
     def replace_md(match: re.Match) -> str:
@@ -530,6 +525,13 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
         return m.group(0).replace(m.group(1), new_src.group(1) if new_src else m.group(1))
 
     result_text = pattern_html.sub(replace_html, result_text)
+    
+    # 统计下载结果
+    if total > 0:
+        success_count = sum(1 for ok, _ in download_results.values() if ok)
+        failed_count = total - success_count
+        print(f"[图片] 下载完成: {success_count}成功, {failed_count}失败")
+    
     if total > 0 and on_detail:
         on_detail({"key": "images_dl_saving"})
     return result_text

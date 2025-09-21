@@ -30,7 +30,6 @@ def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callabl
     """访问目标URL并准备内容 - 微信版本"""
     if on_detail:
         on_detail("正在访问微信文章...")
-    print("Playwright: 直接访问目标文章...")
 
     try:
         page.goto(url, wait_until='domcontentloaded', timeout=30000)
@@ -378,39 +377,40 @@ def fetch_weixin_article(session, url: str, on_detail: Optional[Callable[[str], 
     for retry in range(max_retries):
         try:
             if retry > 0:
-                print(f"Playwright 策略重试 {retry}/{max_retries-1} ...")
+                print(f"[抓取] 微信策略重试 {retry}/{max_retries-1}...")
                 time.sleep(random.uniform(3, 6))
             else:
-                print("尝试 Playwright 获取微信文章...")
+                print("[抓取] 微信策略...")
 
             result = _try_playwright_crawler(url, on_detail, shared_browser)
             if result.success:
-                if on_detail:
-                    on_detail("微信内容获取成功，正在处理...")
+                print("[抓取] 成功获取内容")
+                print("[解析] 提取标题和正文...")
                 processed_result = _process_weixin_content(result.text_content, result.title, url)
+                print("[清理] 移除广告和无关内容...")
 
                 content = processed_result.html_markdown or ""
                 if content and ("环境异常" in content or "完成验证" in content or "去验证" in content):
-                    print("获取到验证页面，准备重试...")
+                    print("[解析] 检测到验证页面，重试...")
                     if retry < max_retries - 1:
                         continue
                     break
 
                 if processed_result.title and ("环境异常" in processed_result.title or "验证" in processed_result.title):
-                    print("标题包含验证信息，准备重试...")
+                    print("[解析] 标题包含验证信息，重试...")
                     if retry < max_retries - 1:
                         continue
                     break
 
-                print("Playwright 策略成功!")
+                if processed_result.title:
+                    print(f"[解析] 标题: {processed_result.title}")
+                print("[转换] 转换为Markdown完成")
                 return processed_result
             else:
-                print(f"Playwright 策略失败: {result.error}")
                 if retry < max_retries - 1:
                     continue
                 break
         except Exception as e:
-            print(f"Playwright 策略异常: {e}")
             if retry < max_retries - 1:
                 continue
             break

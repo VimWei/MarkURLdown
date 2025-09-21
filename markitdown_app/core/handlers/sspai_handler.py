@@ -467,39 +467,43 @@ def fetch_sspai_article(session, url: str, on_detail=None, shared_browser: Any |
         for retry in range(max_retries):
             try:
                 if retry > 0:
-                    print(f"尝试少数派策略 {i} (重试 {retry}/{max_retries-1})...")
+                    print(f"[抓取] 少数派策略 {i} 重试 {retry}/{max_retries-1}...")
                     time.sleep(random.uniform(2, 4))
                 else:
-                    print(f"尝试少数派策略 {i}...")
+                    print(f"[抓取] 少数派策略 {i}...")
 
                 r = strat()
                 if r.success:
+                    print(f"[抓取] 成功获取内容")
                     # 统一处理：策略层只负责获取HTML，这里统一解析/清理/转换
                     if r.html_markdown:
+                        print("[解析] 提取标题和正文...")
                         processed = _process_sspai_content(r.html_markdown, url, title_hint=r.title)
 
                         # 检查内容质量，如果内容太短，继续尝试下一个策略
                         content = processed.html_markdown or ""
                         if len(content) < 200:
-                            print(f"少数派策略 {i} 内容太短 ({len(content)} 字符)，继续尝试下一个策略")
+                            print(f"[解析] 内容太短 ({len(content)} 字符)，尝试下一个策略")
                             break
 
+                        if processed.title:
+                            print(f"[解析] 标题: {processed.title}")
+                        print("[清理] 移除广告和无关内容...")
+                        print("[转换] 转换为Markdown完成")
                         return processed
                     else:
                         return r
                 else:
-                    print(f"策略 {i} 失败: {r.error}")
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print(f"策略 {i} 重试次数用尽，尝试下一个策略")
+                        print(f"[抓取] 策略 {i} 失败，尝试下一个策略")
                         break
-            except Exception as e:
-                print(f"策略 {i} 异常: {e}")
+            except Exception:
                 if retry < max_retries - 1:
                     continue
                 else:
-                    print(f"策略 {i} 重试次数用尽，尝试下一个策略")
+                    print(f"[抓取] 策略 {i} 异常，尝试下一个策略")
                     break
 
         # 策略间等待
