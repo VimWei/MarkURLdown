@@ -48,3 +48,19 @@ target-version = ["py311"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 cache_dir = "tests/.pytest_cache"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings"
+]
+markers = [
+    "slow: 标记为慢速测试",
+    "integration: 标记为集成测试", 
+    "unit: 标记为单元测试",
+    "handler: 标记为处理器测试",
+    "service: 标记为服务层测试"
+]

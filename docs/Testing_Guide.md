@@ -1,8 +1,17 @@
-# 测试指南
+# MarkURLdown 测试指南
 
 我们将采用 pytest，它是 Python 中最流行且功能强大的第三方单元测试框架，广泛应用
 于单元测试、集成测试、功能测试等自动化测试场景。相比 Python 自带的 unittest 框
 架，pytest 以简洁灵活、插件丰富而著称。
+
+## 项目特点
+
+MarkURLdown 是一个网页转 Markdown 的桌面应用，具有以下特点：
+- **多站点处理器**：微信、知乎、WordPress、Next.js、少数派等专用处理器
+- **多策略爬虫**：支持 Playwright、httpx、requests 等多种爬取策略
+- **内容过滤**：智能清理广告、导航等无关内容
+- **图片处理**：自动下载和重写图片链接
+- **批处理**：支持批量转换多个 URL
 
 ## 测试的价值
 
@@ -17,7 +26,39 @@
 ## 测试文件结构
 
 * tests/ 放在项目根目录下，按功能分组。
-* 鉴于本项目的重要特点——有很多 handler，且每个handler各有特点，因此不同 handler 的 test 应该按 handler 来分组，放在相应的目录下。
+
+```
+tests/
+├── __init__.py
+├── test_handlers/                    # Handler 测试目录
+│   ├── __init__.py
+│   ├── test_generic_handler.py      # 通用处理器测试
+│   ├── test_weixin_handler.py       # 微信处理器测试
+│   ├── test_zhihu_handler.py        # 知乎处理器测试
+│   ├── test_wordpress_handler.py    # WordPress处理器测试
+│   ├── test_nextjs_handler.py       # Next.js处理器测试
+│   └── test_sspai_handler.py        # 少数派处理器测试
+├── test_services/                    # 服务层测试
+│   ├── __init__.py
+│   ├── test_convert_service.py      # 转换服务测试
+│   └── test_playwright_driver.py    # 浏览器驱动测试
+├── test_core/                        # 核心模块测试
+│   ├── __init__.py
+│   ├── test_common_utils.py         # 通用工具测试
+│   ├── test_html_to_md.py          # HTML转Markdown测试
+│   ├── test_images.py              # 图片处理测试
+│   ├── test_normalize.py           # 内容标准化测试
+│   └── test_filename.py            # 文件名处理测试
+├── test_io/                          # IO模块测试
+│   ├── __init__.py
+│   ├── test_config.py              # 配置管理测试
+│   ├── test_session.py             # 会话管理测试
+│   └── test_writer.py              # 文件写入测试
+└── test_integration/                 # 集成测试
+    ├── __init__.py
+    ├── test_end_to_end.py          # 端到端测试
+    └── test_batch_conversion.py    # 批量转换测试
+```
 
 ## 运行测试
 
@@ -37,23 +78,29 @@ uv run pytest tests/ --tb=short
 
 #### 运行特定测试文件
 ```bash
-# 运行转换功能测试
-uv run pytest tests/test_converter.py -v
+# 运行所有 handler 测试
+uv run pytest tests/test_handlers/ -v
 
-# 运行配置相关测试
-uv run pytest tests/test_config_*.py -v
+# 运行特定 handler 测试
+uv run pytest tests/test_handlers/test_weixin_handler.py -v
 
-# 运行协调器测试
-uv run pytest tests/test_*_coordinator.py -v
+# 运行服务层测试
+uv run pytest tests/test_services/ -v
+
+# 运行核心模块测试
+uv run pytest tests/test_core/ -v
+
+# 运行 IO 模块测试
+uv run pytest tests/test_io/ -v
 ```
 
 #### 运行特定测试方法
 ```bash
 # 运行特定测试方法
-uv run pytest tests/test_converter.py::test_mdx2html_basic -v
+uv run pytest tests/test_handlers/test_weixin_handler.py::test_fetch_weixin_article_basic -v
 
 # 运行多个特定测试
-uv run pytest tests/test_converter.py::test_mdx2html_basic tests/test_converter.py::test_mdx2pdf_basic -v
+uv run pytest tests/test_handlers/test_weixin_handler.py::test_fetch_weixin_article_basic tests/test_handlers/test_zhihu_handler.py::test_fetch_zhihu_article_basic -v
 ```
 
 ### 高级测试选项
@@ -89,13 +136,13 @@ uv run pytest tests/ -n auto
 #### 修改现有功能
 ```bash
 # 1. 运行相关测试了解当前状态
-uv run pytest tests/test_converter.py -v
+uv run pytest tests/test_handlers/test_weixin_handler.py -v
 
 # 2. 进行代码修改
 # ... 你的修改 ...
 
 # 3. 验证修改没有破坏功能
-uv run pytest tests/test_converter.py -v
+uv run pytest tests/test_handlers/test_weixin_handler.py -v
 
 # 4. 运行所有测试确保整体稳定
 uv run pytest tests/ --tb=short -q
@@ -139,13 +186,13 @@ diff before_refactor.txt after_refactor.txt
 #### 功能异常时
 ```bash
 # 1. 运行相关测试定位问题
-uv run pytest tests/test_converter.py -v --tb=long
+uv run pytest tests/test_handlers/test_weixin_handler.py -v --tb=long
 
 # 2. 查看具体失败的测试
-uv run pytest tests/test_converter.py::test_mdx2html_basic -v --tb=long
+uv run pytest tests/test_handlers/test_weixin_handler.py::test_fetch_weixin_article_basic -v --tb=long
 
 # 3. 修复问题后重新验证
-uv run pytest tests/test_converter.py -v
+uv run pytest tests/test_handlers/test_weixin_handler.py -v
 ```
 
 #### 性能问题时
@@ -173,13 +220,13 @@ uv run pytest tests/ --tb=short -q
 #### 关键功能验证
 ```bash
 # 验证核心转换功能
-uv run pytest tests/test_converter.py tests/test_dictionary.py -v
+uv run pytest tests/test_handlers/ tests/test_core/ -v
 
 # 验证配置功能
-uv run pytest tests/test_settings_service.py tests/test_config_coordinator.py -v
+uv run pytest tests/test_io/test_config.py -v
 
-# 验证协调器功能
-uv run pytest tests/test_*_coordinator.py -v
+# 验证服务层功能
+uv run pytest tests/test_services/ -v
 ```
 
 ## 测试文件管理
@@ -204,13 +251,12 @@ tests/
 
 #### .gitignore 配置
 ```gitignore
-# 测试相关忽略
+# test
 tests/__pycache__/
 tests/.pytest_cache/
 tests/temp_*
 tests/test_data/
-
-# 但保留正式测试文件
+tests/*.tmp
 !tests/test_*.py
 !tests/__init__.py
 ```
@@ -220,6 +266,7 @@ tests/test_data/
 ```toml
 # 在 pyproject.toml 中添加
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 cache_dir = "tests/.pytest_cache"
 ```
 
@@ -229,10 +276,10 @@ cache_dir = "tests/.pytest_cache"
 
 #### 导入错误
 ```bash
-# 错误：ImportError: No module named 'mdxscraper.gui.models'
+# 错误：ImportError: No module named 'markitdown_app.core.handlers'
 # 解决：更新导入路径
-# 从：from mdxscraper.gui.models import ConfigModel
-# 到：from mdxscraper.models import ConfigModel
+# 从：from markitdown_app.core.handlers import GenericHandler
+# 到：from markitdown_app.core.handlers import generic_convert_url
 ```
 
 #### Mock 对象错误
@@ -293,16 +340,20 @@ uv run pytest tests/ -n 2
 #### 测试命名
 ```python
 # 好的测试命名
-def test_mdx2html_basic():
-    """测试基础 HTML 转换功能"""
+def test_fetch_weixin_article_basic():
+    """测试基础微信文章获取功能"""
     pass
 
-def test_mdx2html_with_css_styles():
-    """测试带 CSS 样式的 HTML 转换"""
+def test_fetch_weixin_article_with_images():
+    """测试带图片的微信文章获取"""
     pass
 
-def test_mdx2html_file_not_found():
-    """测试文件不存在时的错误处理"""
+def test_fetch_weixin_article_invalid_url():
+    """测试无效URL时的错误处理"""
+    pass
+
+def test_generic_handler_multiple_strategies():
+    """测试通用处理器的多策略爬取"""
     pass
 ```
 
@@ -358,6 +409,118 @@ uv run pytest tests/ --tb=short -q
 - 设置自动化测试流程
 - 测试失败时阻止代码合并
 - 定期分析测试执行报告
+
+## MarkURLdown 特定测试建议
+
+### 1. Handler 测试重点
+
+#### 微信处理器测试
+```python
+def test_fetch_weixin_article_basic():
+    """测试基础微信文章获取"""
+    # 测试正常微信文章URL
+    # 验证标题提取
+    # 验证内容清理
+    # 验证图片处理
+
+def test_fetch_weixin_article_with_ads():
+    """测试包含广告的微信文章"""
+    # 测试广告内容过滤
+    # 验证正文内容完整性
+
+def test_fetch_weixin_article_playwright_fallback():
+    """测试Playwright策略回退"""
+    # 模拟httpx失败
+    # 验证Playwright策略生效
+```
+
+#### 通用处理器测试
+```python
+def test_generic_handler_strategy_fallback():
+    """测试多策略回退机制"""
+    # 测试轻量级MarkItDown失败
+    # 验证增强MarkItDown策略
+    # 验证直接httpx策略
+
+def test_generic_handler_content_filtering():
+    """测试内容过滤功能"""
+    # 测试常见广告元素过滤
+    # 测试导航栏过滤
+    # 测试页脚过滤
+```
+
+### 2. 核心模块测试重点
+
+#### 图片处理测试
+```python
+def test_download_images_and_rewrite():
+    """测试图片下载和重写"""
+    # 测试相对路径图片
+    # 测试绝对路径图片
+    # 测试图片下载失败处理
+    # 验证Markdown链接重写
+```
+
+#### 内容标准化测试
+```python
+def test_normalize_markdown_headings():
+    """测试Markdown标题标准化"""
+    # 测试标题层级调整
+    # 测试重复标题处理
+    # 测试空标题处理
+```
+
+### 3. 集成测试重点
+
+#### 端到端测试
+```python
+def test_end_to_end_weixin_conversion():
+    """测试微信文章完整转换流程"""
+    # 从URL到Markdown文件的完整流程
+    # 验证文件输出
+    # 验证图片下载
+
+def test_batch_conversion():
+    """测试批量转换功能"""
+    # 测试多个URL同时转换
+    # 验证进度报告
+    # 验证错误处理
+```
+
+### 4. Mock 策略建议
+
+#### 网络请求 Mock
+```python
+# 使用 pytest-httpx 或 requests-mock
+# Mock 不同网站的响应
+# 模拟网络错误和超时
+```
+
+#### 浏览器 Mock
+```python
+# Mock Playwright 浏览器操作
+# 模拟页面加载失败
+# 模拟JavaScript执行错误
+```
+
+### 5. 测试数据管理
+
+#### 测试用例数据
+```
+tests/
+├── test_data/                    # 测试数据目录
+│   ├── html_samples/            # HTML样本
+│   │   ├── weixin_article.html
+│   │   ├── zhihu_answer.html
+│   │   └── wordpress_post.html
+│   ├── markdown_samples/        # 期望的Markdown输出
+│   │   ├── weixin_expected.md
+│   │   ├── zhihu_expected.md
+│   │   └── wordpress_expected.md
+│   └── images/                  # 测试图片
+│       ├── test_image_1.jpg
+│       └── test_image_2.png
+```
 
 * Created:  2025/09/28 02:27:20
 * Modified: 2025/09/30 09:01:44
