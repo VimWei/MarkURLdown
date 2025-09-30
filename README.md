@@ -47,25 +47,19 @@ To set up the project locally, you will need a working Python environment (Pytho
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/VimWei/MarkURLdown
-   cd MarkURLdown
    ```
-
-2. **Install uv (fast Python package manager):**
+2. **Install Python venv:**
    ```bash
-   # Linux/macOS
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-
+   # 2.1 Intasll uv
    # Windows (PowerShell)
    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-   ```
-
-3. **Install dependencies:**
-   ```bash
-   # Install all dependencies with exact versions
+   ## Linux/macOS
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   # 2.2 sync python environment
+   cd MarkURLdown
    uv sync
    ```
-
-4. **Install Playwright browsers:**
+3. **Install Playwright browsers:**
    ```bash
    playwright install
    ```
@@ -74,16 +68,11 @@ To set up the project locally, you will need a working Python environment (Pytho
 
 ### Launching the Application
 
-Once installed, you can launch the application in two ways:
-
-**Option 1: Using uv run (Windows/Linux/macOS)**
+Option 1: (Windows only) Double-click launcher file `MarkItDown.vbs`.
+Option 2: (Windows/Linux/macOS) Command line:
 ```bash
 uv run python MarkURLdown.pyw
 ```
-
-**Option 2: Double-click launcher (Windows only)**
-
-Double-click the **`MarkItDown.vbs`** file.
 
 ### Basic Usage
 
