@@ -4,12 +4,12 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.core.images import download_images_and_rewrite, _convert_github_url
+from markitdown_app.core.images import _convert_github_url, download_images_and_rewrite
 
 
 @pytest.mark.unit
 def test_download_failures_keep_original_links(tmp_path):
-    md = "![a](https://img.ok/a.png) <img src=\"https://img.fail/b.png\">"
+    md = '![a](https://img.ok/a.png) <img src="https://img.fail/b.png">'
     base = "https://example.com/post"
     images_dir = tmp_path / "img"
     images_dir.mkdir(parents=True, exist_ok=True)
@@ -52,5 +52,3 @@ def test_github_raw_conversion_path(tmp_path):
 
     # On success, link rewritten to local img path
     assert "(img/" in out
-
-

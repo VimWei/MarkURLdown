@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import pytest
-
 from unittest import mock
 
-from markitdown_app.app_types import ConvertPayload, ConversionOptions
+import pytest
+
+from markitdown_app.app_types import ConversionOptions, ConvertPayload
 from markitdown_app.core.handlers import generic_handler
 
 
@@ -24,12 +24,18 @@ def test_generic_all_strategies_fail(monkeypatch):
 
     monkeypatch.setattr(generic_handler.time, "sleep", lambda *a, **k: None)
     CR = generic_handler.CrawlerResult
-    monkeypatch.setattr(generic_handler, "_try_generic_with_filtering", lambda *a, **k: CR(False, None, "", "e"))
-    monkeypatch.setattr(generic_handler, "_try_lightweight_markitdown", lambda *a, **k: CR(False, None, "", "e"))
-    monkeypatch.setattr(generic_handler, "_try_enhanced_markitdown", lambda *a, **k: CR(False, None, "", "e"))
-    monkeypatch.setattr(generic_handler, "_try_direct_httpx", lambda *a, **k: CR(False, None, "", "e"))
+    monkeypatch.setattr(
+        generic_handler, "_try_generic_with_filtering", lambda *a, **k: CR(False, None, "", "e")
+    )
+    monkeypatch.setattr(
+        generic_handler, "_try_lightweight_markitdown", lambda *a, **k: CR(False, None, "", "e")
+    )
+    monkeypatch.setattr(
+        generic_handler, "_try_enhanced_markitdown", lambda *a, **k: CR(False, None, "", "e")
+    )
+    monkeypatch.setattr(
+        generic_handler, "_try_direct_httpx", lambda *a, **k: CR(False, None, "", "e")
+    )
 
     with pytest.raises(Exception):
         generic_handler.convert_url(payload, session, make_opts(filter_site_chrome=True))
-
-

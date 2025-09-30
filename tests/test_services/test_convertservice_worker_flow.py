@@ -22,8 +22,10 @@ class DummySignals:
         class _E:
             def __init__(self, b):
                 self._b = b
+
             def emit(self, ev):
                 self._b.append(ev)
+
         self.progress_event = _E(bucket)
 
 
@@ -42,12 +44,18 @@ def test_worker_continues_on_error_and_emits_done(tmp_path):
     events = []
 
     # Patch components used inside _worker
-    with mock.patch("markitdown_app.services.convert_service.build_requests_session"), \
-        mock.patch("markitdown_app.core.registry.should_use_shared_browser_for_url", return_value=True), \
-        mock.patch("markitdown_app.services.convert_service.registry_convert") as reg_convert, \
-        mock.patch("markitdown_app.core.registry.convert") as reg_convert2, \
-        mock.patch("markitdown_app.core.handlers.generic_handler.convert_url") as gen_conv, \
-        mock.patch("markitdown_app.io.writer.write_markdown", return_value=str(tmp_path / "out.md")):
+    with (
+        mock.patch("markitdown_app.services.convert_service.build_requests_session"),
+        mock.patch(
+            "markitdown_app.core.registry.should_use_shared_browser_for_url", return_value=True
+        ),
+        mock.patch("markitdown_app.services.convert_service.registry_convert") as reg_convert,
+        mock.patch("markitdown_app.core.registry.convert") as reg_convert2,
+        mock.patch("markitdown_app.core.handlers.generic_handler.convert_url") as gen_conv,
+        mock.patch(
+            "markitdown_app.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
+        ),
+    ):
 
         def side_effect_convert(payload, session, options):
             if payload.value == "https://bad.example/1":
@@ -83,14 +91,21 @@ def test_worker_stop_early(tmp_path):
 
     events = []
 
-    with mock.patch("markitdown_app.services.convert_service.build_requests_session"), \
-        mock.patch("markitdown_app.core.registry.should_use_shared_browser_for_url", return_value=True), \
-        mock.patch("markitdown_app.services.convert_service.registry_convert") as reg_convert, \
-        mock.patch("markitdown_app.core.registry.convert") as reg_convert2, \
-        mock.patch("markitdown_app.core.handlers.generic_handler.convert_url") as gen_conv, \
-        mock.patch("markitdown_app.io.writer.write_markdown", return_value=str(tmp_path / "out.md")):
+    with (
+        mock.patch("markitdown_app.services.convert_service.build_requests_session"),
+        mock.patch(
+            "markitdown_app.core.registry.should_use_shared_browser_for_url", return_value=True
+        ),
+        mock.patch("markitdown_app.services.convert_service.registry_convert") as reg_convert,
+        mock.patch("markitdown_app.core.registry.convert") as reg_convert2,
+        mock.patch("markitdown_app.core.handlers.generic_handler.convert_url") as gen_conv,
+        mock.patch(
+            "markitdown_app.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
+        ),
+    ):
 
         call_count = {"n": 0}
+
         def side_effect_convert(payload, session, options):
             # After first success, request stop. Next loop should see stop and emit 'stopped'.
             call_count["n"] += 1

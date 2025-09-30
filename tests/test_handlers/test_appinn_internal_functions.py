@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
 import pytest
+from bs4 import BeautifulSoup
 
 from markitdown_app.core.handlers import appinn_handler as ap
 
 
 @pytest.mark.unit
 def test_extract_appinn_title_variants():
-    soup = BeautifulSoup("<div class='single_post'><header><h1 class='title single-title entry-title'>T</h1></header></div>", "lxml")
+    soup = BeautifulSoup(
+        "<div class='single_post'><header><h1 class='title single-title entry-title'>T</h1></header></div>",
+        "lxml",
+    )
     assert ap._extract_appinn_title(soup) == "T"
     soup2 = BeautifulSoup("<title>X - 小众软件</title>", "lxml")
     assert ap._extract_appinn_title(soup2) == "X"
@@ -67,12 +70,10 @@ def test_clean_and_normalize_appinn_content():
     </div>
     """
     soup = BeautifulSoup(html, "lxml")
-    elem = soup.find(id='m')
+    elem = soup.find(id="m")
     ap._clean_and_normalize_appinn_content(elem)
     s = str(elem)
     assert "data-src" not in s and "data-original" not in s and "data-lazy-src" not in s
     # three unique src after dedup: a, b, c
     assert s.count("<img") == 3
     assert "<script" not in s and "advertisement" not in s and "entry-meta" not in s
-
-

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from unittest import mock
-
 import os
 import re
+from unittest import mock
+
 import pytest
 
 from markitdown_app.app_types import ConversionOptions, SourceRequest
@@ -24,7 +24,9 @@ def make_opts() -> ConversionOptions:
 @mock.patch("markitdown_app.io.writer.write_markdown")
 @mock.patch("markitdown_app.services.convert_service.registry_convert")
 @mock.patch("markitdown_app.services.convert_service.build_requests_session")
-def test_end_to_end_mixed_urls(mock_build_sess, mock_reg_convert, mock_write_md, mock_dl_async, tmp_path):
+def test_end_to_end_mixed_urls(
+    mock_build_sess, mock_reg_convert, mock_write_md, mock_dl_async, tmp_path
+):
     # Prepare image downloader to succeed and return final paths
     def dl_fake(tasks, aio_session, on_detail, hash_to_path, hash_lock):
         results = {}

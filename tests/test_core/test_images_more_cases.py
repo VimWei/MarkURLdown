@@ -44,5 +44,3 @@ def test_html_img_single_quote_and_uppercase(tmp_path):
     # Should rewrite uppercase IMG and single-quoted src
     assert "https://cdn.example.com/a.png" not in out
     assert "src='img/" in out
-
-

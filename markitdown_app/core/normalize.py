@@ -29,9 +29,7 @@ def normalize_markdown_headings(text: str, title: str | None) -> str:
 
     promoted: list[str] = []
     for ln in lines:
-        if re.fullmatch(r"\s*\*{2,}\s*[^*].*?\s*\*{2,}\s*", ln) and not re.match(
-            r"^#{1,6}\s+", ln
-        ):
+        if re.fullmatch(r"\s*\*{2,}\s*[^*].*?\s*\*{2,}\s*", ln) and not re.match(r"^#{1,6}\s+", ln):
             content = re.sub(r"^\s*\*+\s*(.*?)\s*\*+\s*$", r"\1", ln).strip()
             promoted.append(f"## {content}")
         else:

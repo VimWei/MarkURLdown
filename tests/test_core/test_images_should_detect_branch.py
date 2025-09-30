@@ -26,4 +26,3 @@ def test_should_not_detect_for_unknown_noext():
 @pytest.mark.unit
 def test_should_not_detect_when_has_extension():
     assert _should_detect_image_format("https://any.example.com/a.png") is False
-

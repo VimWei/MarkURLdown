@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
 import pytest
+from bs4 import BeautifulSoup
 
 from markitdown_app.core.handlers import weixin_handler as wx
 
@@ -83,8 +83,8 @@ def test_clean_and_normalize_replaces_lazy_images_and_removes_scripts():
     wx._clean_and_normalize_weixin_content(content, account_name=None)
     out = str(content)
     assert "data-src" not in out and "data-original" not in out
-    assert "src=\"https://a/img.jpg\"" in out
-    assert "src=\"https://b/img.png\"" in out
+    assert 'src="https://a/img.jpg"' in out
+    assert 'src="https://b/img.png"' in out
     assert "<script" not in out and "<style" not in out
 
 
@@ -105,5 +105,3 @@ def test_process_weixin_content_builds_header_and_md():
     assert "来源：https://u" in res.html_markdown
     assert "作者A" in res.html_markdown and "号B" in res.html_markdown
     assert res.html_markdown.strip().endswith("正文")
-
-

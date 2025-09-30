@@ -25,5 +25,3 @@ def test_download_images_async_wraps_single_download_results():
     with mock.patch("markitdown_app.core.images._download_single_image", side_effect=fake_single):
         out = asyncio.run(run())
     assert out["https://u"][0] is True
-
-

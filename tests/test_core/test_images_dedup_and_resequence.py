@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import os
+from datetime import datetime
 from unittest import mock
 
-import os
 import pytest
-from datetime import datetime
 
 from markitdown_app.core.images import download_images_and_rewrite
 
@@ -32,14 +32,17 @@ def test_image_dedup_by_content(tmp_path):
                 results[url] = (True, first_final)
         return results
 
-    with mock.patch("markitdown_app.core.images._download_images_async", side_effect=fake_async), \
-        mock.patch("markitdown_app.core.images.datetime") as dt_mock:
+    with (
+        mock.patch("markitdown_app.core.images._download_images_async", side_effect=fake_async),
+        mock.patch("markitdown_app.core.images.datetime") as dt_mock,
+    ):
         dt_mock.now.return_value = datetime(2025, 1, 1, 0, 0, 0)
         session = mock.Mock()
         out = download_images_and_rewrite(md, base, str(images_dir), session)
 
     # Expect two links but both point to same file name
     import re
+
     paths = re.findall(r"!\[[^\]]*\]\((img\/[^)]+)\)", out)
     assert len(paths) == 2
     assert paths[0] == paths[1]
@@ -63,11 +66,15 @@ def test_compact_resequence_rename(tmp_path):
             results[url] = (True, path)
         return results
 
-    with mock.patch("markitdown_app.core.images._download_images_async", side_effect=fake_async), \
-        mock.patch("markitdown_app.core.images.datetime") as dt_mock:
+    with (
+        mock.patch("markitdown_app.core.images._download_images_async", side_effect=fake_async),
+        mock.patch("markitdown_app.core.images.datetime") as dt_mock,
+    ):
         dt_mock.now.return_value = datetime(2025, 1, 1, 0, 0, 0)
         session = mock.Mock()
-        out = download_images_and_rewrite(md, base, str(images_dir), session, enable_compact_rename=True)
+        out = download_images_and_rewrite(
+            md, base, str(images_dir), session, enable_compact_rename=True
+        )
 
     # After resequencing, only two unique files remain with sequential numbering 001, 002
     files = sorted(os.listdir(images_dir))

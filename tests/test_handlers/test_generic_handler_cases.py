@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import ConvertPayload, ConversionOptions
+from markitdown_app.app_types import ConversionOptions, ConvertPayload
 from markitdown_app.core.handlers import generic_handler
 
 
@@ -26,9 +26,15 @@ def test_generic_convert_url_success_first_strategy(monkeypatch):
     monkeypatch.setattr(generic_handler.time, "sleep", lambda *a, **k: None)
     CR = generic_handler.CrawlerResult
     # Patch internal strategies to succeed on first
-    monkeypatch.setattr(generic_handler, "_try_lightweight_markitdown", lambda *a, **k: CR(True, "T", "X"*120))
-    monkeypatch.setattr(generic_handler, "_try_enhanced_markitdown", lambda *a, **k: CR(False, None, "", "e"))
-    monkeypatch.setattr(generic_handler, "_try_direct_httpx", lambda *a, **k: CR(False, None, "", "e"))
+    monkeypatch.setattr(
+        generic_handler, "_try_lightweight_markitdown", lambda *a, **k: CR(True, "T", "X" * 120)
+    )
+    monkeypatch.setattr(
+        generic_handler, "_try_enhanced_markitdown", lambda *a, **k: CR(False, None, "", "e")
+    )
+    monkeypatch.setattr(
+        generic_handler, "_try_direct_httpx", lambda *a, **k: CR(False, None, "", "e")
+    )
 
     res = generic_handler.convert_url(payload, session, make_opts())
     assert res.title == "T"
@@ -44,12 +50,16 @@ def test_generic_convert_url_fallback_to_httpx(monkeypatch):
     monkeypatch.setattr(generic_handler.time, "sleep", lambda *a, **k: None)
     CR = generic_handler.CrawlerResult
     # First two fail, third succeeds
-    monkeypatch.setattr(generic_handler, "_try_lightweight_markitdown", lambda *a, **k: CR(False, None, "", "e"))
-    monkeypatch.setattr(generic_handler, "_try_enhanced_markitdown", lambda *a, **k: CR(False, None, "", "e"))
-    monkeypatch.setattr(generic_handler, "_try_direct_httpx", lambda *a, **k: CR(True, "T3", "Y"*150))
+    monkeypatch.setattr(
+        generic_handler, "_try_lightweight_markitdown", lambda *a, **k: CR(False, None, "", "e")
+    )
+    monkeypatch.setattr(
+        generic_handler, "_try_enhanced_markitdown", lambda *a, **k: CR(False, None, "", "e")
+    )
+    monkeypatch.setattr(
+        generic_handler, "_try_direct_httpx", lambda *a, **k: CR(True, "T3", "Y" * 150)
+    )
 
     res = generic_handler.convert_url(payload, session, make_opts())
     assert res.title == "T3"
     assert len(res.markdown) > 0
-
-

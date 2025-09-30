@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from unittest import mock
-
+import builtins
 import importlib
 import importlib.util
-from pathlib import Path
-import builtins
 import sys
 import types
+from pathlib import Path
+from unittest import mock
+
 import pytest
 
 
@@ -32,8 +32,10 @@ name = "x"
 version = "{ver}"
 """
     m = mock.mock_open(read_data=fake_pyproject)
-    with mock.patch("subprocess.run", side_effect=FileNotFoundError()), \
-         mock.patch.object(builtins, "open", m):
+    with (
+        mock.patch("subprocess.run", side_effect=FileNotFoundError()),
+        mock.patch.object(builtins, "open", m),
+    ):
         path = Path(__file__).parent.parent.parent / "markitdown_app" / "version.py"
         spec = importlib.util.spec_from_file_location("markitdown_app.version_tested", str(path))
         mod = importlib.util.module_from_spec(spec)
@@ -98,9 +100,13 @@ name = "x"
 version = "9.9.9"
 """
     m = mock.mock_open(read_data=fake_pyproject)
-    with mock.patch("subprocess.run", side_effect=FileNotFoundError()), \
-         mock.patch.object(builtins, "open", m):
-        spec = importlib.util.spec_from_file_location("markitdown_app.version_tested_reload", str(path))
+    with (
+        mock.patch("subprocess.run", side_effect=FileNotFoundError()),
+        mock.patch.object(builtins, "open", m),
+    ):
+        spec = importlib.util.spec_from_file_location(
+            "markitdown_app.version_tested_reload", str(path)
+        )
         reloaded = importlib.util.module_from_spec(spec)
         loader = spec.loader
         assert loader is not None
@@ -125,4 +131,3 @@ def test_get_about_text(monkeypatch):
     txt = version.get_about_text()
     assert "MarkURLdown v2.0.0" in txt
     assert "Version: 2.0.0" in txt
-

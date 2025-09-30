@@ -3,9 +3,9 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from bs4 import BeautifulSoup
 
 from markitdown_app.core.html_to_md import html_fragment_to_markdown
-from bs4 import BeautifulSoup
 
 
 @pytest.mark.unit
@@ -21,7 +21,10 @@ def test_legacy_mappings_headings_lists_links_code_blockquote():
     """
     root = BeautifulSoup(html, "html.parser")
     # Bypass MarkItDown path so legacy runs
-    with mock.patch("markitdown.converters._html_converter.HtmlConverter.convert_string", side_effect=RuntimeError("skip")):
+    with mock.patch(
+        "markitdown.converters._html_converter.HtmlConverter.convert_string",
+        side_effect=RuntimeError("skip"),
+    ):
         md = html_fragment_to_markdown(root)
 
     assert md.startswith("# Title\n\n")

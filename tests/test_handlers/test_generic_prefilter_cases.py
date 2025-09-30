@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import ConvertPayload, ConversionOptions
+from markitdown_app.app_types import ConversionOptions, ConvertPayload
 from markitdown_app.core.handlers import generic_handler
 
 
@@ -27,8 +27,12 @@ def test_generic_prefilter_success(monkeypatch):
     CR = generic_handler.CrawlerResult
 
     # prefilter succeeds, others won't be called meaningfully
-    monkeypatch.setattr(generic_handler, "_try_generic_with_filtering", lambda *a, **k: CR(True, "T", "X"*200))
-    monkeypatch.setattr(generic_handler, "_try_lightweight_markitdown", lambda *a, **k: CR(False, None, "", "e"))
+    monkeypatch.setattr(
+        generic_handler, "_try_generic_with_filtering", lambda *a, **k: CR(True, "T", "X" * 200)
+    )
+    monkeypatch.setattr(
+        generic_handler, "_try_lightweight_markitdown", lambda *a, **k: CR(False, None, "", "e")
+    )
     res = generic_handler.convert_url(payload, session, make_opts())
     assert res.title == "T"
 
@@ -42,8 +46,12 @@ def test_generic_prefilter_fallback_to_next(monkeypatch):
     CR = generic_handler.CrawlerResult
 
     # prefilter fails then lightweight succeeds
-    monkeypatch.setattr(generic_handler, "_try_generic_with_filtering", lambda *a, **k: CR(False, None, "", "e"))
-    monkeypatch.setattr(generic_handler, "_try_lightweight_markitdown", lambda *a, **k: CR(True, "T2", "Y"*200))
+    monkeypatch.setattr(
+        generic_handler, "_try_generic_with_filtering", lambda *a, **k: CR(False, None, "", "e")
+    )
+    monkeypatch.setattr(
+        generic_handler, "_try_lightweight_markitdown", lambda *a, **k: CR(True, "T2", "Y" * 200)
+    )
     res = generic_handler.convert_url(payload, session, make_opts())
     assert res.title == "T2"
 
@@ -56,6 +64,7 @@ def test_try_generic_with_filtering_success_bytes_fallback(monkeypatch):
 
     class DummyResp:
         text = raw_html
+
         def raise_for_status(self):
             return None
 
@@ -64,14 +73,20 @@ def test_try_generic_with_filtering_success_bytes_fallback(monkeypatch):
     class DummyMD:
         def __init__(self):
             self._requests_session = type("S", (), {"headers": {}})()
+
         def convert(self, content):
             # First attempt (string) fails, bytes succeeds
             if isinstance(content, bytes):
                 return type("R", (), {"text_content": "MD", "metadata": {"title": "T"}})()
             raise RuntimeError("string path failed")
 
-    monkeypatch.setattr("markitdown_app.core.handlers.generic_handler.MarkItDown", lambda: DummyMD())
-    monkeypatch.setattr("markitdown_app.core.handlers.generic_handler.apply_dom_filters", lambda html, sels: (raw_html, ["x"]))
+    monkeypatch.setattr(
+        "markitdown_app.core.handlers.generic_handler.MarkItDown", lambda: DummyMD()
+    )
+    monkeypatch.setattr(
+        "markitdown_app.core.handlers.generic_handler.apply_dom_filters",
+        lambda html, sels: (raw_html, ["x"]),
+    )
 
     r = generic_handler._try_generic_with_filtering("https://example.com/x", session)
     assert r.success and r.title == "T" and r.text_content == "MD"
@@ -85,6 +100,7 @@ def test_try_generic_with_filtering_tempfile_fallback(monkeypatch, tmp_path):
 
     class DummyResp:
         text = raw_html
+
         def raise_for_status(self):
             return None
 
@@ -93,21 +109,30 @@ def test_try_generic_with_filtering_tempfile_fallback(monkeypatch, tmp_path):
     class DummyMD:
         def __init__(self):
             self._requests_session = type("S", (), {"headers": {}})()
+
         def convert(self, content):
             raise RuntimeError("fail both string and bytes")
 
-    monkeypatch.setattr("markitdown_app.core.handlers.generic_handler.MarkItDown", lambda: DummyMD())
-    monkeypatch.setattr("markitdown_app.core.handlers.generic_handler.apply_dom_filters", lambda html, sels: (raw_html, ["x"]))
+    monkeypatch.setattr(
+        "markitdown_app.core.handlers.generic_handler.MarkItDown", lambda: DummyMD()
+    )
+    monkeypatch.setattr(
+        "markitdown_app.core.handlers.generic_handler.apply_dom_filters",
+        lambda html, sels: (raw_html, ["x"]),
+    )
 
     with mock.patch("tempfile.NamedTemporaryFile") as ntf:
         # Create a fake named temp file returning a name
         class T:
             def __init__(self):
                 self.name = str(tmp_path / "t.html")
+
             def write(self, b):
                 (tmp_path / "t.html").write_bytes(b)
+
             def close(self):
                 return None
+
         ntf.return_value = T()
 
         # Make convert() succeed when MD receives a temp file path
@@ -120,11 +145,13 @@ def test_try_generic_with_filtering_tempfile_fallback(monkeypatch, tmp_path):
         class DummyMD2:
             def __init__(self):
                 self._requests_session = type("S", (), {"headers": {}})()
+
             def convert(self, content):
                 return convert_path(content)
 
-        monkeypatch.setattr("markitdown_app.core.handlers.generic_handler.MarkItDown", lambda: DummyMD2())
+        monkeypatch.setattr(
+            "markitdown_app.core.handlers.generic_handler.MarkItDown", lambda: DummyMD2()
+        )
 
         r = generic_handler._try_generic_with_filtering("https://example.com/y", session)
     assert r.success and r.title == "T2" and r.text_content == "MD2"
-

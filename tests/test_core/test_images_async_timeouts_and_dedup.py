@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import os
+from datetime import datetime
 from unittest import mock
 
-import os
 import pytest
-from datetime import datetime
 
 from markitdown_app.core.images import download_images_and_rewrite
 
@@ -59,14 +59,15 @@ def test_async_dedup_concurrency_same_path(tmp_path):
                 results[url] = (True, first_path)
         return results
 
-    with mock.patch("markitdown_app.core.images._download_images_async", side_effect=dl_async), \
-        mock.patch("markitdown_app.core.images.datetime") as dt_mock:
+    with (
+        mock.patch("markitdown_app.core.images._download_images_async", side_effect=dl_async),
+        mock.patch("markitdown_app.core.images.datetime") as dt_mock,
+    ):
         dt_mock.now.return_value = datetime(2025, 1, 1, 0, 0, 0)
         session = mock.Mock()
         out = download_images_and_rewrite(md, base, str(images_dir), session)
 
     import re
+
     paths = re.findall(r"!\[[^\]]*\]\((img\/[^)]+)\)", out)
     assert len(paths) == 2 and paths[0] == paths[1]
-
-

@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import ConvertPayload, ConversionOptions
+from markitdown_app.app_types import ConversionOptions, ConvertPayload
 from markitdown_app.core.registry import convert
 
 
@@ -25,9 +25,13 @@ def test_convert_uses_specific_handler_when_matched():
     session = mock.Mock()
 
     # Patch in registry namespace (symbols imported into registry)
-    with mock.patch("markitdown_app.core.registry.fetch_weixin_article") as fw, \
-        mock.patch("markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t), \
-        mock.patch("markitdown_app.core.registry.derive_md_filename", return_value="file.md"):
+    with (
+        mock.patch("markitdown_app.core.registry.fetch_weixin_article") as fw,
+        mock.patch(
+            "markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+        ),
+        mock.patch("markitdown_app.core.registry.derive_md_filename", return_value="file.md"),
+    ):
         fw.return_value = mock.Mock(title="T", html_markdown="Body")
         res = convert(payload, session, make_opts(download_images=False))
     assert res.title == "T"
@@ -41,14 +45,30 @@ def test_convert_fallbacks_to_generic_when_handlers_return_none():
     session = mock.Mock()
 
     # Force all handlers to return None by mocking functions in registry namespace
-    with mock.patch("markitdown_app.core.registry.fetch_appinn_article", side_effect=Exception("skip")), \
-        mock.patch("markitdown_app.core.registry.fetch_weixin_article", side_effect=Exception("skip")), \
-        mock.patch("markitdown_app.core.registry.fetch_zhihu_article", side_effect=Exception("skip")), \
-        mock.patch("markitdown_app.core.registry.fetch_wordpress_article", side_effect=Exception("skip")), \
-        mock.patch("markitdown_app.core.registry.fetch_nextjs_article", side_effect=Exception("skip")), \
-        mock.patch("markitdown_app.core.registry.fetch_sspai_article", side_effect=Exception("skip")), \
-        mock.patch("markitdown_app.core.registry.convert_url") as generic_conv:
-        generic_conv.return_value = mock.Mock(title="G", markdown="Generic", suggested_filename="g.md")
+    with (
+        mock.patch(
+            "markitdown_app.core.registry.fetch_appinn_article", side_effect=Exception("skip")
+        ),
+        mock.patch(
+            "markitdown_app.core.registry.fetch_weixin_article", side_effect=Exception("skip")
+        ),
+        mock.patch(
+            "markitdown_app.core.registry.fetch_zhihu_article", side_effect=Exception("skip")
+        ),
+        mock.patch(
+            "markitdown_app.core.registry.fetch_wordpress_article", side_effect=Exception("skip")
+        ),
+        mock.patch(
+            "markitdown_app.core.registry.fetch_nextjs_article", side_effect=Exception("skip")
+        ),
+        mock.patch(
+            "markitdown_app.core.registry.fetch_sspai_article", side_effect=Exception("skip")
+        ),
+        mock.patch("markitdown_app.core.registry.convert_url") as generic_conv,
+    ):
+        generic_conv.return_value = mock.Mock(
+            title="G", markdown="Generic", suggested_filename="g.md"
+        )
         res = convert(payload, session, make_opts())
 
     assert res.title == "G"

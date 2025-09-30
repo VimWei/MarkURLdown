@@ -6,9 +6,9 @@ from markitdown_app.core.common_utils import (
     COMMON_FILTERS,
     DOMAIN_FILTERS,
     apply_dom_filters,
-    get_user_agents,
-    extract_title_from_html,
     extract_title_from_body,
+    extract_title_from_html,
+    get_user_agents,
 )
 
 
@@ -23,7 +23,7 @@ def test_common_filters_contains_key_categories():
 @pytest.mark.unit
 def test_domain_filters_has_juejin_keys():
     assert "juejin.cn" in DOMAIN_FILTERS
-    assert any("header" in s for s in DOMAIN_FILTERS["juejin.cn"]) 
+    assert any("header" in s for s in DOMAIN_FILTERS["juejin.cn"])
 
 
 @pytest.mark.unit

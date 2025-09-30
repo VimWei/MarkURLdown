@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
 import pytest
+from bs4 import BeautifulSoup
 
 from markitdown_app.core.handlers import nextjs_handler as nx
 
@@ -46,5 +46,3 @@ def test_build_nextjs_header_parts_and_content_element_and_clean():
     assert "# TitleN" in head and "来源：https://u" in head
     content = nx._build_nextjs_content_element(soup)
     assert content and "Body" in content.get_text()
-
-

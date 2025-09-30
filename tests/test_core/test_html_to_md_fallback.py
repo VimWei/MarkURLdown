@@ -3,9 +3,9 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from bs4 import BeautifulSoup
 
 from markitdown_app.core.html_to_md import html_fragment_to_markdown
-from bs4 import BeautifulSoup
 
 
 @pytest.mark.unit
@@ -33,5 +33,3 @@ def test_html_fragment_to_markdown_fallbacks_on_exception():
         assert md.startswith("# ")
         assert "内容" in md
         assert md.endswith("\n")
-
-

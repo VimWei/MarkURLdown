@@ -28,6 +28,7 @@ def test_emit_event_safe_with_signals():
     svc._signals = DummySignals(bucket)
 
     received: list[ProgressEvent] = []
+
     def cb(ev: ProgressEvent):
         received.append(ev)
 
@@ -50,5 +51,3 @@ def test_emit_event_safe_without_signals_uses_callback():
     ev = ProgressEvent(kind="status", key="k2")
     svc._emit_event_safe(ev, cb)
     assert received and received[0].kind == "status"
-
-

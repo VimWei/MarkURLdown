@@ -35,19 +35,27 @@ def test_shared_browser_start_close_and_restart(tmp_path):
         def __init__(self, label):
             self.label = label
             self.closed = False
+
         def close(self):
             self.closed = True
 
     dummy_runtime = mock.MagicMock()
     dummy_runtime.chromium.launch.return_value = DummyBrowser("initial")
 
-    with mock.patch("markitdown_app.services.convert_service.build_requests_session"), \
-        mock.patch("markitdown_app.services.convert_service.registry_convert", return_value=mock.Mock(title="T", markdown="# m", suggested_filename="f.md")), \
-        mock.patch("markitdown_app.io.writer.write_markdown", return_value=str(tmp_path / "out.md")), \
-        mock.patch("markitdown_app.core.registry.get_handler_for_url") as get_handler_for_url, \
-        mock.patch("markitdown_app.core.registry.should_use_shared_browser_for_url") as should_use, \
-        mock.patch("markitdown_app.services.convert_service.threading.Thread") as ThreadMock, \
-        mock.patch("playwright.sync_api.sync_playwright") as sp:
+    with (
+        mock.patch("markitdown_app.services.convert_service.build_requests_session"),
+        mock.patch(
+            "markitdown_app.services.convert_service.registry_convert",
+            return_value=mock.Mock(title="T", markdown="# m", suggested_filename="f.md"),
+        ),
+        mock.patch(
+            "markitdown_app.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
+        ),
+        mock.patch("markitdown_app.core.registry.get_handler_for_url") as get_handler_for_url,
+        mock.patch("markitdown_app.core.registry.should_use_shared_browser_for_url") as should_use,
+        mock.patch("markitdown_app.services.convert_service.threading.Thread") as ThreadMock,
+        mock.patch("playwright.sync_api.sync_playwright") as sp,
+    ):
 
         # Simulate thread-less execution by directly calling _worker; we patch Thread just to avoid accidental spawn
         ThreadMock.return_value = mock.Mock()
@@ -75,5 +83,3 @@ def test_shared_browser_start_close_and_restart(tmp_path):
     assert "convert_shared_browser_started" in keys
     # After first URL (not using shared), it should be closed and later restarted before second URL
     assert "convert_shared_browser_restarted" in keys
-
-

@@ -144,13 +144,17 @@ def test_try_close_modal_with_selectors_escape_fallback():
 @pytest.mark.unit
 def test_try_close_modal_with_selectors_detection_absent_returns_true():
     p = DummyPage()
+
     # modal_detection_selectors provided but none present
     def qsel(selector):
         if selector == ".modal":
             return None
         return None
+
     p.query_selector = mock.Mock(side_effect=qsel)
-    ok = drv.try_close_modal_with_selectors(p, selectors=[".close"], modal_detection_selectors=[".modal"], use_escape_fallback=True)
+    ok = drv.try_close_modal_with_selectors(
+        p, selectors=[".close"], modal_detection_selectors=[".modal"], use_escape_fallback=True
+    )
     assert ok is True
     p.keyboard.press.assert_not_called()
 
@@ -170,5 +174,3 @@ def test_read_page_content_and_title_emits_and_reads():
     html, title = drv.read_page_content_and_title(p, on_detail=messages.append)
     assert html.startswith("<html") and title == "T"
     assert any("获取页面内容" in str(m) for m in messages)
-
-

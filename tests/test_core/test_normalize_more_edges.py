@@ -23,5 +23,3 @@ def test_weird_title_promotion_with_punctuation():
     out = normalize_markdown_headings(text, "Hello World")
     # Current implementation不会去掉前缀标点，故不提升；仅断言内容保留
     assert out.startswith("....Hello\n")
-
-

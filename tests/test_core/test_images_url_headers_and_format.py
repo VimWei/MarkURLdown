@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import os
+from datetime import datetime
 from unittest import mock
 
-import os
 import pytest
-from datetime import datetime
 
-from markitdown_app.core.images import download_images_and_rewrite, ImageDomainConfig
+from markitdown_app.core.images import ImageDomainConfig, download_images_and_rewrite
 
 
 @pytest.mark.unit
@@ -25,12 +25,13 @@ def test_images_adds_special_headers_for_weixin_and_sspai(tmp_path):
             captured_headers[url] = headers or {}
         # Pretend success for both with .img extension to avoid format check branch interfering
         return {
-            url: (True, path if path.endswith(".png") else path)
-            for url, path, _ in image_tasks
+            url: (True, path if path.endswith(".png") else path) for url, path, _ in image_tasks
         }
 
-    with mock.patch("markitdown_app.core.images._download_images_async", side_effect=fake_async), \
-        mock.patch("markitdown_app.core.images.datetime") as dt_mock:
+    with (
+        mock.patch("markitdown_app.core.images._download_images_async", side_effect=fake_async),
+        mock.patch("markitdown_app.core.images.datetime") as dt_mock,
+    ):
         dt_mock.now.return_value = datetime(2025, 1, 1, 0, 0, 0)
 
         session = mock.Mock()
@@ -66,9 +67,11 @@ def test_images_format_detection_and_rename(tmp_path):
             results[url] = (True, path)
         return results
 
-    with mock.patch("markitdown_app.core.images._download_images_async", side_effect=fake_async), \
-        mock.patch("markitdown_app.core.images._should_detect_image_format", return_value=True), \
-        mock.patch("markitdown_app.core.images.datetime") as dt_mock:
+    with (
+        mock.patch("markitdown_app.core.images._download_images_async", side_effect=fake_async),
+        mock.patch("markitdown_app.core.images._should_detect_image_format", return_value=True),
+        mock.patch("markitdown_app.core.images.datetime") as dt_mock,
+    ):
         dt_mock.now.return_value = datetime(2025, 1, 1, 0, 0, 0)
 
         session = mock.Mock()

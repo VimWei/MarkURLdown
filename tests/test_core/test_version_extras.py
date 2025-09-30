@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from unittest import mock
-
 import importlib
 import importlib.util
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -27,5 +26,3 @@ def test_get_full_version_info_and_app_title():
     info = v.get_full_version_info()
     assert info["version"] == "1.2.3" and info["version_info"] == (1, 2, 3)
     assert v.get_app_title().startswith("MarkURLdown v")
-
-

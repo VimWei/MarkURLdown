@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
 import pytest
+from bs4 import BeautifulSoup
 
 from markitdown_app.core.handlers import appinn_handler as ap
+from markitdown_app.core.handlers import nextjs_handler as nx
 from markitdown_app.core.handlers import sspai_handler as sp
 from markitdown_app.core.handlers import wordpress_handler as wp
-from markitdown_app.core.handlers import nextjs_handler as nx
 from markitdown_app.core.handlers import zhihu_handler as zh
 
 
@@ -53,5 +53,3 @@ def test_process_zhihu_content_smoke():
     """
     r = zh._process_zhihu_content(html, title_hint="Z", url="https://zhuanlan.zhihu.com/p/1")
     assert r.title and "Body" in r.html_markdown
-
-

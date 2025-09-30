@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
 import pytest
+from bs4 import BeautifulSoup
 
 from markitdown_app.core.handlers import sspai_handler as sp
 
@@ -65,9 +65,9 @@ def test_preprocess_inline_sup_footnotes_and_strip_invisible():
     </div>
     """
     soup = BeautifulSoup(html, "lxml")
-    elem = soup.find(id='c')
+    elem = soup.find(id="c")
     m = sp._preprocess_inline_sup_footnotes(elem)
-    assert m.get('1') == 'footnote text'
+    assert m.get("1") == "footnote text"
     sp._strip_invisible_characters(elem)
     text = elem.get_text()
     assert "footnote text" in text and "ZWSP" in text
@@ -86,7 +86,7 @@ def test_clean_and_normalize_sspai_content():
     </div>
     """
     soup = BeautifulSoup(html, "lxml")
-    elem = soup.find(id='main')
+    elem = soup.find(id="main")
     sp._clean_and_normalize_sspai_content(elem)
     # 验证懒加载属性移除
     for img in elem.find_all("img"):
@@ -98,5 +98,3 @@ def test_clean_and_normalize_sspai_content():
     assert not elem.select(".entry-meta")
     # 验证推广链接容器被移除
     assert not elem.select("a[href='https://sspai.com/page/client']")
-
-

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from unittest import mock
-
+import io
 import os
 import re
-import io
+from unittest import mock
+
 import pytest
 
-from markitdown_app.io.writer import ensure_dir, write_markdown
-from markitdown_app.io.session import build_requests_session
 from markitdown_app.io.logger import log_urls
+from markitdown_app.io.session import build_requests_session
+from markitdown_app.io.writer import ensure_dir, write_markdown
 
 
 @pytest.mark.unit

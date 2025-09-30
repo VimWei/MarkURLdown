@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import ConvertPayload, ConversionOptions
+from markitdown_app.app_types import ConversionOptions, ConvertPayload
 from markitdown_app.core.registry import convert
 
 
@@ -23,8 +23,10 @@ def test_weixin_blocked_fallbacks_to_generic():
     payload = ConvertPayload(kind="url", value=url, meta={})
     session = mock.Mock()
 
-    with mock.patch("markitdown_app.core.registry.fetch_weixin_article") as fw, \
-        mock.patch("markitdown_app.core.registry.convert_url") as gen:
+    with (
+        mock.patch("markitdown_app.core.registry.fetch_weixin_article") as fw,
+        mock.patch("markitdown_app.core.registry.convert_url") as gen,
+    ):
         # Simulate blocked/invalid short content -> handler returns None
         fw.return_value = mock.Mock(title="验证", html_markdown="需完成验证")
         gen.return_value = mock.Mock(title="G", markdown="Generic", suggested_filename="g.md")
@@ -40,8 +42,12 @@ def test_zhihu_content_passes():
     payload = ConvertPayload(kind="url", value=url, meta={})
     session = mock.Mock()
 
-    with mock.patch("markitdown_app.core.registry.fetch_zhihu_article") as fz, \
-        mock.patch("markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t):
+    with (
+        mock.patch("markitdown_app.core.registry.fetch_zhihu_article") as fz,
+        mock.patch(
+            "markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+        ),
+    ):
         fz.return_value = mock.Mock(title="Z", html_markdown="valid content" * 100)
         res = convert(payload, session, make_opts(download_images=False))
 
@@ -55,8 +61,10 @@ def test_sspai_too_short_fallbacks():
     payload = ConvertPayload(kind="url", value=url, meta={})
     session = mock.Mock()
 
-    with mock.patch("markitdown_app.core.registry.fetch_sspai_article") as fs, \
-        mock.patch("markitdown_app.core.registry.convert_url") as gen:
+    with (
+        mock.patch("markitdown_app.core.registry.fetch_sspai_article") as fs,
+        mock.patch("markitdown_app.core.registry.convert_url") as gen,
+    ):
         fs.return_value = mock.Mock(title="S", html_markdown="short")
         gen.return_value = mock.Mock(title="G", markdown="Generic", suggested_filename="g.md")
         res = convert(payload, session, make_opts())
@@ -70,8 +78,12 @@ def test_wordpress_basic_pass():
     payload = ConvertPayload(kind="url", value=url, meta={})
     session = mock.Mock()
 
-    with mock.patch("markitdown_app.core.registry.fetch_wordpress_article") as fw, \
-        mock.patch("markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t):
+    with (
+        mock.patch("markitdown_app.core.registry.fetch_wordpress_article") as fw,
+        mock.patch(
+            "markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+        ),
+    ):
         fw.return_value = mock.Mock(title="W", html_markdown="ok content")
         res = convert(payload, session, make_opts(download_images=False))
 
@@ -84,11 +96,13 @@ def test_nextjs_basic_pass():
     payload = ConvertPayload(kind="url", value=url, meta={})
     session = mock.Mock()
 
-    with mock.patch("markitdown_app.core.registry.fetch_nextjs_article") as fn, \
-        mock.patch("markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t):
+    with (
+        mock.patch("markitdown_app.core.registry.fetch_nextjs_article") as fn,
+        mock.patch(
+            "markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+        ),
+    ):
         fn.return_value = mock.Mock(title="N", html_markdown="ok content")
         res = convert(payload, session, make_opts(download_images=False))
 
     assert res.title == "N"
-
-

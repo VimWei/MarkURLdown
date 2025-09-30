@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import SourceRequest, ConversionOptions, ProgressEvent
+from markitdown_app.app_types import ConversionOptions, ProgressEvent, SourceRequest
 from markitdown_app.services.convert_service import ConvertService
 
 
@@ -29,6 +29,7 @@ def test_run_does_not_start_when_thread_alive(monkeypatch, tmp_path):
     class DummyThread:
         def __init__(self, *a, **k):
             pass
+
         def start(self):
             started["count"] += 1
 
@@ -58,12 +59,14 @@ def test_run_starts_thread_and_logs_only_urls(monkeypatch, tmp_path):
         def __init__(self, *args, **kwargs):
             captured["args"] = args
             captured["kwargs"] = kwargs
+
         def start(self):
             captured["started"] += 1
 
     monkeypatch.setattr("markitdown_app.services.convert_service.threading.Thread", DummyThread)
 
     logged = []
+
     def fake_log(urls):
         logged.extend(urls)
 
@@ -103,5 +106,3 @@ def test_emit_event_safe_uses_callback_when_signal_emit_raises():
     svc._signals = Sig()
     svc._emit_event_safe(ProgressEvent(kind="detail", key="k"), received.append)
     assert received and isinstance(received[0], ProgressEvent)
-
-

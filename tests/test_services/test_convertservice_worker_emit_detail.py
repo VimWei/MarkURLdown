@@ -18,6 +18,7 @@ def test_worker_emit_detail_uses_signal_and_fallback():
     class Sig:
         def __init__(self, bucket):
             self.progress_event = types.SimpleNamespace(emit=lambda ev: bucket.append(ev))
+
     svc._signals = Sig(events)
 
     # Use private helper via _emit_event_safe by calling through worker-embedded function signature
@@ -29,5 +30,3 @@ def test_worker_emit_detail_uses_signal_and_fallback():
     svc._signals = None
     svc._emit_event_safe(ev, events.append)
     assert len(events) >= 2 and events[-1].kind == "detail"
-
-

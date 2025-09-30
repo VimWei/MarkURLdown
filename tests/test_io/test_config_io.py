@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+
 import pytest
 
-from markitdown_app.io.config import save_config, load_config, load_json_from_root
+from markitdown_app.io.config import load_config, load_json_from_root, save_config
 
 
 @pytest.mark.unit
@@ -32,5 +33,3 @@ def test_load_json_from_root_missing_and_invalid(tmp_path):
     good = {"k": "v"}
     (tmp_path / "settings.json").write_text(json.dumps(good), encoding="utf-8")
     assert load_json_from_root(str(tmp_path), "settings.json") == good
-
-

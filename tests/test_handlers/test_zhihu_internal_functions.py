@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
 import types
+
 import pytest
+from bs4 import BeautifulSoup
 
 from markitdown_app.core.handlers import zhihu_handler as zh
 
@@ -17,11 +18,14 @@ def test_detect_page_type_answer_and_column():
 
 @pytest.mark.unit
 def test_extract_title_and_author_and_time():
-    soup = BeautifulSoup("""
+    soup = BeautifulSoup(
+        """
     <h1 class='QuestionHeader-title'>Answer Title</h1>
     <div class='ContentItem-meta'><a class='UserLink-link' href='/people/u1'>User</a><div class='AuthorInfo-detail'><span class='AuthorInfo-badgeText'>badge</span></div></div>
     <div class='ContentItem-time'>编辑于 2023-07-13 23:39 ・江苏</div>
-    """, "lxml")
+    """,
+        "lxml",
+    )
     pt = zh._detect_zhihu_page_type("https://www.zhihu.com/question/1/answer/2")
     assert zh._extract_zhihu_title(soup, pt) == "Answer Title"
     name, href, badge = zh._extract_zhihu_author(soup, pt)
@@ -32,15 +36,18 @@ def test_extract_title_and_author_and_time():
 
 @pytest.mark.unit
 def test_link_normalization_and_redirect_cleanup():
-    soup = BeautifulSoup("""
+    soup = BeautifulSoup(
+        """
     <div id='c'>
       <a href='//www.zhihu.com/p/1'>rel</a>
       <a href='/question/1/answer/2'>rel2</a>
       <a href='https://link.zhihu.com/?target=https%3A%2F%2Fexample.com'>redir</a>
       <a href='https://zhida.zhihu.com/search?xx=1'>直答</a>
     </div>
-    """, "lxml")
-    c = soup.find(id='c')
+    """,
+        "lxml",
+    )
+    c = soup.find(id="c")
     zh._clean_zhihu_external_links(c)
     zh._normalize_zhihu_links(c)
     zh._clean_zhihu_zhida_links(c)
@@ -103,24 +110,33 @@ def test_apply_zhihu_stealth_and_try_click_buttons():
     class Btn:
         def __init__(self):
             self._visible = True
+
         def is_visible(self):
             return True
+
         def scroll_into_view_if_needed(self):
             return None
+
         def click(self, timeout=3000):
             return None
+
     class Page:
         def __init__(self):
             self.scripts = []
             self.timeout = None
+
         def add_init_script(self, js):
             self.scripts.append(js)
+
         def set_default_timeout(self, ms):
             self.timeout = ms
+
         def query_selector_all(self, selector):
             return [Btn()]
+
         def wait_for_timeout(self, ms):
             return None
+
     p = Page()
     zh._apply_zhihu_stealth_and_defaults(p, default_timeout_ms=12345)
     assert p.scripts and p.timeout == 12345
@@ -130,22 +146,36 @@ def test_apply_zhihu_stealth_and_try_click_buttons():
 @pytest.mark.unit
 def test_build_zhihu_content_element_by_page_type():
     # Answer page: prefers RichContent-inner
-    soup_answer = BeautifulSoup("""
+    soup_answer = BeautifulSoup(
+        """
     <div class='RichContent RichContent--unescapable'>
       <div class='RichContent-inner'><p>ans</p></div>
     </div>
-    """, "lxml")
+    """,
+        "lxml",
+    )
     pt_answer = zh.ZhihuPageType(is_answer_page=True, is_column_page=False, kind="answer")
     elem_ans = zh._build_zhihu_content_element(soup_answer, pt_answer)
-    assert elem_ans and elem_ans.get("class") and "RichContent-inner" in " ".join(elem_ans.get("class"))
+    assert (
+        elem_ans
+        and elem_ans.get("class")
+        and "RichContent-inner" in " ".join(elem_ans.get("class"))
+    )
 
     # Column page: prefers Post-RichTextContainer
-    soup_col = BeautifulSoup("""
+    soup_col = BeautifulSoup(
+        """
     <div class='Post-RichTextContainer'><article>col</article></div>
-    """, "lxml")
+    """,
+        "lxml",
+    )
     pt_col = zh.ZhihuPageType(is_answer_page=False, is_column_page=True, kind="column")
     elem_col = zh._build_zhihu_content_element(soup_col, pt_col)
-    assert elem_col and elem_col.get("class") and "Post-RichTextContainer" in " ".join(elem_col.get("class"))
+    assert (
+        elem_col
+        and elem_col.get("class")
+        and "Post-RichTextContainer" in " ".join(elem_col.get("class"))
+    )
 
     # Unknown page: returns None
     soup_unknown = BeautifulSoup("<div><p>u</p></div>", "lxml")
@@ -171,12 +201,14 @@ def test_zhihu_try_playwright_crawler_shared_success(monkeypatch):
     )
     context = types.SimpleNamespace(new_page=lambda: page)
     # patch helpers
-    monkeypatch.setattr(zh, 'new_context_and_page', lambda b, apply_stealth=False: (context, page))
-    monkeypatch.setattr(zh, '_apply_zhihu_stealth_and_defaults', lambda p: None)
-    monkeypatch.setattr(zh, '_goto_target_and_prepare_content', lambda p, url, on_detail=None: None)
-    monkeypatch.setattr(zh, 'read_page_content_and_title', lambda p, on_detail=None: ("<html>OK</html>", "T"))
-    monkeypatch.setattr(zh, 'teardown_context_page', lambda c, p: None)
-    r = zh._try_playwright_crawler("https://www.zhihu.com/question/1/answer/2", on_detail=None, shared_browser=object())
+    monkeypatch.setattr(zh, "new_context_and_page", lambda b, apply_stealth=False: (context, page))
+    monkeypatch.setattr(zh, "_apply_zhihu_stealth_and_defaults", lambda p: None)
+    monkeypatch.setattr(zh, "_goto_target_and_prepare_content", lambda p, url, on_detail=None: None)
+    monkeypatch.setattr(
+        zh, "read_page_content_and_title", lambda p, on_detail=None: ("<html>OK</html>", "T")
+    )
+    monkeypatch.setattr(zh, "teardown_context_page", lambda c, p: None)
+    r = zh._try_playwright_crawler(
+        "https://www.zhihu.com/question/1/answer/2", on_detail=None, shared_browser=object()
+    )
     assert r.success and r.text_content.startswith("<html>")
-
-

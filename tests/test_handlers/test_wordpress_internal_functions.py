@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
 import pytest
+from bs4 import BeautifulSoup
 
 from markitdown_app.core.handlers import wordpress_handler as wp
 
@@ -63,10 +63,8 @@ def test_clean_and_normalize_wordpress_content():
     </div>
     """
     soup = BeautifulSoup(html, "lxml")
-    elem = soup.find(id='m')
+    elem = soup.find(id="m")
     wp._clean_and_normalize_wordpress_content(elem)
     s = str(elem)
     assert "data-src" not in s and "data-original" not in s
     assert "<script" not in s and "advertisement" not in s
-
-

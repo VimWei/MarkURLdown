@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import ConvertPayload, ConversionOptions
+from markitdown_app.app_types import ConversionOptions, ConvertPayload
 from markitdown_app.core.registry import convert
 
 
@@ -23,9 +23,13 @@ def test_wordpress_success_basic():
     payload = ConvertPayload(kind="url", value=url, meta={})
     session = mock.Mock()
 
-    with mock.patch("markitdown_app.core.registry.fetch_wordpress_article") as fw, \
-        mock.patch("markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t), \
-        mock.patch("markitdown_app.core.registry.derive_md_filename", return_value="w.md"):
+    with (
+        mock.patch("markitdown_app.core.registry.fetch_wordpress_article") as fw,
+        mock.patch(
+            "markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+        ),
+        mock.patch("markitdown_app.core.registry.derive_md_filename", return_value="w.md"),
+    ):
         fw.return_value = mock.Mock(title="W", html_markdown="ok content")
         res = convert(payload, session, make_opts(download_images=False))
 
@@ -39,12 +43,12 @@ def test_wordpress_empty_fallback():
     payload = ConvertPayload(kind="url", value=url, meta={})
     session = mock.Mock()
 
-    with mock.patch("markitdown_app.core.registry.fetch_wordpress_article") as fw, \
-        mock.patch("markitdown_app.core.registry.convert_url") as gen:
+    with (
+        mock.patch("markitdown_app.core.registry.fetch_wordpress_article") as fw,
+        mock.patch("markitdown_app.core.registry.convert_url") as gen,
+    ):
         fw.return_value = mock.Mock(title="any", html_markdown="   ")
         gen.return_value = mock.Mock(title="G", markdown="Generic", suggested_filename="g.md")
         res = convert(payload, session, make_opts())
 
     assert res.title == "G"
-
-

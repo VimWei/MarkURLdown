@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from markitdown_app.core.registry import get_handler_for_url, should_use_shared_browser_for_url
+from markitdown_app.core.registry import (
+    get_handler_for_url,
+    should_use_shared_browser_for_url,
+)
 
 
 @pytest.mark.unit
@@ -29,5 +32,3 @@ def test_handler_detection_with_query_and_case():
         assert h is not None
         assert h.handler_name == name
         assert should_use_shared_browser_for_url(u) is shared
-
-

@@ -31,5 +31,3 @@ def test_special_headers_injection_failure_does_not_crash(tmp_path):
 
     # download failed, so original link remains
     assert "https://mmbiz.qpic.cn/a" in out
-
-

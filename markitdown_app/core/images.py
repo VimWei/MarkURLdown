@@ -382,9 +382,9 @@ def download_images_and_rewrite(
                 extra_headers.update(
                     {
                         "Referer": base_url,
-                        "User-Agent": getattr(getattr(session, "headers", {}), "get", lambda *_: None)(
-                            "User-Agent"
-                        )
+                        "User-Agent": getattr(
+                            getattr(session, "headers", {}), "get", lambda *_: None
+                        )("User-Agent")
                         or "Mozilla/5.0",
                         "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
                     }

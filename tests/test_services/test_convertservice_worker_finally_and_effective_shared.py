@@ -36,16 +36,25 @@ def test_worker_finally_closes_browser_and_runtime_on_early_stop(tmp_path, monke
     class DummyRuntime:
         def __init__(self):
             self.chromium = type("Chromium", (), {"launch": self.launch})()
+
         def launch(self, *a, **k):
             counters["launch"] += 1
             return DummyBrowser()
+
         def stop(self):
             counters["stop"] += 1
 
     # Patch playwright, session builder, URL decision
-    monkeypatch.setattr("playwright.sync_api.sync_playwright", lambda: type("P", (), {"start": lambda self=None: DummyRuntime()})())
-    monkeypatch.setattr("markitdown_app.services.convert_service.build_requests_session", lambda **k: object())
-    monkeypatch.setattr("markitdown_app.core.registry.should_use_shared_browser_for_url", lambda url: True)
+    monkeypatch.setattr(
+        "playwright.sync_api.sync_playwright",
+        lambda: type("P", (), {"start": lambda self=None: DummyRuntime()})(),
+    )
+    monkeypatch.setattr(
+        "markitdown_app.services.convert_service.build_requests_session", lambda **k: object()
+    )
+    monkeypatch.setattr(
+        "markitdown_app.core.registry.should_use_shared_browser_for_url", lambda url: True
+    )
 
     # Trigger early stop right after entering loop
     def on_event(ev):
@@ -75,6 +84,7 @@ def test_effective_shared_browser_none_when_url_disallows_shared(tmp_path, monke
     class DummyBrowser:
         def __init__(self):
             self.closed = False
+
         def close(self):
             self.closed = True
 
@@ -83,15 +93,23 @@ def test_effective_shared_browser_none_when_url_disallows_shared(tmp_path, monke
             self.browser = DummyBrowser()
             self.chromium = type("Chromium", (), {"launch": lambda *_a, **_k: self.browser})()
             self.stopped = False
+
         def stop(self):
             self.stopped = True
 
     runtime = DummyRuntime()
 
-    monkeypatch.setattr("playwright.sync_api.sync_playwright", lambda: type("P", (), {"start": lambda self=None: runtime})())
-    monkeypatch.setattr("markitdown_app.services.convert_service.build_requests_session", lambda **k: object())
+    monkeypatch.setattr(
+        "playwright.sync_api.sync_playwright",
+        lambda: type("P", (), {"start": lambda self=None: runtime})(),
+    )
+    monkeypatch.setattr(
+        "markitdown_app.services.convert_service.build_requests_session", lambda **k: object()
+    )
     # Policy: never use shared for this URL
-    monkeypatch.setattr("markitdown_app.core.registry.should_use_shared_browser_for_url", lambda url: False)
+    monkeypatch.setattr(
+        "markitdown_app.core.registry.should_use_shared_browser_for_url", lambda url: False
+    )
 
     captured_payloads = []
 
@@ -100,7 +118,9 @@ def test_effective_shared_browser_none_when_url_disallows_shared(tmp_path, monke
         return mock.Mock(title="T", markdown="# md", suggested_filename="f.md")
 
     monkeypatch.setattr("markitdown_app.services.convert_service.registry_convert", fake_convert)
-    monkeypatch.setattr("markitdown_app.io.writer.write_markdown", lambda out_dir, fn, text: str(tmp_path / fn))
+    monkeypatch.setattr(
+        "markitdown_app.io.writer.write_markdown", lambda out_dir, fn, text: str(tmp_path / fn)
+    )
 
     svc._worker(reqs, str(tmp_path), _make_options(shared=True), events.append)
 
@@ -112,5 +132,3 @@ def test_effective_shared_browser_none_when_url_disallows_shared(tmp_path, monke
     # No restart event should be present as there is no remaining URL needing shared browser
     keys = [getattr(e, "key", None) for e in events]
     assert "convert_shared_browser_restarted" not in keys
-
-

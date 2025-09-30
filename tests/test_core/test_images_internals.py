@@ -4,7 +4,11 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.core.images import _convert_github_url, _detect_image_format_from_header, ImageDomainConfig
+from markitdown_app.core.images import (
+    ImageDomainConfig,
+    _convert_github_url,
+    _detect_image_format_from_header,
+)
 
 
 @pytest.mark.unit
@@ -36,4 +40,3 @@ def test_image_domain_config_decisions():
     assert ImageDomainConfig.should_detect_format("zhimg.com") is True
     assert ImageDomainConfig.needs_special_headers("mmbiz.qpic.cn") is True
     assert ImageDomainConfig.is_reliable_cdn("cdn.example.com") is True
-

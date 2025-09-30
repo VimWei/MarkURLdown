@@ -34,5 +34,3 @@ def test_get_handler_for_url_basic_mapping():
         handler = get_handler_for_url(url)
         assert handler is not None
         assert handler.handler_name == expected_name
-
-
