@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.2] - 2025-09-30
+
+- docs: update SRC migration plan with detailed steps and new directory structure
+- docs: plan migration to src layout (src/markurldown) and console entry
+
 ## [0.7.1] - 2025-09-30
 
 - ci: accept English or Chinese changelog header
