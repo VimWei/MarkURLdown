@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.3] - 2025-10-01
+
+- feat(tests): raise coverage from 19% to 75%
+
 ## [0.7.2] - 2025-09-30
 
 - docs: update SRC migration plan with detailed steps and new directory structure
