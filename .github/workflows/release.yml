@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for tags
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+      
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Verify version consistency
+        run: |
+          echo "Verifying version consistency..."
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+          UV_VERSION=$(uv version --short)
+          
+          echo "Tag version: $TAG_VERSION"
+          echo "UV version: $UV_VERSION"
+          
+          if [ "$TAG_VERSION" != "$UV_VERSION" ]; then
+            echo "❌ Version mismatch: tag ($TAG_VERSION) != pyproject.toml ($UV_VERSION)"
+            exit 1
+          fi
+          
+          echo "✅ Version consistency verified"
+      
+      - name: Extract changelog for version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Extract changelog section for this version
+          if [ -f "docs/changelog.md" ]; then
+            # Robust single-section extractor: start at "## [VERSION]" and stop before next "## ["
+            CHANGELOG=$(awk -v v="$VERSION" '
+              BEGIN { inside=0 }
+              /^## \[/ {
+                if (inside) exit 0
+                if ($0 ~ "^## \\[" v "\\]") { inside=1; print; next }
+              }
+              inside { print }
+            ' docs/changelog.md)
+            
+            if [ -z "$CHANGELOG" ]; then
+              echo "⚠️ No changelog found for version $VERSION"
+              CHANGELOG="No changelog available for this version."
+            fi
+          else
+            echo "⚠️ changelog.md not found"
+            CHANGELOG="No changelog available."
+          fi
+          
+          # Save to file for GitHub release
+          printf "%s\n" "$CHANGELOG" > release_notes.md
+
+      - name: Append Full Changelog link
+        run: |
+          CURRENT_TAG="v${{ steps.version.outputs.version }}"
+          # Find previous tag (second most recent annotated/tagged commit)
+          PREV_TAG=$(git describe --tags --abbrev=0 $(git rev-list --tags --max-count=1 --skip=1) 2>/dev/null || true)
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found; skipping Full Changelog link."
+          else
+            echo "" >> release_notes.md
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${CURRENT_TAG}" >> release_notes.md
+          fi
+      
+      - name: Check if release exists
+        id: release_exists
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          API="https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG"
+          STATUS=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -o /dev/null -w "%{http_code}" "$API")
+          if [ "$STATUS" = "200" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        if: steps.release_exists.outputs.exists == 'false'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+      
+      - name: Upload Release Assets (optional)
+        if: false  # Set to true if you want to upload build artifacts
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/
+          asset_name: markurldown-${{ steps.version.outputs.version }}
+          asset_content_type: application/zip
+      
+      - name: Notify release completion
+        run: |
+          echo "🎉 Release ${{ steps.version.outputs.version }} completed successfully!"
+          echo "📋 Release URL: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}"
+
