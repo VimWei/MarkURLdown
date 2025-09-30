@@ -1,6 +1,7 @@
 """测试内容标准化功能"""
 
 import pytest
+
 from markitdown_app.core.normalize import normalize_markdown_headings
 
 

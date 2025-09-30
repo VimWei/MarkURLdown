@@ -15,11 +15,9 @@ def derive_md_filename(title: str | None, url: str, now: datetime | None = None)
     base = (title or "").strip()
     if not base:
         parsed = urlparse(url)
-        base = (parsed.path.rsplit("/", 1)[-1] or parsed.netloc or "page")
+        base = parsed.path.rsplit("/", 1)[-1] or parsed.netloc or "page"
     base = sanitize_filename(base)
 
     current = now or datetime.now()
     timestamp = current.strftime("%Y%m%d_%H%M%S")
     return f"{timestamp}_{base}.md"
-
-

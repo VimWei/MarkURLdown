@@ -1,7 +1,9 @@
 """pytest 配置文件"""
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
+
 from markitdown_app.app_types import ConversionOptions
 
 
@@ -22,7 +24,7 @@ def default_options():
         use_proxy=False,
         download_images=True,
         filter_site_chrome=True,
-        use_shared_browser=True
+        use_shared_browser=True,
     )
 
 
@@ -84,12 +86,6 @@ def setup_test_environment():
 def pytest_configure(config):
     """pytest 配置"""
     # 添加自定义标记
-    config.addinivalue_line(
-        "markers", "slow: 标记为慢速测试"
-    )
-    config.addinivalue_line(
-        "markers", "integration: 标记为集成测试"
-    )
-    config.addinivalue_line(
-        "markers", "unit: 标记为单元测试"
-    )
+    config.addinivalue_line("markers", "slow: 标记为慢速测试")
+    config.addinivalue_line("markers", "integration: 标记为集成测试")
+    config.addinivalue_line("markers", "unit: 标记为单元测试")

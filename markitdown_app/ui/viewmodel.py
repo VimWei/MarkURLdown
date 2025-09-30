@@ -3,9 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+from markitdown_app.app_types import ConversionOptions, ProgressEvent, SourceRequest
 from markitdown_app.services.convert_service import ConvertService
-from markitdown_app.app_types import ProgressEvent, SourceRequest, ConversionOptions
-
 
 OnEvent = Callable[[ProgressEvent], None]
 
@@ -23,11 +22,16 @@ class ViewModel:
         self.state = ViewState()
         self._service = ConvertService()
 
-    def start(self, requests_list: list[SourceRequest], out_dir: str, options: ConversionOptions, on_event: OnEvent, signals=None) -> None:
+    def start(
+        self,
+        requests_list: list[SourceRequest],
+        out_dir: str,
+        options: ConversionOptions,
+        on_event: OnEvent,
+        signals=None,
+    ) -> None:
         self._service.run(requests_list, out_dir, options, on_event, signals)
 
     def stop(self, on_event: OnEvent) -> None:
         self._service.stop()
         on_event(ProgressEvent(kind="stopped", text="转换已请求停止"))
-
-

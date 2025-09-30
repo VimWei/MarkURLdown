@@ -1,15 +1,17 @@
 """测试少数派处理器"""
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
+
+from markitdown_app.app_types import ConversionOptions
 from markitdown_app.core.handlers.sspai_handler import (
-    fetch_sspai_article,
+    FetchResult,
+    _process_sspai_content,
     _try_httpx_crawler,
     _try_playwright_crawler,
-    _process_sspai_content,
-    FetchResult
+    fetch_sspai_article,
 )
-from markitdown_app.app_types import ConversionOptions
 
 
 class TestSspaiHandler:
@@ -23,7 +25,7 @@ class TestSspaiHandler:
             use_proxy=False,
             download_images=True,
             filter_site_chrome=True,
-            use_shared_browser=True
+            use_shared_browser=True,
         )
 
     def test_fetch_sspai_article_function_exists(self):
@@ -48,16 +50,16 @@ class TestSspaiHandler:
         valid_urls = [
             "https://sspai.com/post/123456",
             "https://sspai.com/post/abc123",
-            "http://sspai.com/post/123456"
+            "http://sspai.com/post/123456",
         ]
-        
+
         # 无效的少数派URL
         invalid_urls = [
             "https://mp.weixin.qq.com/s/test_article",
             "https://www.zhihu.com/question/123/answer/456",
-            "not_a_url"
+            "not_a_url",
         ]
-        
+
         # 这里可以添加URL验证逻辑的测试
         # 目前只是验证函数能处理这些URL
         for url in valid_urls + invalid_urls:

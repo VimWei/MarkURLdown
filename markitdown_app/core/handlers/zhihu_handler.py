@@ -1,89 +1,95 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-import time
 import random
-from typing import Optional, Callable, Any
-
 import re
-from bs4 import NavigableString
-from bs4 import BeautifulSoup
+import time
+from dataclasses import dataclass
+from typing import Any, Callable, Optional
 from urllib.parse import urlparse
 
-from markitdown_app.core.html_to_md import html_fragment_to_markdown
+from bs4 import BeautifulSoup, NavigableString
+
 from markitdown_app.core.handlers import generic_handler as _generic
+from markitdown_app.core.html_to_md import html_fragment_to_markdown
 from markitdown_app.services.playwright_driver import (
     new_context_and_page,
+    read_page_content_and_title,
     teardown_context_page,
     try_close_modal_with_selectors,
-    read_page_content_and_title,
     wait_for_selector_stable,
 )
+
 
 # 1. 数据类
 @dataclass
 class CrawlerResult:
     """爬虫结果"""
+
     success: bool
     title: str | None
     text_content: str
     error: str | None = None
+
 
 @dataclass
 class FetchResult:
     title: str | None
     html_markdown: str
 
+
 @dataclass
 class ZhihuPageType:
     """知乎页面类型判定结果"""
+
     is_answer_page: bool
     is_column_page: bool
     kind: str  # "answer" | "column" | "unknown"
 
+
 # 选择器与等待点常量（集中管理，便于维护与复用）
 ZHIHU_SELECTORS = {
-    'home_login_close': [
-        '.Modal-closeButton',
-        '.SignFlow-close',
+    "home_login_close": [
+        ".Modal-closeButton",
+        ".SignFlow-close",
         '[aria-label="关闭"]',
-        '.Modal-close',
-        '.close-button',
+        ".Modal-close",
+        ".close-button",
         'button[aria-label="关闭"]',
     ],
-    'login_close': [
-        '.Modal-closeButton',
-        '.SignFlow-close',
+    "login_close": [
+        ".Modal-closeButton",
+        ".SignFlow-close",
         '[aria-label="关闭"]',
-        '.Modal-close',
-        '.close-button',
+        ".Modal-close",
+        ".close-button",
         'button[aria-label="关闭"]',
-        '.ant-modal-close',
-        '.el-dialog__close',
-        '.Qrcode-close',
+        ".ant-modal-close",
+        ".el-dialog__close",
+        ".Qrcode-close",
     ],
-    'modal_detection': [
-        '.Modal-backdrop',
-        '.Qrcode-qrcode',
+    "modal_detection": [
+        ".Modal-backdrop",
+        ".Qrcode-qrcode",
     ],
-    'expand_buttons': [
-        'button.ContentItem-expandButton',
+    "expand_buttons": [
+        "button.ContentItem-expandButton",
         'button:has-text("展开阅读全文")',
         'text="展开阅读全文"',
         'a:has-text("展开阅读全文")',
         'span:has-text("展开阅读全文")',
         '[data-za-detail-view-element_name="展开阅读全文"]',
-        '.RichContent-inner button',
-        '.RichContent-inner a',
+        ".RichContent-inner button",
+        ".RichContent-inner a",
         'button[data-za-detail-view-element_name="展开阅读全文"]',
     ],
 }
 
 WAIT_SELECTOR_BY_TYPE = {
-    'answer': 'h1.QuestionHeader-title, div.QuestionAnswer-content',
-    'column': 'article',
-    'unknown': 'main',
+    "answer": "h1.QuestionHeader-title, div.QuestionAnswer-content",
+    "column": "article",
+    "unknown": "main",
 }
+
 
 # 2. 底层工具函数（按调用关系排序）
 def _detect_zhihu_page_type(url: str | None) -> ZhihuPageType:
@@ -99,21 +105,22 @@ def _detect_zhihu_page_type(url: str | None) -> ZhihuPageType:
     try:
         if url:
             parsed = urlparse(url)
-            hostname = (parsed.hostname or '').lower()
-            path = parsed.path or ''
+            hostname = (parsed.hostname or "").lower()
+            path = parsed.path or ""
 
-            if hostname == 'zhuanlan.zhihu.com' and path.startswith('/p/'):
+            if hostname == "zhuanlan.zhihu.com" and path.startswith("/p/"):
                 is_column = True
-            elif hostname in {'www.zhihu.com', 'zhihu.com'} and '/answer/' in path:
-                parts = [p for p in path.split('/') if p]
-                if len(parts) >= 4 and parts[0] == 'question' and parts[2] == 'answer':
+            elif hostname in {"www.zhihu.com", "zhihu.com"} and "/answer/" in path:
+                parts = [p for p in path.split("/") if p]
+                if len(parts) >= 4 and parts[0] == "question" and parts[2] == "answer":
                     is_answer = True
 
     except Exception:
         pass
 
-    kind = 'answer' if is_answer else ('column' if is_column else 'unknown')
+    kind = "answer" if is_answer else ("column" if is_column else "unknown")
     return ZhihuPageType(is_answer_page=is_answer, is_column_page=is_column, kind=kind)
+
 
 def _extract_zhihu_title(soup: BeautifulSoup, page_type: ZhihuPageType) -> str | None:
     """统一的知乎标题提取逻辑。
@@ -125,40 +132,40 @@ def _extract_zhihu_title(soup: BeautifulSoup, page_type: ZhihuPageType) -> str |
     try:
         # 页面类型策略优先
         if page_type.is_answer_page and not title:
-            node = soup.find('h1', class_='QuestionHeader-title')
+            node = soup.find("h1", class_="QuestionHeader-title")
             if node:
                 title = node.get_text(strip=True)
             else:
-                node = soup.find('h1')
+                node = soup.find("h1")
                 if node:
                     title = node.get_text(strip=True)
 
         elif page_type.is_column_page and not title:
-            node = soup.find('h1', class_='Post-Title')
+            node = soup.find("h1", class_="Post-Title")
             if node:
                 title = node.get_text(strip=True)
             else:
-                meta_node = soup.find('meta', attrs={'property': 'og:title'})
+                meta_node = soup.find("meta", attrs={"property": "og:title"})
                 if meta_node:
-                    content_val = meta_node.get('content', '')
+                    content_val = meta_node.get("content", "")
                     if content_val:
                         title = content_val.strip()
 
         # 通用回退
         if not title:
-            node = soup.find('h1')
+            node = soup.find("h1")
             if node:
                 title = node.get_text(strip=True)
 
         if not title:
-            meta_node = soup.find('meta', attrs={'property': 'og:title'})
+            meta_node = soup.find("meta", attrs={"property": "og:title"})
             if meta_node:
-                content_val = meta_node.get('content', '')
+                content_val = meta_node.get("content", "")
                 if content_val:
                     title = content_val.strip()
 
         if not title:
-            node = soup.find('title')
+            node = soup.find("title")
             if node:
                 title = node.get_text(strip=True)
     except Exception:
@@ -166,7 +173,10 @@ def _extract_zhihu_title(soup: BeautifulSoup, page_type: ZhihuPageType) -> str |
 
     return title
 
-def _extract_zhihu_author(soup: BeautifulSoup, page_type: ZhihuPageType) -> tuple[str | None, str | None, str | None]:
+
+def _extract_zhihu_author(
+    soup: BeautifulSoup, page_type: ZhihuPageType
+) -> tuple[str | None, str | None, str | None]:
     """提取作者信息，返回 (作者名, 作者主页URL, 作者徽章)。
 
     - 回答页：优先从 `div.ContentItem-meta a.UserLink-link` 或 `AuthorInfo-name a` 获取
@@ -181,9 +191,9 @@ def _extract_zhihu_author(soup: BeautifulSoup, page_type: ZhihuPageType) -> tupl
         if page_type.is_answer_page:
             # 尝试多个选择器，找到有文本内容的作者链接
             link_selectors = [
-                'div.ContentItem-meta a.UserLink-link',
-                'div.ContentItem-meta span.UserLink.AuthorInfo-name a',
-                'a.UserLink-link'
+                "div.ContentItem-meta a.UserLink-link",
+                "div.ContentItem-meta span.UserLink.AuthorInfo-name a",
+                "a.UserLink-link",
             ]
 
             link = None
@@ -200,27 +210,29 @@ def _extract_zhihu_author(soup: BeautifulSoup, page_type: ZhihuPageType) -> tupl
 
             if link:
                 name = link.get_text(strip=True) or None
-                href = link.get('href') or None
-            badge_node = soup.select_one('div.ContentItem-meta .AuthorInfo-detail .AuthorInfo-badgeText')
+                href = link.get("href") or None
+            badge_node = soup.select_one(
+                "div.ContentItem-meta .AuthorInfo-detail .AuthorInfo-badgeText"
+            )
             if badge_node:
                 badge_text = badge_node.get_text(strip=True)
                 badge = badge_text or badge
 
         elif page_type.is_column_page:
-            link = soup.select_one('a.AuthorInfo-name')
+            link = soup.select_one("a.AuthorInfo-name")
             if not link:
-                link = soup.select_one('span.AuthorInfo-name a')
+                link = soup.select_one("span.AuthorInfo-name a")
             if not link:
-                link = soup.select_one('div.Post-Author a')
+                link = soup.select_one("div.Post-Author a")
             if link:
                 name = link.get_text(strip=True) or None
-                href = link.get('href') or None
+                href = link.get("href") or None
             if not name:
-                meta_author = soup.find('meta', attrs={'name': 'author'})
+                meta_author = soup.find("meta", attrs={"name": "author"})
                 if meta_author:
-                    content_val = meta_author.get('content', '').strip()
+                    content_val = meta_author.get("content", "").strip()
                     name = content_val or name
-            badge_node = soup.select_one('div.Post-Author .AuthorInfo-detail .AuthorInfo-badgeText')
+            badge_node = soup.select_one("div.Post-Author .AuthorInfo-detail .AuthorInfo-badgeText")
             if badge_node:
                 badge_text = badge_node.get_text(strip=True)
                 badge = badge_text or badge
@@ -228,10 +240,10 @@ def _extract_zhihu_author(soup: BeautifulSoup, page_type: ZhihuPageType) -> tupl
         # 归一化链接
         if href:
             try:
-                if href.startswith('//'):
-                    href = 'https:' + href
-                elif href.startswith('/'):
-                    href = 'https://www.zhihu.com' + href
+                if href.startswith("//"):
+                    href = "https:" + href
+                elif href.startswith("/"):
+                    href = "https://www.zhihu.com" + href
             except Exception:
                 pass
     except Exception:
@@ -239,31 +251,31 @@ def _extract_zhihu_author(soup: BeautifulSoup, page_type: ZhihuPageType) -> tupl
 
     return name, href, badge
 
+
 def _extract_zhihu_time(soup: BeautifulSoup, page_type: ZhihuPageType) -> str | None:
-    """提取发布时间（可能包含地点，纯文本）。
-    """
+    """提取发布时间（可能包含地点，纯文本）。"""
     text: str | None = None
     try:
         if page_type.is_answer_page:
-            node = soup.select_one('div.ContentItem-time')
+            node = soup.select_one("div.ContentItem-time")
             if node:
                 # 该节点文本可能包含地点，例如："编辑于 2023-07-13 23:39 ・江苏"
                 text = node.get_text(" ", strip=True) or None
             if not text:
-                node = soup.select_one('div.RichContent div.ContentItem-time')
+                node = soup.select_one("div.RichContent div.ContentItem-time")
                 if node:
                     text = node.get_text(" ", strip=True) or None
 
         elif page_type.is_column_page:
             # 优先从专栏正文附近的时间/地点块获取
-            node = soup.select_one('div.ContentItem-time')
+            node = soup.select_one("div.ContentItem-time")
             if node:
                 # 该节点文本通常形如："发布于 2025-08-17 23:29・江苏"
                 text = node.get_text(" ", strip=True) or None
             if not text:
-                meta_time = soup.find('meta', attrs={'property': 'article:published_time'})
+                meta_time = soup.find("meta", attrs={"property": "article:published_time"})
                 if meta_time:
-                    content_val = meta_time.get('content', '').strip()
+                    content_val = meta_time.get("content", "").strip()
                     if content_val:
                         text = content_val
 
@@ -274,20 +286,22 @@ def _extract_zhihu_time(soup: BeautifulSoup, page_type: ZhihuPageType) -> str | 
         text = " ".join(text.split())
     return text or None
 
+
 def _normalize_zhihu_links(content_elem):
     """将知乎站内链接标准化为绝对URL，修复 // 或 / 开头的链接。"""
-    for a in content_elem.find_all('a'):
-        href = a.get('href')
+    for a in content_elem.find_all("a"):
+        href = a.get("href")
         if not href:
             continue
         try:
-            if href.startswith('//'):
-                a['href'] = 'https:' + href
-            elif href.startswith('/'):
-                a['href'] = 'https://www.zhihu.com' + href
+            if href.startswith("//"):
+                a["href"] = "https:" + href
+            elif href.startswith("/"):
+                a["href"] = "https://www.zhihu.com" + href
         except Exception:
             # 忽略个别异常，继续处理其他链接
             continue
+
 
 def _strip_invisible_characters(content_elem):
     """移除内容中的不可见字符（如零宽空格），以避免转为Markdown后产生空行。
@@ -297,7 +311,9 @@ def _strip_invisible_characters(content_elem):
     """
 
     # 扩展覆盖：零宽字符、BOM、Word Joiner、NBSP、段落/行分隔符
-    invisible_chars_pattern = re.compile(r"[\u200b\u200c\u200d\u200e\u200f\ufeff\u2060\u00a0\u2028\u2029]")
+    invisible_chars_pattern = re.compile(
+        r"[\u200b\u200c\u200d\u200e\u200f\ufeff\u2060\u00a0\u2028\u2029]"
+    )
 
     # 遍历所有文本节点并清理不可见字符
     for text_node in list(content_elem.find_all(string=True)):
@@ -311,13 +327,15 @@ def _strip_invisible_characters(content_elem):
             else:
                 text_node.replace_with(cleaned_text)
 
+
 def _clean_zhihu_zhida_links(content_elem):
     """清理知乎直答链接，保留文本内容，移除链接"""
     import re
+
     from bs4 import NavigableString
 
     # 查找所有包含知乎直答链接的<a>标签
-    zhida_links = content_elem.find_all('a', href=re.compile(r'https://zhida\.zhihu\.com/search\?'))
+    zhida_links = content_elem.find_all("a", href=re.compile(r"https://zhida\.zhihu\.com/search\?"))
 
     for link in zhida_links:
         # 获取链接文本
@@ -334,7 +352,9 @@ def _clean_zhihu_zhida_links(content_elem):
             link.decompose()
 
     # 额外处理：清理可能存在的其他知乎内部链接
-    internal_links = content_elem.find_all('a', href=re.compile(r'https://www\.zhihu\.com/(question|answer|p)/'))
+    internal_links = content_elem.find_all(
+        "a", href=re.compile(r"https://www\.zhihu\.com/(question|answer|p)/")
+    )
 
     for link in internal_links:
         link_text = link.get_text(strip=True)
@@ -344,17 +364,21 @@ def _clean_zhihu_zhida_links(content_elem):
         else:
             link.decompose()
 
+
 def _clean_zhihu_external_links(content_elem):
     """清理知乎外部链接重定向，恢复原始链接"""
     import re
-    from urllib.parse import unquote, urlparse, parse_qs
+    from urllib.parse import parse_qs, unquote, urlparse
+
     from bs4 import NavigableString
 
     # 查找所有包含知乎重定向链接的<a>标签
-    redirect_links = content_elem.find_all('a', href=re.compile(r'https://link\.zhihu\.com/\?target='))
+    redirect_links = content_elem.find_all(
+        "a", href=re.compile(r"https://link\.zhihu\.com/\?target=")
+    )
 
     for link in redirect_links:
-        href = link.get('href', '')
+        href = link.get("href", "")
 
         try:
             # 解析URL参数
@@ -362,13 +386,13 @@ def _clean_zhihu_external_links(content_elem):
             query_params = parse_qs(parsed_url.query)
 
             # 获取target参数
-            if 'target' in query_params and query_params['target']:
-                target_url = query_params['target'][0]
+            if "target" in query_params and query_params["target"]:
+                target_url = query_params["target"][0]
                 # URL解码
                 decoded_url = unquote(target_url)
 
                 # 更新链接的href属性
-                link['href'] = decoded_url
+                link["href"] = decoded_url
             else:
                 # 如果target参数为空或不存在，将链接转换为纯文本
                 link_text = link.get_text(strip=True)
@@ -387,6 +411,7 @@ def _clean_zhihu_external_links(content_elem):
             else:
                 link.decompose()
             continue
+
 
 # 3. 中层业务函数（按调用关系排序）
 def _apply_zhihu_stealth_and_defaults(page: Any, default_timeout_ms: int = 30000) -> None:
@@ -420,17 +445,19 @@ def _apply_zhihu_stealth_and_defaults(page: Any, default_timeout_ms: int = 30000
     except Exception:
         pass
 
+
 def _get_wait_selector_for_page_type(page_type: ZhihuPageType) -> str:
     """根据页面类型返回等待用选择器。"""
     if page_type.is_answer_page:
-        return WAIT_SELECTOR_BY_TYPE['answer']
+        return WAIT_SELECTOR_BY_TYPE["answer"]
     if page_type.is_column_page:
-        return WAIT_SELECTOR_BY_TYPE['column']
-    return WAIT_SELECTOR_BY_TYPE['unknown']
+        return WAIT_SELECTOR_BY_TYPE["column"]
+    return WAIT_SELECTOR_BY_TYPE["unknown"]
+
 
 def _try_click_expand_buttons(page) -> bool:
     """尝试点击知乎的“展开阅读全文”相关按钮，返回是否有点击发生。"""
-    expand_selectors = ZHIHU_SELECTORS['expand_buttons']
+    expand_selectors = ZHIHU_SELECTORS["expand_buttons"]
     try:
         for selector in expand_selectors:
             try:
@@ -438,7 +465,7 @@ def _try_click_expand_buttons(page) -> bool:
                 if expand_buttons:
                     for button in expand_buttons:
                         try:
-                            if not hasattr(button, 'is_visible') or button.is_visible():
+                            if not hasattr(button, "is_visible") or button.is_visible():
                                 button.scroll_into_view_if_needed()
                                 page.wait_for_timeout(500)
                                 button.click(timeout=3000)
@@ -452,7 +479,10 @@ def _try_click_expand_buttons(page) -> bool:
         pass
     return False
 
-def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callable[[str], None]] = None) -> None:
+
+def _goto_target_and_prepare_content(
+    page, url: str, on_detail: Optional[Callable[[str], None]] = None
+) -> None:
     """访问目标URL，处理登录弹窗，等待页面稳定，并尝试展开全文。"""
     # 访问目标
     try:
@@ -461,7 +491,7 @@ def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callabl
                 on_detail("正在访问目标URL...")
             except Exception:
                 pass
-        page.goto(url, wait_until='domcontentloaded', timeout=30000)
+        page.goto(url, wait_until="domcontentloaded", timeout=30000)
     except Exception:
         pass
 
@@ -472,11 +502,11 @@ def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callabl
     try:
         # 使用增强的弹窗关闭函数，包含重试机制和特定弹窗检测
         modal_closed = try_close_modal_with_selectors(
-            page, 
-            ZHIHU_SELECTORS['login_close'],
+            page,
+            ZHIHU_SELECTORS["login_close"],
             max_attempts=3,
-            modal_detection_selectors=ZHIHU_SELECTORS['modal_detection'],
-            use_escape_fallback=True
+            modal_detection_selectors=ZHIHU_SELECTORS["modal_detection"],
+            use_escape_fallback=True,
         )
     except Exception:
         pass
@@ -494,12 +524,21 @@ def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callabl
     # 最后等待关键内容选择器
     try:
         page_type = _detect_zhihu_page_type(url)
-        key = 'answer' if page_type.is_answer_page else ('column' if page_type.is_column_page else 'unknown')
+        key = (
+            "answer"
+            if page_type.is_answer_page
+            else ("column" if page_type.is_column_page else "unknown")
+        )
         wait_for_selector_stable(page, WAIT_SELECTOR_BY_TYPE, page_type_key=key, timeout_ms=10000)
     except Exception:
-        wait_for_selector_stable(page, WAIT_SELECTOR_BY_TYPE, page_type_key='unknown', timeout_ms=10000)
+        wait_for_selector_stable(
+            page, WAIT_SELECTOR_BY_TYPE, page_type_key="unknown", timeout_ms=10000
+        )
 
-def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> CrawlerResult:
+
+def _try_playwright_crawler(
+    url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None
+) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理知乎的验证机制"""
     # 检测页面类型
     page_type = _detect_zhihu_page_type(url)
@@ -519,26 +558,27 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
 
         # 分支2：每 URL 独立 Browser（原路径）
         from playwright.sync_api import sync_playwright
+
         with sync_playwright() as p:
             # 启动Chrome浏览器，使用必要的反检测配置
             browser = p.chromium.launch(
                 headless=False,  # 使用非headless模式以绕过检测
                 channel="chrome",  # 使用系统安装的Chrome
                 args=[
-                    '--no-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor',
-                    '--disable-gpu',
-                    '--no-first-run',
-                    '--no-default-browser-check',
-                    '--disable-extensions',
-                    '--disable-plugins',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                ]
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-web-security",
+                    "--disable-features=VizDisplayCompositor",
+                    "--disable-gpu",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--disable-extensions",
+                    "--disable-plugins",
+                    "--disable-background-timer-throttling",
+                    "--disable-backgrounding-occluded-windows",
+                    "--disable-renderer-backgrounding",
+                ],
             )
 
             # 创建独立的上下文和页面
@@ -557,15 +597,13 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             success=False,
             title=None,
             text_content="",
-            error="Playwright not installed. Install with: pip install playwright && playwright install"
+            error="Playwright not installed. Install with: pip install playwright && playwright install",
         )
     except Exception as e:
         return CrawlerResult(
-            success=False,
-            title=None,
-            text_content="",
-            error=f"Playwright error: {str(e)}"
+            success=False, title=None, text_content="", error=f"Playwright error: {str(e)}"
         )
+
 
 def _build_zhihu_header_parts(soup: BeautifulSoup, url: str | None) -> tuple[str | None, list[str]]:
     """构建Markdown头部信息片段（标题、来源、作者、时间），并返回 (title, parts)。"""
@@ -599,6 +637,7 @@ def _build_zhihu_header_parts(soup: BeautifulSoup, url: str | None) -> tuple[str
 
     return title, header_parts
 
+
 def _build_zhihu_content_element(soup: BeautifulSoup, page_type: ZhihuPageType):
     """定位并组装知乎页面的内容容器，返回用于转 Markdown 的根元素。
     - 专栏页：优先 `div.Post-RichTextContainer`，回退若干候选
@@ -608,16 +647,16 @@ def _build_zhihu_content_element(soup: BeautifulSoup, page_type: ZhihuPageType):
     content_elem = None
     if page_type.is_answer_page:
         # 回答页：直接使用 RichContent-inner 作为正文容器
-        content_elem = soup.select_one('div.RichContent-inner')
+        content_elem = soup.select_one("div.RichContent-inner")
         if not content_elem:
             # 回退：从 RichContent 容器内再取一次
-            rich_container = soup.select_one('div.RichContent.RichContent--unescapable')
+            rich_container = soup.select_one("div.RichContent.RichContent--unescapable")
             if rich_container:
-                content_elem = rich_container.select_one('div.RichContent-inner')
+                content_elem = rich_container.select_one("div.RichContent-inner")
 
     elif page_type.is_column_page:
         # 专栏页：严格使用 Post-RichTextContainer 作为正文容器
-        content_elem = soup.select_one('div.Post-RichTextContainer')
+        content_elem = soup.select_one("div.Post-RichTextContainer")
 
     else:
         # 未知类型：不做猜测，保持 None
@@ -625,51 +664,54 @@ def _build_zhihu_content_element(soup: BeautifulSoup, page_type: ZhihuPageType):
 
     return content_elem
 
-def _clean_and_normalize_zhihu_content(content_elem, page_type: ZhihuPageType, soup: BeautifulSoup | None = None) -> None:
+
+def _clean_and_normalize_zhihu_content(
+    content_elem, page_type: ZhihuPageType, soup: BeautifulSoup | None = None
+) -> None:
     """清洗知乎内容容器，标准化图片与链接，移除噪音元素。"""
     # 图片懒加载与占位符
-    for img in content_elem.find_all('img', {'data-src': True}):
-        img['src'] = img['data-src']
-        del img['data-src']
-    for img in content_elem.find_all('img', {'data-original': True}):
-        img['src'] = img['data-original']
-        del img['data-original']
+    for img in content_elem.find_all("img", {"data-src": True}):
+        img["src"] = img["data-src"]
+        del img["data-src"]
+    for img in content_elem.find_all("img", {"data-original": True}):
+        img["src"] = img["data-original"]
+        del img["data-original"]
 
     # 知乎回答文章特有的图片去重处理
     if page_type.is_answer_page:
         # 处理figure容器中的重复图片结构
-        figures = content_elem.find_all('figure')
+        figures = content_elem.find_all("figure")
         for figure in figures:
-            imgs = figure.find_all('img')
+            imgs = figure.find_all("img")
             if len(imgs) > 1:
                 # 优先保留noscript中的图片，移除div中的重复图片
                 keep_img = None
                 for img in imgs:
                     parent = img.parent
-                    if parent and parent.name == 'noscript':
+                    if parent and parent.name == "noscript":
                         # 保留noscript中的图片
                         keep_img = img
                         break
-                
+
                 # 如果没有noscript图片，保留第一张非SVG图片
                 if not keep_img:
                     for img in imgs:
-                        src = img.get('src', '')
-                        if src and not src.startswith('data:image/svg+xml'):
+                        src = img.get("src", "")
+                        if src and not src.startswith("data:image/svg+xml"):
                             keep_img = img
                             break
-                
+
                 # 移除其他图片
                 for img in imgs:
                     if img != keep_img:
                         img.decompose()
 
     # 移除脚本和样式
-    for script in content_elem.find_all(['script', 'style']):
+    for script in content_elem.find_all(["script", "style"]):
         script.decompose()
 
     # 移除广告元素
-    for elem in content_elem.find_all(['div'], class_=['RichText-ADLinkCardContainer']):
+    for elem in content_elem.find_all(["div"], class_=["RichText-ADLinkCardContainer"]):
         elem.decompose()
 
     # 链接处理与标准化
@@ -680,10 +722,13 @@ def _clean_and_normalize_zhihu_content(content_elem, page_type: ZhihuPageType, s
     # 移除不可见与零宽字符
     _strip_invisible_characters(content_elem)
 
-def _process_zhihu_content(html: str, title_hint: str | None = None, url: str | None = None) -> FetchResult:
+
+def _process_zhihu_content(
+    html: str, title_hint: str | None = None, url: str | None = None
+) -> FetchResult:
     """处理知乎内容，拼接头部信息(标题、作者、发布日期)和正文，并返回 markdown 内容"""
     try:
-        soup = BeautifulSoup(html, 'lxml')
+        soup = BeautifulSoup(html, "lxml")
     except Exception as e:
         print(f"BeautifulSoup解析失败: {e}")
         return FetchResult(title=None, html_markdown="")
@@ -714,8 +759,14 @@ def _process_zhihu_content(html: str, title_hint: str | None = None, url: str | 
         print(f"创建FetchResult失败: {e}")
         return FetchResult(title=None, html_markdown="")
 
+
 # 4. 主入口函数
-def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> FetchResult:
+def fetch_zhihu_article(
+    session,
+    url: str,
+    on_detail: Optional[Callable[[str], None]] = None,
+    shared_browser: Any | None = None,
+) -> FetchResult:
     """
     使用 Playwright 获取知乎页面内容 - 现代化浏览器自动化（最可靠，能处理知乎验证）
     """
@@ -723,7 +774,7 @@ def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], N
     page_type = _detect_zhihu_page_type(url)
 
     # 若页面类型未知，委托给通用处理器
-    if page_type.kind == 'unknown':
+    if page_type.kind == "unknown":
         try:
             # 先轻量策略，再增强，再直接httpx
             for strat in (
@@ -764,7 +815,13 @@ def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], N
                         print(f"[解析] 标题: {processed_result.title}")
                     print("[转换] 转换为Markdown完成")
                     return processed_result
-                elif content and ("验证" in content or "登录" in content or "访问被拒绝" in content or "403" in content or "404" in content):
+                elif content and (
+                    "验证" in content
+                    or "登录" in content
+                    or "访问被拒绝" in content
+                    or "403" in content
+                    or "404" in content
+                ):
                     print("[解析] 检测到验证页面，重试...")
                     if retry < max_retries - 1:
                         continue
@@ -773,7 +830,11 @@ def fetch_zhihu_article(session, url: str, on_detail: Optional[Callable[[str], N
                         break
 
                 # 检查标题是否包含验证信息
-                if processed_result.title and ("验证" in processed_result.title or "登录" in processed_result.title or "访问被拒绝" in processed_result.title):
+                if processed_result.title and (
+                    "验证" in processed_result.title
+                    or "登录" in processed_result.title
+                    or "访问被拒绝" in processed_result.title
+                ):
                     print("标题包含验证信息，重试...")
                     if retry < max_retries - 1:
                         continue

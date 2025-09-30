@@ -1,90 +1,93 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import os
 import re
-import asyncio
-import aiohttp
-import hashlib
 from datetime import datetime
+from typing import Callable, Dict, Optional, Tuple
 from urllib.parse import urljoin, urlparse
-from typing import Optional, Callable, Dict, Tuple
+
+import aiohttp
 
 # =============================================================================
 # 域名配置区域 - 统一管理所有图片域名规则
 # =============================================================================
 
+
 class ImageDomainConfig:
     """图片域名配置类，统一管理各种域名的处理规则"""
-    
+
     # 需要格式检测的域名（这些域名的图片可能没有正确的文件扩展名）
     FORMAT_DETECTION_DOMAINS = {
         # 知乎图片域名 - 使用通配符匹配
-        'zhimg.com': 'wildcard',  # 匹配 *.zhimg.com
+        "zhimg.com": "wildcard",  # 匹配 *.zhimg.com
         # 微信图片CDN
-        'qpic.cn': 'exact',
-        'mmbiz.qpic.cn': 'exact',
+        "qpic.cn": "exact",
+        "mmbiz.qpic.cn": "exact",
         # 少数派图片CDN
-        'cdnfile.sspai.com': 'exact',
+        "cdnfile.sspai.com": "exact",
     }
-    
+
     # 需要特殊请求头的域名（这些域名需要Referer等特殊请求头才能正常访问）
     SPECIAL_HEADERS_DOMAINS = {
         # 微信相关域名
-        'mp.weixin.qq.com': 'exact',
-        'qpic.cn': 'exact',
-        'mmbiz.qpic.cn': 'exact',
+        "mp.weixin.qq.com": "exact",
+        "qpic.cn": "exact",
+        "mmbiz.qpic.cn": "exact",
         # 包含微信关键词的域名
-        'weixin': 'contains',
-        'wechat': 'contains',
+        "weixin": "contains",
+        "wechat": "contains",
         # 少数派
-        'cdnfile.sspai.com': 'exact',
+        "cdnfile.sspai.com": "exact",
         # 小众软件
-        'appinn.com': 'exact',
-        'do-cdn.appinn.com': 'exact',
+        "appinn.com": "exact",
+        "do-cdn.appinn.com": "exact",
     }
-    
+
     # 通常格式正确的CDN域名（不需要格式检测）
     RELIABLE_CDN_PREFIXES = [
-        'cdn.',
-        'static.',
-        'assets.',
-        'img.',
-        'images.',
+        "cdn.",
+        "static.",
+        "assets.",
+        "img.",
+        "images.",
     ]
-    
+
     @classmethod
     def should_detect_format(cls, host: str) -> bool:
         """判断域名是否需要格式检测"""
         host = host.lower()
-        
+
         for domain, match_type in cls.FORMAT_DETECTION_DOMAINS.items():
-            if match_type == 'exact' and host == domain:
+            if match_type == "exact" and host == domain:
                 return True
-            elif match_type == 'wildcard' and (host == domain or host.endswith('.' + domain)):
+            elif match_type == "wildcard" and (host == domain or host.endswith("." + domain)):
                 return True
-        
+
         return False
-    
+
     @classmethod
     def is_reliable_cdn(cls, host: str) -> bool:
         """判断是否是可靠的CDN域名"""
         host = host.lower()
         return any(host.startswith(prefix) for prefix in cls.RELIABLE_CDN_PREFIXES)
-    
+
     @classmethod
     def needs_special_headers(cls, host: str) -> bool:
         """判断域名是否需要特殊请求头"""
         host = host.lower()
-        
+
         for domain, match_type in cls.SPECIAL_HEADERS_DOMAINS.items():
-            if match_type == 'exact' and host == domain:
+            if match_type == "exact" and host == domain:
                 return True
-            elif match_type == 'wildcard' and (host == domain or host.endswith('.' + domain)):
+            elif match_type == "wildcard" and (host == domain or host.endswith("." + domain)):
                 return True
-            elif match_type == 'contains' and domain in host:
+            elif match_type == "contains" and domain in host:
                 return True
-        
+
         return False
+
 
 def _convert_github_url(url: str) -> str:
     """将GitHub的旧格式URL转换为新格式，避免重定向问题"""
@@ -94,37 +97,39 @@ def _convert_github_url(url: str) -> str:
         return new_url
     return url
 
+
 def _detect_image_format_from_header(content: bytes) -> str:
     """从文件头检测图片格式"""
     if len(content) < 8:
-        return ''
+        return ""
 
     header = content[:20]
 
     # 检测各种图片格式的文件头
-    if header.startswith(b'\xff\xd8\xff'):
-        return '.jpg'  # JPEG
-    elif header.startswith(b'\x89PNG'):
+    if header.startswith(b"\xff\xd8\xff"):
+        return ".jpg"  # JPEG
+    elif header.startswith(b"\x89PNG"):
         # PNG格式检测：标准文件头是 89 50 4E 47 0D 0A 1A 0A (8字节)
         # 但实际文件中可能只有前4字节的PNG标识，后面4字节可能不同
         if len(content) >= 4:
             # 检查PNG文件头的前4字节：89 50 4E 47
-            if content[:4] == b'\x89PNG':
-                return '.png'
-    elif header.startswith(b'GIF87a') or header.startswith(b'GIF89a'):
-        return '.gif'  # GIF
-    elif header.startswith(b'RIFF') and len(header) >= 12 and header[8:12] == b'WEBP':
-        return '.webp'  # WebP
-    elif header.startswith(b'BM'):
-        return '.bmp'  # BMP
-    elif header.startswith(b'II*\x00') or header.startswith(b'MM\x00*'):
-        return '.tiff'  # TIFF
-    elif header.startswith(b'<svg') or header.startswith(b'<SVG') or b'<svg' in header.lower():
-        return '.svg'  # SVG
-    elif header.startswith(b'\x00\x00\x01\x00') or header.startswith(b'\x00\x00\x02\x00'):
-        return '.ico'  # ICO
+            if content[:4] == b"\x89PNG":
+                return ".png"
+    elif header.startswith(b"GIF87a") or header.startswith(b"GIF89a"):
+        return ".gif"  # GIF
+    elif header.startswith(b"RIFF") and len(header) >= 12 and header[8:12] == b"WEBP":
+        return ".webp"  # WebP
+    elif header.startswith(b"BM"):
+        return ".bmp"  # BMP
+    elif header.startswith(b"II*\x00") or header.startswith(b"MM\x00*"):
+        return ".tiff"  # TIFF
+    elif header.startswith(b"<svg") or header.startswith(b"<SVG") or b"<svg" in header.lower():
+        return ".svg"  # SVG
+    elif header.startswith(b"\x00\x00\x01\x00") or header.startswith(b"\x00\x00\x02\x00"):
+        return ".ico"  # ICO
 
-    return ''
+    return ""
+
 
 def _should_detect_image_format(url: str) -> bool:
     """判断是否需要对指定URL的图片进行格式检测"""
@@ -140,7 +145,7 @@ def _should_detect_image_format(url: str) -> bool:
 
     # 对于没有扩展名的图片，采用保守策略
     # 只对已知可能有问题的模式进行检测
-    if not any(ext in path for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']):
+    if not any(ext in path for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]):
         # 检查是否是可靠的CDN域名
         if ImageDomainConfig.is_reliable_cdn(host):
             return False
@@ -151,19 +156,25 @@ def _should_detect_image_format(url: str) -> bool:
 
     return False
 
+
 def _detect_image_format_from_file(file_path: str) -> str:
     """从本地文件检测图片格式"""
     try:
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             header = f.read(20)
             return _detect_image_format_from_header(header)
     except Exception:
-        return ''
+        return ""
 
-async def _download_single_image(session: aiohttp.ClientSession, url: str, local_path: str,
-                                extra_headers: Optional[Dict[str, str]] = None,
-                                hash_to_path: Optional[Dict[str, str]] = None,
-                                hash_lock: Optional[asyncio.Lock] = None) -> tuple[bool, str]:
+
+async def _download_single_image(
+    session: aiohttp.ClientSession,
+    url: str,
+    local_path: str,
+    extra_headers: Optional[Dict[str, str]] = None,
+    hash_to_path: Optional[Dict[str, str]] = None,
+    hash_lock: Optional[asyncio.Lock] = None,
+) -> tuple[bool, str]:
     """异步下载单张图片（流式计算SHA-256，基于内容精确去重）。
 
     返回 (success, final_local_path)。当命中去重时，final_local_path 为已存在文件路径。
@@ -233,11 +244,14 @@ async def _download_single_image(session: aiohttp.ClientSession, url: str, local
     except Exception:
         return False, local_path
 
-async def _download_images_async(image_tasks: list[Tuple[str, str, Optional[Dict[str, str]]]],
-                                session: aiohttp.ClientSession,
-                                on_detail: Optional[Callable[[str], None]] = None,
-                                hash_to_path: Optional[Dict[str, str]] = None,
-                                hash_lock: Optional[asyncio.Lock] = None) -> Dict[str, Tuple[bool, str]]:
+
+async def _download_images_async(
+    image_tasks: list[Tuple[str, str, Optional[Dict[str, str]]]],
+    session: aiohttp.ClientSession,
+    on_detail: Optional[Callable[[str], None]] = None,
+    hash_to_path: Optional[Dict[str, str]] = None,
+    hash_lock: Optional[asyncio.Lock] = None,
+) -> Dict[str, Tuple[bool, str]]:
     """异步并发下载所有图片，并动态汇报进度；返回 {url: (ok, final_local_path)}"""
     if not image_tasks:
         return {}
@@ -249,7 +263,9 @@ async def _download_images_async(image_tasks: list[Tuple[str, str, Optional[Dict
     # 创建下载任务；每个任务返回 (url, success)
     async def _wrapped_download(url: str, local_path: str, headers: Optional[Dict[str, str]]):
         try:
-            ok, final_path = await _download_single_image(session, url, local_path, headers, hash_to_path, hash_lock)
+            ok, final_path = await _download_single_image(
+                session, url, local_path, headers, hash_to_path, hash_lock
+            )
             return url, bool(ok), final_path
         except Exception:
             return url, False, local_path
@@ -281,13 +297,19 @@ async def _download_images_async(image_tasks: list[Tuple[str, str, Optional[Dict
 
     return results
 
-def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, session,
-                               should_stop: Optional[Callable[[], bool]] = None,
-                               on_detail: Optional[Callable[[str], None]] = None,
-                               enable_compact_rename: bool = False,
-                               timestamp: Optional[datetime] = None) -> str:
+
+def download_images_and_rewrite(
+    md_text: str,
+    base_url: str,
+    images_dir: str,
+    session,
+    should_stop: Optional[Callable[[], bool]] = None,
+    on_detail: Optional[Callable[[str], None]] = None,
+    enable_compact_rename: bool = False,
+    timestamp: Optional[datetime] = None,
+) -> str:
     """下载图片并重写markdown文本（使用异步并发下载）
-    
+
     Args:
         md_text: 包含图片链接的markdown文本
         base_url: 基础URL，用于解析相对链接
@@ -297,7 +319,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
         on_detail: 可选的进度回调函数
         enable_compact_rename: 是否启用紧凑重命名（默认False，保留原始文件名便于调试）
         timestamp: 可选的时间戳，用于统一markdown和图片文件名的时间戳
-    
+
     Returns:
         重写后的markdown文本，图片链接替换为本地路径
     """
@@ -330,7 +352,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
 
         raw = match.group(1)
         # take first token as URL; strip surrounding <>, quotes
-        src = raw.strip().split()[0].strip('<>"\'')
+        src = raw.strip().split()[0].strip("<>\"'")
         if src.startswith("data:"):
             continue
         if src.startswith("//"):
@@ -341,13 +363,13 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
         if resolved not in url_to_planned_local:
             parsed = urlparse(resolved)
             _, ext = os.path.splitext(os.path.basename(parsed.path))
-            
+
             # 对于需要格式检测的域名，统一使用.img扩展名，后续会根据实际内容重命名
             if _should_detect_image_format(resolved):
                 ext = ".img"
             elif not ext:
                 ext = ".img"
-                
+
             local_name = f"{run_stamp}_{counter:03d}{ext}"
             counter += 1
             local_path = os.path.join(images_dir, local_name)
@@ -356,17 +378,20 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
             extra_headers = {}
             host = parsed.netloc.lower()
             if ImageDomainConfig.needs_special_headers(host):
-                extra_headers.update({
-                    "Referer": base_url,
-                    "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0"),
-                    "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-                })
+                extra_headers.update(
+                    {
+                        "Referer": base_url,
+                        "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0"),
+                        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                    }
+                )
 
             image_tasks.append((resolved, local_path, extra_headers))
             url_to_planned_local[resolved] = f"{os.path.basename(images_dir)}/{local_name}"
 
     # 异步并发下载所有图片
     if image_tasks:
+
         async def download_all():
             # 创建aiohttp会话
             connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)  # 限制并发连接数
@@ -374,13 +399,16 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
                 # 每篇文章内的去重索引
                 hash_to_path: Dict[str, str] = {}
                 hash_lock = asyncio.Lock()
-                return await _download_images_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock)
+                return await _download_images_async(
+                    image_tasks, aio_session, on_detail, hash_to_path, hash_lock
+                )
 
         # 检查是否已有事件循环
         try:
             asyncio.get_running_loop()
             # 如果已有事件循环，使用线程池执行
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(asyncio.run, download_all())
                 download_results = future.result()
@@ -395,19 +423,21 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
             ok, final_local_path = download_results.get(url, (False, local_path))
             if ok:
                 # 只有下载成功的图片才建立映射
-                url_to_local[url] = f"{os.path.basename(images_dir)}/{os.path.basename(final_local_path)}"
-        
+                url_to_local[url] = (
+                    f"{os.path.basename(images_dir)}/{os.path.basename(final_local_path)}"
+                )
+
         # 条件性图片格式检测：只对特定域名进行格式检测
         # 同时根据最终落盘路径更新 url_to_local（可能因去重而指向其他文件）
         for url, local_path, _ in image_tasks:
             ok, final_local_path = download_results.get(url, (False, local_path))
-            if ok and final_local_path.endswith('.img'):
+            if ok and final_local_path.endswith(".img"):
                 # 检查是否需要格式检测（基于域名）
                 if _should_detect_image_format(url):
                     detected_ext = _detect_image_format_from_file(final_local_path)
-                    if detected_ext and detected_ext != '.img':
+                    if detected_ext and detected_ext != ".img":
                         # 重命名文件并更新路径映射
-                        new_path = final_local_path.replace('.img', detected_ext)
+                        new_path = final_local_path.replace(".img", detected_ext)
                         try:
                             os.rename(final_local_path, new_path)
                             # 更新url_to_local中的路径
@@ -428,7 +458,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
                 seen_files: set[str] = set()
                 for match in matches:
                     raw = match.group(1)
-                    src = raw.strip().split()[0].strip('<>"\'')
+                    src = raw.strip().split()[0].strip("<>\"'")
                     if src.startswith("data:"):
                         continue
                     if src.startswith("//"):
@@ -498,7 +528,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
     # 替换markdown中的图片链接
     def replace_md(match: re.Match) -> str:
         raw = match.group(1)
-        src = raw.strip().split()[0].strip('<>"\'')
+        src = raw.strip().split()[0].strip("<>\"'")
         if src.startswith("data:"):
             return match.group(0)
         if src.startswith("//"):
@@ -516,6 +546,7 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
 
     # First replace markdown images
     result_text = pattern_md.sub(replace_md, md_text)
+
     # Then replace HTML img tags
     def replace_html(m: re.Match) -> str:
         fake_md = f"![]({m.group(1)})"
@@ -525,13 +556,13 @@ def download_images_and_rewrite(md_text: str, base_url: str, images_dir: str, se
         return m.group(0).replace(m.group(1), new_src.group(1) if new_src else m.group(1))
 
     result_text = pattern_html.sub(replace_html, result_text)
-    
+
     # 统计下载结果
     if total > 0:
         success_count = sum(1 for ok, _ in download_results.values() if ok)
         failed_count = total - success_count
         print(f"[图片] 下载完成: {success_count}成功, {failed_count}失败")
-    
+
     if total > 0 and on_detail:
         on_detail({"key": "images_dl_saving"})
     return result_text

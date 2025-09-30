@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 import os
+from dataclasses import asdict
 
 
 def save_config(path: str, data: dict) -> None:
@@ -25,5 +25,3 @@ def load_json_from_root(root_dir: str, filename: str) -> dict:
             return json.load(f)
     except Exception:
         return {}
-
-

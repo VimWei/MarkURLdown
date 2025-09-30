@@ -1,49 +1,54 @@
 from __future__ import annotations
 
+import io
 import re
+
 from markitdown import MarkItDown
 from markitdown._stream_info import StreamInfo
-import io
+
 
 def html_fragment_to_markdown(root) -> str:
     """
     使用 markitdown 将 HTML 片段转换为 Markdown
-    
+
     Args:
         root: BeautifulSoup 元素或 HTML 字符串
-        
+
     Returns:
         str: 转换后的 Markdown 文本
     """
     try:
         # 如果输入是 BeautifulSoup 元素，转换为字符串
-        if hasattr(root, '__str__'):
+        if hasattr(root, "__str__"):
             html_content = str(root)
         else:
             html_content = str(root)
-        
+
         # 使用 HtmlConverter.convert_string 方法，可能更稳定
         from markitdown.converters._html_converter import HtmlConverter
+
         converter = HtmlConverter()
         result = converter.convert_string(html_content)
         return result.markdown
-        
+
     except Exception as e:
         # 如果 markitdown 转换失败，回退到原来的实现
         print(f"markitdown 转换失败，回退到自定义转换器: {e}")
         return _legacy_html_fragment_to_markdown(root)
 
+
 def _legacy_html_fragment_to_markdown(root) -> str:
     """原来的自定义转换实现，作为回退方案"""
+
     def node_to_md(node, in_heading: bool = False) -> str:
-        if getattr(node, 'name', None) is None:
+        if getattr(node, "name", None) is None:
             return str(node)
 
         name = node.name.lower()
 
         def children_md(sep: str = "", heading_context: bool = False) -> str:
             parts: list[str] = []
-            for child in getattr(node, 'children', []):
+            for child in getattr(node, "children", []):
                 part = node_to_md(child, in_heading=heading_context)
                 if part:
                     parts.append(part)
@@ -87,7 +92,7 @@ def _legacy_html_fragment_to_markdown(root) -> str:
             items: list[str] = []
             for i, li in enumerate(node.find_all("li", recursive=False), 1):
                 li_parts: list[str] = []
-                for child in getattr(li, 'children', []):
+                for child in getattr(li, "children", []):
                     piece = node_to_md(child, in_heading=False)
                     if piece:
                         li_parts.append(piece)
@@ -108,7 +113,17 @@ def _legacy_html_fragment_to_markdown(root) -> str:
             inner = children_md("", heading_context=False)
             return f"```\n{inner}\n```\n\n"
 
-        if name in ["div", "section", "article", "header", "footer", "main", "aside", "figure", "figcaption"]:
+        if name in [
+            "div",
+            "section",
+            "article",
+            "header",
+            "footer",
+            "main",
+            "aside",
+            "figure",
+            "figcaption",
+        ]:
             content = children_md("", heading_context=in_heading)
             if not content.strip():
                 return ""

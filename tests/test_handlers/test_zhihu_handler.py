@@ -1,16 +1,18 @@
 """测试知乎处理器"""
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
+
+from markitdown_app.app_types import ConversionOptions
 from markitdown_app.core.handlers.zhihu_handler import (
-    fetch_zhihu_article,
-    _try_playwright_crawler,
-    _detect_zhihu_page_type,
     CrawlerResult,
     FetchResult,
-    ZhihuPageType
+    ZhihuPageType,
+    _detect_zhihu_page_type,
+    _try_playwright_crawler,
+    fetch_zhihu_article,
 )
-from markitdown_app.app_types import ConversionOptions
 
 
 class TestZhihuHandler:
@@ -24,7 +26,7 @@ class TestZhihuHandler:
             use_proxy=False,
             download_images=True,
             filter_site_chrome=True,
-            use_shared_browser=True
+            use_shared_browser=True,
         )
 
     def test_fetch_zhihu_article_function_exists(self):
@@ -45,16 +47,16 @@ class TestZhihuHandler:
         valid_urls = [
             "https://www.zhihu.com/question/123/answer/456",
             "https://zhuanlan.zhihu.com/p/123456",
-            "http://www.zhihu.com/question/123/answer/456"
+            "http://www.zhihu.com/question/123/answer/456",
         ]
-        
+
         # 无效的知乎URL
         invalid_urls = [
             "https://example.com/article",
             "https://mp.weixin.qq.com/s/test_article",
-            "not_a_url"
+            "not_a_url",
         ]
-        
+
         # 这里可以添加URL验证逻辑的测试
         # 目前只是验证函数能处理这些URL
         for url in valid_urls + invalid_urls:

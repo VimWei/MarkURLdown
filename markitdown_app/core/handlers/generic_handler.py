@@ -3,29 +3,32 @@
 基于微信和知乎的经验，采用多策略方案：轻量级MarkItDown -> 增强MarkItDown(Playwright) -> 直接httpx
 """
 
-import time
 import random
-from urllib.parse import urlparse
+import time
 from dataclasses import dataclass
 from datetime import datetime
+from urllib.parse import urlparse
+
 from markitdown import MarkItDown
-from markitdown_app.app_types import ConvertPayload, ConversionOptions, ConvertResult
-from markitdown_app.io.session import build_requests_session
-from markitdown_app.core.normalize import normalize_markdown_headings
-from markitdown_app.core.images import download_images_and_rewrite
-from markitdown_app.core.filename import derive_md_filename
+
+from markitdown_app.app_types import ConversionOptions, ConvertPayload, ConvertResult
 from markitdown_app.core.common_utils import (
     COMMON_FILTERS,
     DOMAIN_FILTERS,
     apply_dom_filters,
-    extract_title_from_html,
     extract_title_from_body,
+    extract_title_from_html,
 )
+from markitdown_app.core.filename import derive_md_filename
+from markitdown_app.core.images import download_images_and_rewrite
+from markitdown_app.core.normalize import normalize_markdown_headings
+from markitdown_app.io.session import build_requests_session
 
 
 @dataclass
 class CrawlerResult:
     """爬虫结果"""
+
     success: bool
     title: str | None
     text_content: str
@@ -38,103 +41,134 @@ def _try_lightweight_markitdown(url: str, session) -> CrawlerResult:
         print("尝试轻量级MarkItDown...")
         md = MarkItDown()
         # 修复 MarkItDown 的 User-Agent 问题
-        md._requests_session.headers.update({
-            "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        })
+        md._requests_session.headers.update(
+            {
+                "User-Agent": session.headers.get(
+                    "User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                )
+            }
+        )
         result = md.convert(url)
-        
+
         if result and result.text_content:
             return CrawlerResult(
                 success=True,
-                title=getattr(result, 'title', None) or (result.metadata.get('title') if hasattr(result, 'metadata') and result.metadata else None),
-                text_content=result.text_content
+                title=getattr(result, "title", None)
+                or (
+                    result.metadata.get("title")
+                    if hasattr(result, "metadata") and result.metadata
+                    else None
+                ),
+                text_content=result.text_content,
             )
         else:
-            return CrawlerResult(success=False, title=None, text_content="", error="MarkItDown返回空内容")
+            return CrawlerResult(
+                success=False, title=None, text_content="", error="MarkItDown返回空内容"
+            )
     except Exception as e:
-        return CrawlerResult(success=False, title=None, text_content="", error=f"MarkItDown异常: {e}")
+        return CrawlerResult(
+            success=False, title=None, text_content="", error=f"MarkItDown异常: {e}"
+        )
 
 
 def _try_enhanced_markitdown(url: str, session) -> CrawlerResult:
     """策略2: 增强MarkItDown - 使用Playwright，处理复杂网站"""
     try:
         from playwright.sync_api import sync_playwright
-        
+
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
-            
+
             # 设置用户代理
-            page.set_extra_http_headers({
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            })
-            
-            page.goto(url, wait_until='networkidle')
+            page.set_extra_http_headers(
+                {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
+            )
+
+            page.goto(url, wait_until="networkidle")
             time.sleep(2)  # 等待页面稳定
-            
+
             # 获取页面内容
             html = page.content()
             title = page.title()
-            
+
             browser.close()
-            
+
             # 使用MarkItDown处理HTML
             md = MarkItDown()
             result = md.convert(html)
-            
+
             if result and result.text_content:
-                return CrawlerResult(
-                    success=True,
-                    title=title,
-                    text_content=result.text_content
-                )
+                return CrawlerResult(success=True, title=title, text_content=result.text_content)
             else:
-                return CrawlerResult(success=False, title=title, text_content="", error="MarkItDown处理HTML失败")
-                
+                return CrawlerResult(
+                    success=False, title=title, text_content="", error="MarkItDown处理HTML失败"
+                )
+
     except Exception as e:
-        return CrawlerResult(success=False, title=None, text_content="", error=f"Playwright异常: {e}")
+        return CrawlerResult(
+            success=False, title=None, text_content="", error=f"Playwright异常: {e}"
+        )
 
 
 def _try_direct_httpx(url: str, session) -> CrawlerResult:
-        """策略3: 直接httpx - 最后备用策略"""
-        try:
-            print("尝试直接httpx...")
-            import httpx
-            
-            # 使用与session相同的User-Agent
-            headers = {
-                "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            }
-            
-            # 如果session设置了no_proxy，则httpx也禁用代理
-            client_kwargs = {"headers": headers}
-            if hasattr(session, 'trust_env') and not session.trust_env:
-                # httpx 0.28.1 使用 trust_env=False 来禁用代理
-                client_kwargs["trust_env"] = False
-            
-            with httpx.Client(**client_kwargs) as client:
-                response = client.get(url, timeout=30)
-                response.raise_for_status()
-                
-                # 使用MarkItDown处理URL（直接传递URL而不是HTML内容）
-                md = MarkItDown()
-                # 修复 MarkItDown 的 User-Agent 问题
-                md._requests_session.headers.update({
-                    "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                })
-                result = md.convert(url)
-                
-                if result and result.text_content:
-                    return CrawlerResult(
-                        success=True,
-                        title=getattr(result, 'title', None) or (result.metadata.get('title') if hasattr(result, 'metadata') and result.metadata else None),
-                        text_content=result.text_content
+    """策略3: 直接httpx - 最后备用策略"""
+    try:
+        print("尝试直接httpx...")
+        import httpx
+
+        # 使用与session相同的User-Agent
+        headers = {
+            "User-Agent": session.headers.get(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            )
+        }
+
+        # 如果session设置了no_proxy，则httpx也禁用代理
+        client_kwargs = {"headers": headers}
+        if hasattr(session, "trust_env") and not session.trust_env:
+            # httpx 0.28.1 使用 trust_env=False 来禁用代理
+            client_kwargs["trust_env"] = False
+
+        with httpx.Client(**client_kwargs) as client:
+            response = client.get(url, timeout=30)
+            response.raise_for_status()
+
+            # 使用MarkItDown处理URL（直接传递URL而不是HTML内容）
+            md = MarkItDown()
+            # 修复 MarkItDown 的 User-Agent 问题
+            md._requests_session.headers.update(
+                {
+                    "User-Agent": session.headers.get(
+                        "User-Agent",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     )
-                else:
-                    return CrawlerResult(success=False, title=None, text_content="", error="MarkItDown处理失败")
-                    
-        except Exception as e:
-            return CrawlerResult(success=False, title=None, text_content="", error=f"httpx异常: {e}")
+                }
+            )
+            result = md.convert(url)
+
+            if result and result.text_content:
+                return CrawlerResult(
+                    success=True,
+                    title=getattr(result, "title", None)
+                    or (
+                        result.metadata.get("title")
+                        if hasattr(result, "metadata") and result.metadata
+                        else None
+                    ),
+                    text_content=result.text_content,
+                )
+            else:
+                return CrawlerResult(
+                    success=False, title=None, text_content="", error="MarkItDown处理失败"
+                )
+
+    except Exception as e:
+        return CrawlerResult(success=False, title=None, text_content="", error=f"httpx异常: {e}")
 
 
 def _try_generic_with_filtering(url: str, session) -> CrawlerResult:
@@ -163,9 +197,14 @@ def _try_generic_with_filtering(url: str, session) -> CrawlerResult:
         filtered_html, removed = apply_dom_filters(raw_html, merged)
 
         md = MarkItDown()
-        md._requests_session.headers.update({
-            "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        })
+        md._requests_session.headers.update(
+            {
+                "User-Agent": session.headers.get(
+                    "User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                )
+            }
+        )
         # 某些版本的 MarkItDown 可能错误地将纯字符串当作文件路径处理；做兜底
         try:
             result = md.convert(filtered_html)
@@ -175,7 +214,9 @@ def _try_generic_with_filtering(url: str, session) -> CrawlerResult:
                 result = md.convert(filtered_html.encode("utf-8"))
             except Exception:
                 # 最后兜底：写入临时文件再转换
-                import tempfile, os
+                import os
+                import tempfile
+
                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".html")
                 try:
                     tmp.write(filtered_html.encode("utf-8"))
@@ -189,8 +230,12 @@ def _try_generic_with_filtering(url: str, session) -> CrawlerResult:
 
         if result and result.text_content:
             title = (
-                getattr(result, 'title', None)
-                or (result.metadata.get('title') if hasattr(result, 'metadata') and result.metadata else None)
+                getattr(result, "title", None)
+                or (
+                    result.metadata.get("title")
+                    if hasattr(result, "metadata") and result.metadata
+                    else None
+                )
                 or extract_title_from_body(filtered_html)
                 or extract_title_from_html(filtered_html)
             )
@@ -216,13 +261,16 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
                 return _try_generic_with_filtering(url, session)
             except NameError:
                 return _try_lightweight_markitdown(url, session)
+
         crawler_strategies.append(_strategy_filtering)
 
-    crawler_strategies.extend([
-        lambda: _try_lightweight_markitdown(url, session),
-        lambda: _try_enhanced_markitdown(url, session),
-        lambda: _try_direct_httpx(url, session),
-    ])
+    crawler_strategies.extend(
+        [
+            lambda: _try_lightweight_markitdown(url, session),
+            lambda: _try_enhanced_markitdown(url, session),
+            lambda: _try_direct_httpx(url, session),
+        ]
+    )
 
     # 多策略尝试，每个策略最多重试2次
     max_retries = 2
@@ -255,18 +303,27 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
 
                         # 图片处理（可选）
                         if options.download_images:
-                            images_dir = payload.meta.get("images_dir") or (payload.meta.get("out_dir") and (payload.meta["out_dir"] + "/img"))
+                            images_dir = payload.meta.get("images_dir") or (
+                                payload.meta.get("out_dir") and (payload.meta["out_dir"] + "/img")
+                            )
                             if images_dir:
                                 should_stop_cb = payload.meta.get("should_stop")
                                 on_detail_cb = payload.meta.get("on_detail")
                                 text = download_images_and_rewrite(
-                                    text, url, images_dir, session,
-                                    should_stop=should_stop_cb, on_detail=on_detail_cb, timestamp=conversion_timestamp
+                                    text,
+                                    url,
+                                    images_dir,
+                                    session,
+                                    should_stop=should_stop_cb,
+                                    on_detail=on_detail_cb,
+                                    timestamp=conversion_timestamp,
                                 )
 
                         filename = derive_md_filename(result.title, url, conversion_timestamp)
                         print("[组装] 文档生成完成")
-                        return ConvertResult(title=result.title, markdown=text, suggested_filename=filename)
+                        return ConvertResult(
+                            title=result.title, markdown=text, suggested_filename=filename
+                        )
                     else:
                         print(f"[解析] 策略 {i} 获取到无效内容，重试...")
                         if retry < max_retries - 1:

@@ -29,7 +29,9 @@ class ConvertResult:
 
 @dataclass
 class ProgressEvent:
-    kind: Literal["status", "detail", "progress_init", "progress_step", "progress_done", "stopped", "error"]
+    kind: Literal[
+        "status", "detail", "progress_init", "progress_step", "progress_done", "stopped", "error"
+    ]
     key: str | None = None
     data: dict | None = None
     text: str | None = None
@@ -58,5 +60,3 @@ class ConvertPayload:
     kind: Literal["url", "html", "file"]
     value: str
     meta: dict[str, Any] = field(default_factory=dict)
-
-

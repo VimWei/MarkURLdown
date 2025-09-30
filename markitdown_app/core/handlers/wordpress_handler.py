@@ -3,30 +3,35 @@ WordPress网站处理器 - 专门处理WordPress站点，如skywind.me
 过滤掉导航、侧边栏、评论等非正文内容
 """
 
-import time
 import random
+import time
 from dataclasses import dataclass
 from typing import Any
+
 from bs4 import BeautifulSoup
 from markitdown import MarkItDown
 
 from markitdown_app.services.playwright_driver import (
     new_context_and_page,
+    read_page_content_and_title,
     teardown_context_page,
-    read_page_content_and_title
 )
 
 # 1. 数据类
 
+
 @dataclass
 class FetchResult:
     """获取结果"""
+
     title: str | None
     html_markdown: str
     success: bool = True
     error: str | None = None
 
+
 # 2. 底层工具函数（按调用关系排序）
+
 
 def _extract_wordpress_title(soup: BeautifulSoup, title_hint: str | None = None) -> str | None:
     """提取WordPress文章标题"""
@@ -52,69 +57,65 @@ def _extract_wordpress_title(soup: BeautifulSoup, title_hint: str | None = None)
 
     # 策略3: 最后的兜底方案，使用页面标题
     if not title:
-        title_elem = soup.select_one('title')
+        title_elem = soup.select_one("title")
         if title_elem:
             title = title_elem.get_text(strip=True)
             # 页面标题经常包含网站名称，需要清理
-            if ' - ' in title:
-                title = title.split(' - ')[0]
+            if " - " in title:
+                title = title.split(" - ")[0]
 
     return title
 
+
 def _extract_wordpress_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
     """提取WordPress文章的元数据（作者、发布时间等）"""
-    metadata = {
-        'author': None,
-        'publish_time': None,
-        'categories': None,
-        'tags': None
-    }
+    metadata = {"author": None, "publish_time": None, "categories": None, "tags": None}
 
     # 提取作者信息
     author_selectors = [
-        '.author.vcard a',
-        '.entry-author a',
-        '.post-author a',
-        '.byline a',
-        '.author-name a',
-        '.author a'
+        ".author.vcard a",
+        ".entry-author a",
+        ".post-author a",
+        ".byline a",
+        ".author-name a",
+        ".author a",
     ]
 
     for selector in author_selectors:
         author_elem = soup.select_one(selector)
         if author_elem:
-            metadata['author'] = author_elem.get_text(strip=True)
+            metadata["author"] = author_elem.get_text(strip=True)
             break
 
     # 提取发布时间
     time_selectors = [
-        'time.entry-date',
-        '.entry-date',
-        '.post-date',
-        '.published',
-        'time[datetime]',
-        '.date'
+        "time.entry-date",
+        ".entry-date",
+        ".post-date",
+        ".published",
+        "time[datetime]",
+        ".date",
     ]
 
     for selector in time_selectors:
         time_elem = soup.select_one(selector)
         if time_elem:
             # 优先使用datetime属性
-            datetime_attr = time_elem.get('datetime')
+            datetime_attr = time_elem.get("datetime")
             if datetime_attr:
-                metadata['publish_time'] = datetime_attr
+                metadata["publish_time"] = datetime_attr
             else:
-                metadata['publish_time'] = time_elem.get_text(strip=True)
+                metadata["publish_time"] = time_elem.get_text(strip=True)
             break
 
     # 提取分类
     category_selectors = [
-        '.entry-categories a',
-        '.post-categories a',
-        '.categories a',
-        '.cat-links a',
+        ".entry-categories a",
+        ".post-categories a",
+        ".categories a",
+        ".cat-links a",
         'a[rel="category tag"]',  # 匹配 rel="category tag" 的链接
-        '.entry-utility a[rel="category tag"]'  # 在 entry-utility 容器内匹配
+        '.entry-utility a[rel="category tag"]',  # 在 entry-utility 容器内匹配
     ]
 
     categories = []
@@ -126,16 +127,16 @@ def _extract_wordpress_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
                 categories.append(cat_text)
 
     if categories:
-        metadata['categories'] = ', '.join(categories)
+        metadata["categories"] = ", ".join(categories)
 
     # 提取标签
     tag_selectors = [
-        '.entry-tags a',
-        '.post-tags a',
-        '.tags a',
-        '.tag-links a',
+        ".entry-tags a",
+        ".post-tags a",
+        ".tags a",
+        ".tag-links a",
         'a[rel="tag"]',  # 匹配 rel="tag" 的链接
-        '.entry-utility a[rel="tag"]'  # 在 entry-utility 容器内匹配
+        '.entry-utility a[rel="tag"]',  # 在 entry-utility 容器内匹配
     ]
 
     tags = []
@@ -147,12 +148,13 @@ def _extract_wordpress_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
                 tags.append(tag_text)
 
     if tags:
-        metadata['tags'] = ', '.join(tags)
+        metadata["tags"] = ", ".join(tags)
 
     return metadata
 
 
 # 3. 中层业务函数（按调用关系排序）
+
 
 def _try_httpx_crawler(session, url: str) -> FetchResult:
     """策略1: 使用httpx爬取原始HTML"""
@@ -161,12 +163,15 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
 
         # 使用与session相同的User-Agent
         headers = {
-            "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            "User-Agent": session.headers.get(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            )
         }
 
         # 如果session设置了no_proxy，则httpx也禁用代理
         client_kwargs = {"headers": headers}
-        if hasattr(session, 'trust_env') and not session.trust_env:
+        if hasattr(session, "trust_env") and not session.trust_env:
             client_kwargs["trust_env"] = False
 
         with httpx.Client(**client_kwargs) as client:
@@ -179,6 +184,7 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
     except Exception as e:
         return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
 
+
 def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
@@ -188,10 +194,11 @@ def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> Fetc
             context, page = new_context_and_page(shared_browser, apply_stealth=False)
 
             # 导航到页面
-            page.goto(url, wait_until='networkidle', timeout=30000)
+            page.goto(url, wait_until="networkidle", timeout=30000)
 
             # 等待页面稳定
             import time
+
             time.sleep(2)
 
             # 获取页面内容和标题
@@ -211,26 +218,27 @@ def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> Fetc
             browser = p.chromium.launch(
                 headless=True,
                 args=[
-                    '--no-sandbox',
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--no-first-run',
-                    '--no-default-browser-check',
-                    '--disable-extensions',
-                    '--disable-plugins',
-                ]
+                    "--no-sandbox",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-web-security",
+                    "--disable-features=VizDisplayCompositor",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--disable-extensions",
+                    "--disable-plugins",
+                ],
             )
 
             context, page = new_context_and_page(browser, apply_stealth=False)
 
             # 导航到页面
-            page.goto(url, wait_until='networkidle', timeout=30000)
+            page.goto(url, wait_until="networkidle", timeout=30000)
 
             # 等待页面稳定
             import time
+
             time.sleep(2)
 
             # 获取页面内容和标题
@@ -240,9 +248,14 @@ def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> Fetc
             return FetchResult(title=title, html_markdown=html)
 
     except Exception as e:
-        return FetchResult(title=None, html_markdown="", success=False, error=f"Playwright异常: {e}")
+        return FetchResult(
+            title=None, html_markdown="", success=False, error=f"Playwright异常: {e}"
+        )
 
-def _build_wordpress_header_parts(soup: BeautifulSoup, url: str | None = None, title_hint: str | None = None) -> tuple[str | None, list[str]]:
+
+def _build_wordpress_header_parts(
+    soup: BeautifulSoup, url: str | None = None, title_hint: str | None = None
+) -> tuple[str | None, list[str]]:
     """构建WordPress文章的Markdown头部信息片段（标题、来源、作者、时间等），并返回 (title, parts)"""
     header_parts: list[str] = []
 
@@ -259,44 +272,45 @@ def _build_wordpress_header_parts(soup: BeautifulSoup, url: str | None = None, t
     metadata = _extract_wordpress_metadata(soup)
 
     # 将元数据合并为一行，借鉴weixin_handler的处理方式
-    if metadata['author'] or metadata['publish_time'] or metadata['categories'] or metadata['tags']:
+    if metadata["author"] or metadata["publish_time"] or metadata["categories"] or metadata["tags"]:
         meta_parts = []
-        if metadata['author']:
+        if metadata["author"]:
             meta_parts.append(f"{metadata['author']}")
-        if metadata['publish_time']:
+        if metadata["publish_time"]:
             meta_parts.append(f"{metadata['publish_time']}")
-        if metadata['categories']:
+        if metadata["categories"]:
             meta_parts.append(f"{metadata['categories']}")
-        if metadata['tags']:
+        if metadata["tags"]:
             meta_parts.append(f"{metadata['tags']}")
         if meta_parts:
             header_parts.append("* " + "  ".join(meta_parts))
 
     return title, header_parts
 
+
 def _build_wordpress_content_element(soup: BeautifulSoup):
     """定位并返回WordPress正文容器元素"""
     content_elem = None
 
     # 策略1: 查找 <div id="content" role="main"> 下的 <div class="entry-content">
-    content_main = soup.find('div', id='content', role='main')
+    content_main = soup.find("div", id="content", role="main")
     if content_main:
-        content_elem = content_main.find('div', class_='entry-content')
+        content_elem = content_main.find("div", class_="entry-content")
 
     # 策略2: 直接查找 <div class="entry-content">
     if not content_elem:
-        content_elem = soup.find('div', class_='entry-content')
+        content_elem = soup.find("div", class_="entry-content")
 
     # 策略3: 查找其他常见的WordPress内容容器
     if not content_elem:
         content_selectors = [
-            'div.post-content',
-            'div.entry-body',
-            'div.article-content',
-            'div.content',
-            'article .entry-content',
-            'main .entry-content',
-            '.post .entry-content'
+            "div.post-content",
+            "div.entry-body",
+            "div.article-content",
+            "div.content",
+            "article .entry-content",
+            "main .entry-content",
+            ".post .entry-content",
         ]
 
         for selector in content_selectors:
@@ -306,28 +320,29 @@ def _build_wordpress_content_element(soup: BeautifulSoup):
 
     return content_elem
 
+
 def _clean_and_normalize_wordpress_content(content_elem) -> None:
     """清洗与标准化WordPress正文容器"""
     if not content_elem:
         return
 
     # 懒加载图片与占位符处理
-    for img in content_elem.find_all('img', {'data-src': True}):
-        img['src'] = img['data-src']
+    for img in content_elem.find_all("img", {"data-src": True}):
+        img["src"] = img["data-src"]
         try:
-            del img['data-src']
+            del img["data-src"]
         except Exception:
             pass
 
-    for img in content_elem.find_all('img', {'data-original': True}):
-        img['src'] = img['data-original']
+    for img in content_elem.find_all("img", {"data-original": True}):
+        img["src"] = img["data-original"]
         try:
-            del img['data-original']
+            del img["data-original"]
         except Exception:
             pass
 
     # 移除脚本和样式
-    for script in content_elem.find_all(['script', 'style']):
+    for script in content_elem.find_all(["script", "style"]):
         try:
             script.decompose()
         except Exception:
@@ -336,37 +351,60 @@ def _clean_and_normalize_wordpress_content(content_elem) -> None:
     # 移除WordPress特定的非内容元素
     unwanted_in_content = [
         # 广告和推广
-        '.advertisement', '.ads', '.ad', '.ad-container', '.ad-banner',
-        '.promo', '.sponsored', '.affiliate',
-
+        ".advertisement",
+        ".ads",
+        ".ad",
+        ".ad-container",
+        ".ad-banner",
+        ".promo",
+        ".sponsored",
+        ".affiliate",
         # 社交分享按钮
-        '.social-share', '.share', '.social', '.social-links',
-        '.share-buttons', '.social-media',
-
+        ".social-share",
+        ".share",
+        ".social",
+        ".social-links",
+        ".share-buttons",
+        ".social-media",
         # 相关文章推荐
-        '.related-posts', '.more-posts', '.related', '.similar-posts',
-        '.post-navigation', '.nav-links', '.page-links',
-
+        ".related-posts",
+        ".more-posts",
+        ".related",
+        ".similar-posts",
+        ".post-navigation",
+        ".nav-links",
+        ".page-links",
         # 评论相关
-        '.comments', '.comment', '#comments', '#respond', '.comment-form',
-        '.comment-list', '.comment-reply', '.comment-respond',
-
+        ".comments",
+        ".comment",
+        "#comments",
+        "#respond",
+        ".comment-form",
+        ".comment-list",
+        ".comment-reply",
+        ".comment-respond",
         # 作者信息（在正文中重复的）
-        '.entry-author-info', '.author-info', '.post-author',
-
+        ".entry-author-info",
+        ".author-info",
+        ".post-author",
         # 元数据（在正文中重复的）
-        '.entry-meta', '.post-meta', '.entry-utility',
-
+        ".entry-meta",
+        ".post-meta",
+        ".entry-utility",
         # 其他非内容元素
-        '.wp-caption-text', '.gallery-caption',
-        '.screen-reader-text', '.sr-only',
-        '.skip-link',
-
+        ".wp-caption-text",
+        ".gallery-caption",
+        ".screen-reader-text",
+        ".sr-only",
+        ".skip-link",
         # 特定于skywind.me的元素（根据分析结果）
-        '#entry-author-info',
-        '.pvc_stats.pvc_load_by_ajax_update',
-        ".entry-utility",  ".likebtn_container",
-        ".meta-prep.meta-prep-author", ".meta-sep", ".author.vcard"
+        "#entry-author-info",
+        ".pvc_stats.pvc_load_by_ajax_update",
+        ".entry-utility",
+        ".likebtn_container",
+        ".meta-prep.meta-prep-author",
+        ".meta-sep",
+        ".author.vcard",
     ]
 
     for selector in unwanted_in_content:
@@ -377,10 +415,13 @@ def _clean_and_normalize_wordpress_content(content_elem) -> None:
             except Exception:
                 pass
 
-def _process_wordpress_content(html: str, url: str | None = None, title_hint: str | None = None) -> FetchResult:
+
+def _process_wordpress_content(
+    html: str, url: str | None = None, title_hint: str | None = None
+) -> FetchResult:
     """处理WordPress内容，提取标题、元数据和过滤后的正文"""
     try:
-        soup = BeautifulSoup(html, 'lxml')
+        soup = BeautifulSoup(html, "lxml")
     except Exception as e:
         print(f"BeautifulSoup解析失败: {e}")
         return FetchResult(title=None, html_markdown="")
@@ -400,6 +441,7 @@ def _process_wordpress_content(html: str, url: str | None = None, title_hint: st
         _clean_and_normalize_wordpress_content(content_elem)
         # 使用 html_fragment_to_markdown 转换正文内容
         from markitdown_app.core.html_to_md import html_fragment_to_markdown
+
         md = html_fragment_to_markdown(content_elem)
 
     # 最后拼接为全文
@@ -412,7 +454,9 @@ def _process_wordpress_content(html: str, url: str | None = None, title_hint: st
         print(f"创建FetchResult失败: {e}")
         return FetchResult(title=None, html_markdown="")
 
+
 # 4. 主入口函数
+
 
 def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None) -> FetchResult:
     """
@@ -427,7 +471,6 @@ def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None
     crawler_strategies = [
         # 策略1: 使用httpx爬取原始HTML
         lambda: _try_httpx_crawler(session, url),
-
         # 策略2: 使用Playwright爬取原始HTML (支持共享浏览器)
         lambda: _try_playwright_crawler(url, shared_browser),
     ]
@@ -451,14 +494,16 @@ def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None
                     # 两阶段处理：先获取原始HTML，再处理内容
                     if result.html_markdown:
                         print("[解析] 提取标题和正文...")
-                        processed_result = _process_wordpress_content(result.html_markdown, url, title_hint=result.title)
-                        
+                        processed_result = _process_wordpress_content(
+                            result.html_markdown, url, title_hint=result.title
+                        )
+
                         # 检查内容质量，如果内容太短，继续尝试下一个策略
                         content = processed_result.html_markdown or ""
                         if len(content) < 200:
                             print(f"[解析] 内容太短 ({len(content)} 字符)，尝试下一个策略")
                             break
-                        
+
                         if processed_result.title:
                             print(f"[解析] 标题: {processed_result.title}")
                         print("[清理] 移除广告和无关内容...")

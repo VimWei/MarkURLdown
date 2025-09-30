@@ -1,9 +1,10 @@
 from __future__ import annotations
+
+import re
 from dataclasses import dataclass
 from typing import Any, Optional
-from bs4 import BeautifulSoup
-from bs4 import NavigableString
-import re
+
+from bs4 import BeautifulSoup, NavigableString
 
 from markitdown_app.core.html_to_md import html_fragment_to_markdown
 
@@ -11,8 +12,8 @@ from markitdown_app.core.html_to_md import html_fragment_to_markdown
 try:
     from markitdown_app.services.playwright_driver import (
         new_context_and_page,
-        teardown_context_page,
         read_page_content_and_title,
+        teardown_context_page,
     )
 except Exception:
     # 若不依赖 Playwright，可忽略导入失败
@@ -41,15 +42,16 @@ class FetchResult:
 # 解析：构建 header 与正文
 # -------------------------------
 
+
 def _extract_appinn_title(soup: BeautifulSoup, title_hint: Optional[str] = None) -> str | None:
     """提取文章标题（针对 appinn.com 的选择器优先级）。"""
     title: str | None = None
 
     # 针对 appinn.com 的标题选择器
     title_selectors = [
-        'div.single_post header h1.title.single-title.entry-title',
+        "div.single_post header h1.title.single-title.entry-title",
     ]
-    
+
     for sel in title_selectors:
         node = soup.select_one(sel)
         if node:
@@ -60,16 +62,16 @@ def _extract_appinn_title(soup: BeautifulSoup, title_hint: Optional[str] = None)
         title = title_hint
 
     if not title:
-        node = soup.find('title')
+        node = soup.find("title")
         if node:
             candidate = node.get_text(strip=True)
             # 移除 appinn.com 的站点后缀
-            if ' - 小众软件' in candidate:
-                title = candidate.replace(' - 小众软件', '')
-            elif ' - Appinn' in candidate:
-                title = candidate.replace(' - Appinn', '')
+            if " - 小众软件" in candidate:
+                title = candidate.replace(" - 小众软件", "")
+            elif " - Appinn" in candidate:
+                title = candidate.replace(" - Appinn", "")
             else:
-                title = candidate.split(' - ')[0] if ' - ' in candidate else candidate
+                title = candidate.split(" - ")[0] if " - " in candidate else candidate
 
     return title
 
@@ -77,29 +79,31 @@ def _extract_appinn_title(soup: BeautifulSoup, title_hint: Optional[str] = None)
 def _extract_appinn_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
     """提取元数据（作者、发布时间、分类、标签）。"""
     md: dict[str, str | None] = {
-        'author': None,
-        'publish_time': None,
-        'categories': None,
-        'tags': None,
+        "author": None,
+        "publish_time": None,
+        "categories": None,
+        "tags": None,
     }
 
     # 作者 - 针对 appinn.com 的选择器
     for sel in [
-        'div.single_post > header > div > span.theauthor > span > a',
+        "div.single_post > header > div > span.theauthor > span > a",
     ]:
         node = soup.select_one(sel)
         if node:
-            link = node.find('a')
-            md['author'] = (link.get_text(strip=True) if link else node.get_text(strip=True)) or None
+            link = node.find("a")
+            md["author"] = (
+                link.get_text(strip=True) if link else node.get_text(strip=True)
+            ) or None
             break
 
     # 时间 - 针对 appinn.com 的选择器
     for sel in [
-        'div.single_post > header > div > span.thetime.updated > span',
+        "div.single_post > header > div > span.thetime.updated > span",
     ]:
         node = soup.select_one(sel)
         if node:
-            md['publish_time'] = (node.get('datetime') or node.get_text(strip=True)) or None
+            md["publish_time"] = (node.get("datetime") or node.get_text(strip=True)) or None
             break
 
     # 分类 - 针对 appinn.com 的选择器
@@ -112,24 +116,26 @@ def _extract_appinn_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
     #         if txt and txt not in categories:
     #             categories.append(txt)
     if categories:
-        md['categories'] = ' '.join(categories)
+        md["categories"] = " ".join(categories)
 
     # 标签 - 针对 appinn.com 的选择器
     tags: list[str] = []
     for sel in [
-        'div.single_post header div.post-info span.thecategory a',
+        "div.single_post header div.post-info span.thecategory a",
     ]:
         for el in soup.select(sel):
             txt = el.get_text(strip=True)
             if txt and txt not in tags:
                 tags.append(txt)
     if tags:
-        md['tags'] = ' '.join(tags)
+        md["tags"] = " ".join(tags)
 
     return md
 
 
-def _build_appinn_header_parts(soup: BeautifulSoup, url: Optional[str] = None, title_hint: Optional[str] = None) -> tuple[str | None, list[str]]:
+def _build_appinn_header_parts(
+    soup: BeautifulSoup, url: Optional[str] = None, title_hint: Optional[str] = None
+) -> tuple[str | None, list[str]]:
     """构建Markdown头部信息片段（标题、来源、作者、时间等），并返回 (title, parts)。"""
     parts: list[str] = []
 
@@ -141,15 +147,15 @@ def _build_appinn_header_parts(soup: BeautifulSoup, url: Optional[str] = None, t
         parts.append(f"* 来源：{url}")
 
     md = _extract_appinn_metadata(soup)
-    if any([md['author'], md['publish_time'], md['categories'], md['tags']]):
+    if any([md["author"], md["publish_time"], md["categories"], md["tags"]]):
         meta_parts: list[str] = []
-        if md['author']:
+        if md["author"]:
             meta_parts.append(f"{md['author']}")
-        if md['publish_time']:
+        if md["publish_time"]:
             meta_parts.append(f"{md['publish_time']}")
-        if md['categories']:
+        if md["categories"]:
             meta_parts.append(f"{md['categories']}")
-        if md['tags']:
+        if md["tags"]:
             meta_parts.append(f"{md['tags']}")
         if meta_parts:
             parts.append("* " + "  ".join(meta_parts))
@@ -160,28 +166,28 @@ def _build_appinn_header_parts(soup: BeautifulSoup, url: Optional[str] = None, t
 def _build_appinn_content_element(soup: BeautifulSoup):
     """定位并返回正文容器元素（针对 appinn.com 的选择器优先级）。"""
     content_elem = None
-    
+
     # 针对 appinn.com 的正文容器选择器
     candidates = [
-        'div.entry-content',  # 主要正文容器
-        'div.post-content',
-        'article .entry-content',
-        'article .content',
-        'article',
-        'main .entry-content',
-        'main .content',
-        'main article',
-        'main',
-        '.content',
-        '.post-body',
-        '.entry-body'
+        "div.entry-content",  # 主要正文容器
+        "div.post-content",
+        "article .entry-content",
+        "article .content",
+        "article",
+        "main .entry-content",
+        "main .content",
+        "main article",
+        "main",
+        ".content",
+        ".post-body",
+        ".entry-body",
     ]
-    
+
     for sel in candidates:
         content_elem = soup.select_one(sel)
         if content_elem:
             break
-    
+
     return content_elem
 
 
@@ -189,9 +195,12 @@ def _build_appinn_content_element(soup: BeautifulSoup):
 # 文本预处理工具：清理不可见字符
 # -------------------------------
 
+
 def _strip_invisible_characters(content_elem):
     """移除内容中的不可见字符（如零宽空格），以避免转为Markdown后产生空行。"""
-    invisible_chars_pattern = re.compile(r"[\u200b\u200c\u200d\u200e\u200f\ufeff\u2060\u00a0\u2028\u2029]")
+    invisible_chars_pattern = re.compile(
+        r"[\u200b\u200c\u200d\u200e\u200f\ufeff\u2060\u00a0\u2028\u2029]"
+    )
     for text_node in list(content_elem.find_all(string=True)):
         original_text = str(text_node)
         cleaned_text = invisible_chars_pattern.sub("", original_text)
@@ -207,18 +216,19 @@ def _strip_invisible_characters(content_elem):
 # 清理与规范化：仅对子集做有界处理
 # -------------------------------
 
+
 def _clean_and_normalize_appinn_content(content_elem) -> None:
     """清洗与标准化 appinn.com 正文容器"""
     if not content_elem:
         return
 
     # 懒加载图片归一（支持常见属性）
-    lazy_src_attrs = ['data-src', 'data-original', 'data-lazy-src']
-    for img in content_elem.find_all('img'):
+    lazy_src_attrs = ["data-src", "data-original", "data-lazy-src"]
+    for img in content_elem.find_all("img"):
         try:
             for a in lazy_src_attrs:
                 if img.get(a):
-                    img['src'] = img[a]
+                    img["src"] = img[a]
                     try:
                         del img[a]
                     except Exception:
@@ -229,8 +239,8 @@ def _clean_and_normalize_appinn_content(content_elem) -> None:
 
     # 移除重复的图片标签（基于 src 属性去重）
     seen_srcs = set()
-    for img in content_elem.find_all('img'):
-        src = img.get('src', '')
+    for img in content_elem.find_all("img"):
+        src = img.get("src", "")
         if src in seen_srcs:
             # 移除重复的图片标签
             img.decompose()
@@ -238,7 +248,7 @@ def _clean_and_normalize_appinn_content(content_elem) -> None:
             seen_srcs.add(src)
 
     # 移除脚本和样式
-    for node in content_elem.find_all(['script', 'style']):
+    for node in content_elem.find_all(["script", "style"]):
         try:
             node.decompose()
         except Exception:
@@ -247,29 +257,73 @@ def _clean_and_normalize_appinn_content(content_elem) -> None:
     # 针对 appinn.com 的"减法策略"清单
     unwanted_in_content = [
         # 导航/脚注/社交/广告/推荐/评论等
-        'nav', '.nav', '.navigation', '.menu', 'header', '.header', '#header',
-        'footer', '.footer', '.site-footer',
-        '.social', '.social-links', '.share', '.share-buttons', '.social-media', '.social-share',
-        '.related-posts', '.more-posts', '.related', '.similar-posts',
-        '.post-navigation', '.nav-links', '.page-links',
-        '.comments', '#comments', '.comment', '.comment-list', '.comment-form',
+        "nav",
+        ".nav",
+        ".navigation",
+        ".menu",
+        "header",
+        ".header",
+        "#header",
+        "footer",
+        ".footer",
+        ".site-footer",
+        ".social",
+        ".social-links",
+        ".share",
+        ".share-buttons",
+        ".social-media",
+        ".social-share",
+        ".related-posts",
+        ".more-posts",
+        ".related",
+        ".similar-posts",
+        ".post-navigation",
+        ".nav-links",
+        ".page-links",
+        ".comments",
+        "#comments",
+        ".comment",
+        ".comment-list",
+        ".comment-form",
         # 元信息在正文中重复的
-        '.entry-meta', '.post-meta', '.meta', '.meta-info',
+        ".entry-meta",
+        ".post-meta",
+        ".meta",
+        ".meta-info",
         # 无关元素
-        '.screen-reader-text', '.sr-only', '.skip-link', '.loading', '.spinner', '.placeholder',
+        ".screen-reader-text",
+        ".sr-only",
+        ".skip-link",
+        ".loading",
+        ".spinner",
+        ".placeholder",
         # 进一步收敛
-        '.advertisement', '.ad', '.ads', '.advertisement-container',
-        '.recommendation', '.recommended', '.related-articles',
-        '.entry-footer', '.post-footer', '.author-bio', '.author-info',
+        ".advertisement",
+        ".ad",
+        ".ads",
+        ".advertisement-container",
+        ".recommendation",
+        ".recommended",
+        ".related-articles",
+        ".entry-footer",
+        ".post-footer",
+        ".author-bio",
+        ".author-info",
         # appinn.com 特定的元素
-        '.entry-header', '.post-header',  # 头部信息已在 header_parts 中处理
-        '.breadcrumb', '.breadcrumbs',  # 面包屑导航
-        '.sidebar', '.widget', '.widget-area',  # 侧边栏
-        '.entry-tags', '.post-tags',  # 标签（已在 header 中处理）
-        '.entry-categories', '.post-categories',  # 分类（已在 header 中处理）
-        'mark.has-inline-color.has-white-color',
+        ".entry-header",
+        ".post-header",  # 头部信息已在 header_parts 中处理
+        ".breadcrumb",
+        ".breadcrumbs",  # 面包屑导航
+        ".sidebar",
+        ".widget",
+        ".widget-area",  # 侧边栏
+        ".entry-tags",
+        ".post-tags",  # 标签（已在 header 中处理）
+        ".entry-categories",
+        ".post-categories",  # 分类（已在 header 中处理）
+        "mark.has-inline-color.has-white-color",
     ]
-    
+
     for sel in unwanted_in_content:
         for el in content_elem.select(sel):
             try:
@@ -284,10 +338,13 @@ def _clean_and_normalize_appinn_content(content_elem) -> None:
 # 一体化处理：解析→清理→转换→组装
 # -------------------------------
 
-def _process_appinn_content(html: str, url: Optional[str] = None, title_hint: Optional[str] = None) -> FetchResult:
+
+def _process_appinn_content(
+    html: str, url: Optional[str] = None, title_hint: Optional[str] = None
+) -> FetchResult:
     """处理 appinn.com 内容，提取标题、元数据和过滤后的正文"""
     try:
-        soup = BeautifulSoup(html, 'lxml')
+        soup = BeautifulSoup(html, "lxml")
     except Exception as e:
         print(f"BeautifulSoup解析失败: {e}")
         return FetchResult(title=None, html_markdown="")
@@ -327,10 +384,12 @@ def _process_appinn_content(html: str, url: Optional[str] = None, title_hint: Op
 # 抓取策略：httpx / Playwright
 # -------------------------------
 
+
 def _try_httpx_crawler(session, url: str) -> FetchResult:
     """策略1: 使用httpx爬取原始HTML"""
     try:
         import httpx
+
         headers = {
             "User-Agent": session.headers.get(
                 "User-Agent",
@@ -338,7 +397,7 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
             )
         }
         client_kwargs = {"headers": headers}
-        if hasattr(session, 'trust_env') and not getattr(session, 'trust_env'):
+        if hasattr(session, "trust_env") and not getattr(session, "trust_env"):
             client_kwargs["trust_env"] = False
 
         with httpx.Client(**client_kwargs) as client:
@@ -349,7 +408,9 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
         return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
 
 
-def _try_playwright_crawler(url: str, on_detail=None, shared_browser: Any | None = None) -> FetchResult:
+def _try_playwright_crawler(
+    url: str, on_detail=None, shared_browser: Any | None = None
+) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
         from playwright.sync_api import sync_playwright
@@ -358,7 +419,7 @@ def _try_playwright_crawler(url: str, on_detail=None, shared_browser: Any | None
         if shared_browser is not None and new_context_and_page is not None:
             context, page = new_context_and_page(shared_browser, apply_stealth=False)
             try:
-                page.goto(url, wait_until='networkidle', timeout=30000)
+                page.goto(url, wait_until="networkidle", timeout=30000)
                 page.wait_for_timeout(2000)
                 if callable(on_detail):
                     try:
@@ -384,7 +445,7 @@ def _try_playwright_crawler(url: str, on_detail=None, shared_browser: Any | None
             browser = p.chromium.launch(headless=True)
             context = browser.new_context()
             page = context.new_page()
-            page.goto(url, wait_until='networkidle', timeout=30000)
+            page.goto(url, wait_until="networkidle", timeout=30000)
             page.wait_for_timeout(2000)
             if callable(on_detail):
                 try:
@@ -396,14 +457,23 @@ def _try_playwright_crawler(url: str, on_detail=None, shared_browser: Any | None
             return FetchResult(title=title, html_markdown=html)
 
     except Exception as e:
-        return FetchResult(title=None, html_markdown="", success=False, error=f"Playwright异常: {e}")
+        return FetchResult(
+            title=None, html_markdown="", success=False, error=f"Playwright异常: {e}"
+        )
 
 
 # -------------------------------
 # 主入口：appinn.com 文章获取（含重试）
 # -------------------------------
 
-def fetch_appinn_article(session, url: str, on_detail=None, shared_browser: Any | None = None, min_content_length: int = 200) -> FetchResult:
+
+def fetch_appinn_article(
+    session,
+    url: str,
+    on_detail=None,
+    shared_browser: Any | None = None,
+    min_content_length: int = 200,
+) -> FetchResult:
     """获取 appinn.com 文章内容（多策略爬取 + 统一内容处理）。
 
     参数:
@@ -421,7 +491,9 @@ def fetch_appinn_article(session, url: str, on_detail=None, shared_browser: Any 
         for retry in range(max_retries):
             try:
                 if retry > 0:
-                    import time, random
+                    import random
+                    import time
+
                     print(f"[抓取] Appinn策略 {i} 重试 {retry}/{max_retries-1}...")
                     time.sleep(random.uniform(2, 4))
                 else:
@@ -433,7 +505,9 @@ def fetch_appinn_article(session, url: str, on_detail=None, shared_browser: Any 
                     # 统一处理：策略层只负责获取HTML，这里统一解析/清理/转换
                     if r.html_markdown:
                         print("[解析] 提取标题和正文...")
-                        processed = _process_appinn_content(r.html_markdown, url, title_hint=r.title)
+                        processed = _process_appinn_content(
+                            r.html_markdown, url, title_hint=r.title
+                        )
                         # 检查内容质量，如果内容太短，继续尝试下一个策略
                         content = processed.html_markdown or ""
                         if len(content) < max(0, int(min_content_length)):
@@ -461,7 +535,9 @@ def fetch_appinn_article(session, url: str, on_detail=None, shared_browser: Any 
 
         # 策略间等待
         if i < len(strategies):
-            import time, random
+            import random
+            import time
+
             time.sleep(random.uniform(1, 2))
 
     return FetchResult(title=None, html_markdown="", success=False, error="所有策略都失败")

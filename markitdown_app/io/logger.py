@@ -46,5 +46,3 @@ def log_urls(urls: Iterable[str]) -> None:
     except Exception:
         # Swallow logging errors to avoid impacting main flow
         pass
-
-

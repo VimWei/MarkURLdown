@@ -14,5 +14,3 @@ def write_markdown(out_dir: str, filename: str, content: str) -> str:
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(content)
     return out_path
-
-

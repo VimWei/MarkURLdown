@@ -1,21 +1,35 @@
 from __future__ import annotations
 
-import os
 import json
 import locale
+import os
 from typing import Callable
 
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
+from PySide6.QtGui import QClipboard, QFont, QIcon
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QListWidget, QCheckBox,
-    QProgressBar, QFileDialog, QMessageBox, QFrame, QGridLayout, QComboBox
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QMainWindow,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QObject
-from PySide6.QtGui import QFont, QIcon, QClipboard
 
-from markitdown_app.app_types import SourceRequest, ConversionOptions, ProgressEvent
+from markitdown_app.app_types import ConversionOptions, ProgressEvent, SourceRequest
+from markitdown_app.io.config import load_config, load_json_from_root, save_config
 from markitdown_app.ui.viewmodel import ViewModel
-from markitdown_app.io.config import load_config, save_config, load_json_from_root
+
 
 class Translator:
     def __init__(self, locales_dir: str):
@@ -25,15 +39,15 @@ class Translator:
     def load_language(self, lang_code: str):
         if lang_code == "auto":
             lang_code, _ = locale.getdefaultlocale()
-            lang_code = lang_code.split('_')[0] if lang_code else 'en'
+            lang_code = lang_code.split("_")[0] if lang_code else "en"
 
         file_path = os.path.join(self.locales_dir, f"{lang_code}.json")
 
         if not os.path.exists(file_path):
-            lang_code = 'en'
+            lang_code = "en"
             file_path = os.path.join(self.locales_dir, "en.json")
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             self.translations = json.load(f)
         self.language = lang_code
 
@@ -41,11 +55,13 @@ class Translator:
         text = self.translations.get(key, key)
         return text.format(**kwargs)
 
+
 class ProgressSignals(QObject):
     progress_event = Signal(object)
-    
+
     def __init__(self):
         super().__init__()
+
 
 class PySideApp(QMainWindow):
     def __init__(self, root_dir: str, settings: dict | None = None):
@@ -55,9 +71,9 @@ class PySideApp(QMainWindow):
         self.root_dir = root_dir
         self.ui_ready = False
 
-        locales_dir = os.path.join(os.path.dirname(__file__), '..', 'locales')
+        locales_dir = os.path.join(os.path.dirname(__file__), "..", "locales")
         self.translator = Translator(locales_dir)
-        self.current_lang = settings.get('language', 'auto')
+        self.current_lang = settings.get("language", "auto")
         self.translator.load_language(self.current_lang)
 
         self.output_dir_var = os.path.abspath(os.path.join(root_dir, "output"))
@@ -76,7 +92,7 @@ class PySideApp(QMainWindow):
         self._setup_ui()
         self._retranslate_ui()
         self._connect_signals()
-        
+
         # 连接信号槽，确保线程安全的UI更新
         self.signals.progress_event.connect(self._on_event_thread_safe)
         self.ui_ready = True
@@ -100,7 +116,7 @@ class PySideApp(QMainWindow):
             event.accept()
 
     def _setup_ui(self):
-        icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'app_icon.ico')
+        icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "app_icon.ico")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
@@ -144,7 +160,13 @@ class PySideApp(QMainWindow):
         self.copy_btn = QPushButton()
         self.delete_btn = QPushButton()
         self.clear_btn = QPushButton()
-        for btn in [self.move_up_btn, self.move_down_btn, self.copy_btn, self.delete_btn, self.clear_btn]:
+        for btn in [
+            self.move_up_btn,
+            self.move_down_btn,
+            self.copy_btn,
+            self.delete_btn,
+            self.clear_btn,
+        ]:
             btn.setFixedHeight(button_height)
             url_btn_layout.addWidget(btn)
         layout.addWidget(url_btn_frame, 1, 3)
@@ -173,9 +195,15 @@ class PySideApp(QMainWindow):
         self.download_images_cb.setChecked(self.download_images_var)
         self.filter_site_chrome_cb = QCheckBox()
         self.filter_site_chrome_cb.setChecked(self.filter_site_chrome_var)
-        self.use_shared_browser_cb = QCheckBox(self.translator.t('use_shared_browser_checkbox'))
+        self.use_shared_browser_cb = QCheckBox(self.translator.t("use_shared_browser_checkbox"))
         self.use_shared_browser_cb.setChecked(self.use_shared_browser_var)
-        for cb in [self.use_proxy_cb, self.ignore_ssl_cb, self.download_images_cb, self.filter_site_chrome_cb, self.use_shared_browser_cb]:
+        for cb in [
+            self.use_proxy_cb,
+            self.ignore_ssl_cb,
+            self.download_images_cb,
+            self.filter_site_chrome_cb,
+            self.use_shared_browser_cb,
+        ]:
             options_layout.addWidget(cb)
         layout.addWidget(options_frame, 3, 0, 1, 4)
 
@@ -261,32 +289,32 @@ class PySideApp(QMainWindow):
 
     def _retranslate_ui(self):
         t = self.translator.t
-        self.setWindowTitle(t('window_title'))
-        self.url_label.setText(t('url_label'))
-        self.add_btn.setText(t('add_button'))
-        self.url_list_label.setText(t('url_list_label'))
-        self.move_up_btn.setText(t('move_up_button'))
-        self.move_up_btn.setToolTip(t('tooltip_move_up'))
-        self.move_down_btn.setText(t('move_down_button'))
-        self.move_down_btn.setToolTip(t('tooltip_move_down'))
-        self.delete_btn.setText(t('delete_button'))
-        self.delete_btn.setToolTip(t('tooltip_delete'))
-        self.clear_btn.setText(t('clear_button'))
-        self.clear_btn.setToolTip(t('tooltip_clear'))
-        self.copy_btn.setText(t('copy_button'))
-        self.copy_btn.setToolTip(t('tooltip_copy'))
-        self.output_dir_label.setText(t('output_dir_label'))
-        self.choose_dir_btn.setText(t('choose_dir_button'))
-        self.lang_label.setText(t('language_label_text'))
-        self.use_proxy_cb.setText(t('use_proxy_checkbox'))
-        self.ignore_ssl_cb.setText(t('ignore_ssl_checkbox'))
-        self.download_images_cb.setText(t('download_images_checkbox'))
-        self.filter_site_chrome_cb.setText(t('filter_site_chrome_checkbox'))
-        self.restore_btn.setText(t('restore_button'))
-        self.export_btn.setText(t('export_button'))
-        self.import_btn.setText(t('import_button'))
-        self.convert_btn.setText(t('convert_button'))
-        self.status_label.setText(t('status_ready'))
+        self.setWindowTitle(t("window_title"))
+        self.url_label.setText(t("url_label"))
+        self.add_btn.setText(t("add_button"))
+        self.url_list_label.setText(t("url_list_label"))
+        self.move_up_btn.setText(t("move_up_button"))
+        self.move_up_btn.setToolTip(t("tooltip_move_up"))
+        self.move_down_btn.setText(t("move_down_button"))
+        self.move_down_btn.setToolTip(t("tooltip_move_down"))
+        self.delete_btn.setText(t("delete_button"))
+        self.delete_btn.setToolTip(t("tooltip_delete"))
+        self.clear_btn.setText(t("clear_button"))
+        self.clear_btn.setToolTip(t("tooltip_clear"))
+        self.copy_btn.setText(t("copy_button"))
+        self.copy_btn.setToolTip(t("tooltip_copy"))
+        self.output_dir_label.setText(t("output_dir_label"))
+        self.choose_dir_btn.setText(t("choose_dir_button"))
+        self.lang_label.setText(t("language_label_text"))
+        self.use_proxy_cb.setText(t("use_proxy_checkbox"))
+        self.ignore_ssl_cb.setText(t("ignore_ssl_checkbox"))
+        self.download_images_cb.setText(t("download_images_checkbox"))
+        self.filter_site_chrome_cb.setText(t("filter_site_chrome_checkbox"))
+        self.restore_btn.setText(t("restore_button"))
+        self.export_btn.setText(t("export_button"))
+        self.import_btn.setText(t("import_button"))
+        self.convert_btn.setText(t("convert_button"))
+        self.status_label.setText(t("status_ready"))
 
     def _connect_signals(self):
         self.add_btn.clicked.connect(self._add_url_from_entry)
@@ -313,7 +341,7 @@ class PySideApp(QMainWindow):
 
         # Load the new language FIRST to show the message in the new language
         self.translator.load_language(lang_code)
-        self.status_label.setText(self.translator.t('status_restart_required'))
+        self.status_label.setText(self.translator.t("status_restart_required"))
 
         # Save the setting
         settings_path = os.path.join(self.root_dir, "sessions", "settings.json")
@@ -325,14 +353,18 @@ class PySideApp(QMainWindow):
             sessions_dir = os.path.join(self.root_dir, "sessions")
             state = load_json_from_root(sessions_dir, "last_state.json")
             if not state:
-                self.status_label.setText(self.translator.t('status_no_session'))
+                self.status_label.setText(self.translator.t("status_no_session"))
                 return
             self._apply_state(state)
-            self.status_label.setText(self.translator.t('status_session_restored'))
+            self.status_label.setText(self.translator.t("status_session_restored"))
         except Exception as e:
-            self.status_label.setText(self.translator.t('status_session_failed'))
+            self.status_label.setText(self.translator.t("status_session_failed"))
             self.detail_label.setText(str(e))
-            QMessageBox.critical(self, self.translator.t('dialog_error_title'), self.translator.t('dialog_restore_failed', error=e))
+            QMessageBox.critical(
+                self,
+                self.translator.t("dialog_error_title"),
+                self.translator.t("dialog_restore_failed", error=e),
+            )
 
     def _apply_state(self, state: dict):
         self.url_listbox.clear()
@@ -352,7 +384,11 @@ class PySideApp(QMainWindow):
             self.use_shared_browser_cb.setChecked(bool(state["use_shared_browser"]))
 
     def _choose_output_dir(self):
-        chosen = QFileDialog.getExistingDirectory(self, self.translator.t('dialog_choose_output_dir'), self.output_entry.text() or os.getcwd())
+        chosen = QFileDialog.getExistingDirectory(
+            self,
+            self.translator.t("dialog_choose_output_dir"),
+            self.output_entry.text() or os.getcwd(),
+        )
         if chosen:
             self.output_entry.setText(os.path.abspath(chosen))
 
@@ -370,11 +406,11 @@ class PySideApp(QMainWindow):
             urls = [url]
         out_dir = self.output_entry.text().strip() or os.getcwd()
         self.is_running = True
-        self.convert_btn.setText(self.translator.t('stop_button'))
+        self.convert_btn.setText(self.translator.t("stop_button"))
         self.progress.setVisible(True)
         self.progress.setRange(0, len(urls))
         self.progress.setValue(0)
-        self.status_label.setText(self.translator.t('status_converting'))
+        self.status_label.setText(self.translator.t("status_converting"))
         self.detail_label.setText("")
         reqs = [SourceRequest(kind="url", value=u) for u in urls]
         options = ConversionOptions(
@@ -396,6 +432,7 @@ class PySideApp(QMainWindow):
         except Exception as e:
             print(f"Error in thread-safe UI event handler: {e}")
             import traceback
+
             traceback.print_exc()
 
     def _on_event(self, ev: ProgressEvent):
@@ -428,25 +465,26 @@ class PySideApp(QMainWindow):
                     self.detail_label.setText(message)
             elif ev.kind == "progress_done":
                 self.progress.setValue(self.progress.maximum())
-                self.status_label.setText(message or t('status_done'))
+                self.status_label.setText(message or t("status_done"))
                 self.is_running = False
-                self.convert_btn.setText(t('convert_button'))
+                self.convert_btn.setText(t("convert_button"))
             elif ev.kind == "stopped":
-                self.status_label.setText(message or t('status_stopped'))
+                self.status_label.setText(message or t("status_stopped"))
                 self.is_running = False
-                self.convert_btn.setText(t('convert_button'))
+                self.convert_btn.setText(t("convert_button"))
             elif ev.kind == "error":
-                self.detail_label.setText(message or t('status_error'))
+                self.detail_label.setText(message or t("status_error"))
                 self.is_running = False
-                self.convert_btn.setText(t('convert_button'))
-                
+                self.convert_btn.setText(t("convert_button"))
+
             # 强制UI更新，确保绘制完成
             self.update()
             QApplication.processEvents()
-            
+
         except Exception as e:
             print(f"Error in UI event handler: {e}")
             import traceback
+
             traceback.print_exc()
 
     def _add_url_from_entry(self):
@@ -499,8 +537,8 @@ class PySideApp(QMainWindow):
             url = self.url_listbox.item(current).text()
             clipboard = QApplication.clipboard()
             clipboard.setText(url)
-            self.status_label.setText(self.translator.t('status_url_copied'))
-            self.detail_label.setText(self.translator.t('detail_copied_url', url=url))
+            self.status_label.setText(self.translator.t("status_url_copied"))
+            self.detail_label.setText(self.translator.t("detail_copied_url", url=url))
 
     def _export_session(self):
         t = self.translator.t
@@ -515,23 +553,33 @@ class PySideApp(QMainWindow):
                 "filter_site_chrome": self.filter_site_chrome_cb.isChecked(),
                 "use_shared_browser": self.use_shared_browser_cb.isChecked(),
             }
-            filename, _ = QFileDialog.getSaveFileName(self, t('dialog_export_config'), sessions_dir, t('file_filter_json'))
+            filename, _ = QFileDialog.getSaveFileName(
+                self, t("dialog_export_config"), sessions_dir, t("file_filter_json")
+            )
             if filename:
                 save_config(filename, data)
-                self.status_label.setText(t('status_config_exported', filename=os.path.basename(filename)))
-                self.detail_label.setText(t('detail_full_path', path=filename))
+                self.status_label.setText(
+                    t("status_config_exported", filename=os.path.basename(filename))
+                )
+                self.detail_label.setText(t("detail_full_path", path=filename))
         except Exception as e:
-            QMessageBox.critical(self, t('dialog_error_title'), t('dialog_export_failed', error=e))
+            QMessageBox.critical(self, t("dialog_error_title"), t("dialog_export_failed", error=e))
 
     def _import_session(self):
         t = self.translator.t
         sessions_dir = os.path.join(self.root_dir, "sessions")
         try:
-            filename, _ = QFileDialog.getOpenFileName(self, t('dialog_import_config'), sessions_dir, t('file_filter_json'))
+            filename, _ = QFileDialog.getOpenFileName(
+                self, t("dialog_import_config"), sessions_dir, t("file_filter_json")
+            )
             if filename:
                 config = load_config(filename)
                 self._apply_state(config)
-                self.status_label.setText(t('status_config_imported', filename=os.path.basename(filename)))
-                self.detail_label.setText(t('detail_imported_count', count=len(config.get('urls', []))))
+                self.status_label.setText(
+                    t("status_config_imported", filename=os.path.basename(filename))
+                )
+                self.detail_label.setText(
+                    t("detail_imported_count", count=len(config.get("urls", [])))
+                )
         except Exception as e:
-            QMessageBox.critical(self, t('dialog_error_title'), t('dialog_import_failed', error=e))
+            QMessageBox.critical(self, t("dialog_error_title"), t("dialog_import_failed", error=e))

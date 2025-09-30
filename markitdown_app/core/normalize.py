@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+
 def normalize_markdown_headings(text: str, title: str | None) -> str:
     if not isinstance(text, str) or not text.strip():
         return text or ""
@@ -28,7 +29,9 @@ def normalize_markdown_headings(text: str, title: str | None) -> str:
 
     promoted: list[str] = []
     for ln in lines:
-        if re.fullmatch(r"\s*\*{2,}\s*[^*].*?\s*\*{2,}\s*", ln) and not re.match(r"^#{1,6}\\s+", ln):
+        if re.fullmatch(r"\s*\*{2,}\s*[^*].*?\s*\*{2,}\s*", ln) and not re.match(
+            r"^#{1,6}\\s+", ln
+        ):
             content = re.sub(r"^\s*\*+\s*(.*?)\s*\*+\s*$", r"\1", ln).strip()
             promoted.append(f"## {content}")
         else:
@@ -49,7 +52,9 @@ def normalize_markdown_headings(text: str, title: str | None) -> str:
             if (title or "").strip():
                 tnorm = re.sub(r"\s+", " ", title).strip()
                 cnorm = re.sub(r"\s+", " ", candidate).strip()
-                should_promote = (cnorm == tnorm) or (len(cnorm) >= 4 and tnorm.lower().startswith(cnorm.lower()))
+                should_promote = (cnorm == tnorm) or (
+                    len(cnorm) >= 4 and tnorm.lower().startswith(cnorm.lower())
+                )
             else:
                 should_promote = len(candidate) >= 4
             if should_promote:

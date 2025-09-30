@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-import time
 import random
-from typing import Optional, Callable, Any
+import time
+from dataclasses import dataclass
+from typing import Any, Callable, Optional
 
 from bs4 import BeautifulSoup
 
@@ -13,53 +13,63 @@ from markitdown_app.services.playwright_driver import (
     read_page_content_and_title,
 )
 
+
 @dataclass
 class CrawlerResult:
     """爬虫结果"""
+
     success: bool
     title: str | None
     text_content: str
     error: str | None = None
+
 
 @dataclass
 class FetchResult:
     title: str | None
     html_markdown: str
 
-def _goto_target_and_prepare_content(page, url: str, on_detail: Optional[Callable[[str], None]] = None) -> None:
+
+def _goto_target_and_prepare_content(
+    page, url: str, on_detail: Optional[Callable[[str], None]] = None
+) -> None:
     """访问目标URL并准备内容 - 微信版本"""
     if on_detail:
         on_detail("正在访问微信文章...")
 
     try:
-        page.goto(url, wait_until='domcontentloaded', timeout=30000)
+        page.goto(url, wait_until="domcontentloaded", timeout=30000)
     except Exception:
         pass  # 微信机制：即使URL错误也会返回错误页面，真正的异常检测在内容层面
 
     page.wait_for_timeout(random.uniform(3000, 6000))
 
-def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> CrawlerResult:
+
+def _try_playwright_crawler(
+    url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None
+) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理微信的poc_token验证"""
     try:
         # 无论是否共享，都强制使用独立浏览器实例
         from playwright.sync_api import sync_playwright
+
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
                 args=[
-                    '--no-sandbox',
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--no-first-run',
-                    '--no-default-browser-check',
-                    '--disable-extensions',
-                    '--disable-plugins',
-                    '--disable-images',  # 禁用图片加载以提高速度
-                    '--disable-javascript',  # 禁用JavaScript，避免检测
-                ]
+                    "--no-sandbox",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-web-security",
+                    "--disable-features=VizDisplayCompositor",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--disable-extensions",
+                    "--disable-plugins",
+                    "--disable-images",  # 禁用图片加载以提高速度
+                    "--disable-javascript",  # 禁用JavaScript，避免检测
+                ],
             )
 
             # 创建独立的上下文和页面
@@ -78,24 +88,24 @@ def _try_playwright_crawler(url: str, on_detail: Optional[Callable[[str], None]]
             success=False,
             title=None,
             text_content="",
-            error="Playwright not installed. Install with: pip install playwright && playwright install"
+            error="Playwright not installed. Install with: pip install playwright && playwright install",
         )
     except Exception as e:
         return CrawlerResult(
-            success=False,
-            title=None,
-            text_content="",
-            error=f"Playwright error: {str(e)}"
+            success=False, title=None, text_content="", error=f"Playwright error: {str(e)}"
         )
 
-def _build_weixin_header_parts(soup: BeautifulSoup, url: str | None, title_hint: str | None = None) -> tuple[str | None, str | None, list[str]]:
+
+def _build_weixin_header_parts(
+    soup: BeautifulSoup, url: str | None, title_hint: str | None = None
+) -> tuple[str | None, str | None, list[str]]:
     """构建微信Markdown头部信息片段（标题、来源、作者、公众号、时间）。返回 (title, account_name, header_parts)"""
     title = title_hint
 
     # 标题
     if not title:
         try:
-            title_elem = soup.find('h1', class_='rich_media_title', id='activity-name')
+            title_elem = soup.find("h1", class_="rich_media_title", id="activity-name")
             if title_elem:
                 title = title_elem.get_text(strip=True)
         except Exception:
@@ -104,7 +114,7 @@ def _build_weixin_header_parts(soup: BeautifulSoup, url: str | None, title_hint:
     # 作者
     author = None
     try:
-        author_elem = soup.select_one('div#meta_content span.rich_media_meta.rich_media_meta_text')
+        author_elem = soup.select_one("div#meta_content span.rich_media_meta.rich_media_meta_text")
         if author_elem:
             author = author_elem.get_text(strip=True)
     except Exception:
@@ -113,7 +123,7 @@ def _build_weixin_header_parts(soup: BeautifulSoup, url: str | None, title_hint:
     # 公众号名称
     account_name = None
     try:
-        account_elem = soup.select_one('span.rich_media_meta_nickname#profileBt a#js_name')
+        account_elem = soup.select_one("span.rich_media_meta_nickname#profileBt a#js_name")
         if account_elem:
             account_name = account_elem.get_text(strip=True)
     except Exception:
@@ -122,7 +132,9 @@ def _build_weixin_header_parts(soup: BeautifulSoup, url: str | None, title_hint:
     # 发布日期
     publish_date = None
     try:
-        date_elem = soup.select_one('div#meta_content em#publish_time.rich_media_meta.rich_media_meta_text')
+        date_elem = soup.select_one(
+            "div#meta_content em#publish_time.rich_media_meta.rich_media_meta_text"
+        )
         if date_elem:
             publish_date = date_elem.get_text(strip=True)
     except Exception:
@@ -131,7 +143,7 @@ def _build_weixin_header_parts(soup: BeautifulSoup, url: str | None, title_hint:
     # 地点
     location = None
     try:
-        location_elem = soup.select_one('div#meta_content em#js_ip_wording_wrp span#js_ip_wording')
+        location_elem = soup.select_one("div#meta_content em#js_ip_wording_wrp span#js_ip_wording")
         if location_elem:
             location = location_elem.get_text(strip=True)
     except Exception:
@@ -158,13 +170,14 @@ def _build_weixin_header_parts(soup: BeautifulSoup, url: str | None, title_hint:
 
     return title, account_name, header_parts
 
+
 def _build_weixin_content_element(soup: BeautifulSoup):
     """定位并返回微信正文容器元素。"""
-    content_elem = (
-        soup.find('div', class_='rich_media_content') or
-        soup.find('div', id='js_content')
+    content_elem = soup.find("div", class_="rich_media_content") or soup.find(
+        "div", id="js_content"
     )
     return content_elem
+
 
 def _apply_removal_rules(root_elem, rules: list[dict]) -> None:
     """
@@ -180,7 +193,7 @@ def _apply_removal_rules(root_elem, rules: list[dict]) -> None:
             if not isinstance(rule, dict):
                 continue
 
-            tag = rule.get('tag')
+            tag = rule.get("tag")
             if not tag:
                 continue
 
@@ -191,17 +204,17 @@ def _apply_removal_rules(root_elem, rules: list[dict]) -> None:
                 should_remove = True  # 默认应该删除，需要所有条件都满足
 
                 # 处理 style 规则
-                styles = rule.get('styles')
+                styles = rule.get("styles")
                 if styles:
-                    style_text = (node.get('style', '') or '').strip()
+                    style_text = (node.get("style", "") or "").strip()
                     # styles 列表内为 AND 关系（必须全部匹配）
                     if not style_text or not all(sub in style_text for sub in styles):
                         should_remove = False
 
                 # 处理 class 规则
-                classes = rule.get('classes')
+                classes = rule.get("classes")
                 if classes:
-                    node_classes = node.get('class', [])
+                    node_classes = node.get("class", [])
                     if isinstance(node_classes, str):
                         node_classes = [node_classes]
                     # classes 列表内为 AND 关系（必须全部匹配）
@@ -209,9 +222,9 @@ def _apply_removal_rules(root_elem, rules: list[dict]) -> None:
                         should_remove = False
 
                 # 处理 id 规则
-                ids = rule.get('ids')
+                ids = rule.get("ids")
                 if ids:
-                    node_id = node.get('id', '')
+                    node_id = node.get("id", "")
                     # ids 列表内为 AND 关系（必须全部匹配）
                     if not node_id or not all(id_val in node_id for id_val in ids):
                         should_remove = False
@@ -231,6 +244,7 @@ def _apply_removal_rules(root_elem, rules: list[dict]) -> None:
                     pass
     except Exception:
         pass
+
 
 def _get_account_specific_style_rules(account_name: str | None) -> list[dict]:
     """
@@ -254,7 +268,7 @@ def _get_account_specific_style_rules(account_name: str | None) -> list[dict]:
         # {'tag': 'section', 'styles': ['border-width: 3px']},
         # {'tag': 'section', 'styles': ['background-color: rgb(239, 239, 239)']},
         # 类名过滤规则
-        {'tag': 'div', 'classes': ['qr_code_pc', 'qr_code_pc_inner']},
+        {"tag": "div", "classes": ["qr_code_pc", "qr_code_pc_inner"]},
         # ID过滤规则
         # {'tag': 'div', 'ids': ['ad-banner', 'promotion-box']},
     ]
@@ -280,22 +294,37 @@ def _get_account_specific_style_rules(account_name: str | None) -> list[dict]:
         #     {'tag': 'section', 'classes': ['advertisement']},  # 规则3：广告类名的section
         #     {'tag': 'section', 'classes': ['sponsored']},  # 规则4：赞助类名的section
         # ],
-        '央视财经': [
-            {'tag': 'div', 'classes': ['js_mpvedio_wrapper_wxv_4156197472454262787']},
-            {'tag': 'section', 'classes': ['js_darkmode__21']},
-       ],
-        '券商中国': [
-            {'tag': 'img', 'classes': ['rich_pages', 'wxw-img', '__bg_gif']},
-            {'tag': 'section', 'classes': ['border: 1px solid rgb(170, 166, 149)']},
-            {'tag': 'section', 'styles': ['caret-color: rgb(255, 0, 0)', 'color: rgb(163, 163, 163)', 'text-align: center', 'widows: 1', 'line-height: 25.0746px']},
-            {'tag': 'section', 'styles': ['background-color: rgb(220, 194, 131)', 'border: 1px solid rgb(170, 166, 149)']},
-       ],
-        '中国基金报': [
-            {'tag': 'img', 'classes': ['rich_pages', 'wxw-img', '__bg_gif']},
+        "央视财经": [
+            {"tag": "div", "classes": ["js_mpvedio_wrapper_wxv_4156197472454262787"]},
+            {"tag": "section", "classes": ["js_darkmode__21"]},
         ],
-        '一瑜中的': [
-            {'tag': 'section', 'styles': ['border-width: 3px']},
-            {'tag': 'section', 'styles': ['background-color: rgb(239, 239, 239)']},
+        "券商中国": [
+            {"tag": "img", "classes": ["rich_pages", "wxw-img", "__bg_gif"]},
+            {"tag": "section", "classes": ["border: 1px solid rgb(170, 166, 149)"]},
+            {
+                "tag": "section",
+                "styles": [
+                    "caret-color: rgb(255, 0, 0)",
+                    "color: rgb(163, 163, 163)",
+                    "text-align: center",
+                    "widows: 1",
+                    "line-height: 25.0746px",
+                ],
+            },
+            {
+                "tag": "section",
+                "styles": [
+                    "background-color: rgb(220, 194, 131)",
+                    "border: 1px solid rgb(170, 166, 149)",
+                ],
+            },
+        ],
+        "中国基金报": [
+            {"tag": "img", "classes": ["rich_pages", "wxw-img", "__bg_gif"]},
+        ],
+        "一瑜中的": [
+            {"tag": "section", "styles": ["border-width: 3px"]},
+            {"tag": "section", "styles": ["background-color: rgb(239, 239, 239)"]},
         ],
     }
     # 合并所有规则
@@ -305,24 +334,25 @@ def _get_account_specific_style_rules(account_name: str | None) -> list[dict]:
 
     return all_rules
 
+
 def _clean_and_normalize_weixin_content(content_elem, account_name: str | None = None) -> None:
     """清洗与标准化微信正文容器（可持续完善规则）。"""
     # 懒加载图片与占位符
-    for img in content_elem.find_all('img', {'data-src': True}):
-        img['src'] = img['data-src']
+    for img in content_elem.find_all("img", {"data-src": True}):
+        img["src"] = img["data-src"]
         try:
-            del img['data-src']
+            del img["data-src"]
         except Exception:
             pass
-    for img in content_elem.find_all('img', {'data-original': True}):
-        img['src'] = img['data-original']
+    for img in content_elem.find_all("img", {"data-original": True}):
+        img["src"] = img["data-original"]
         try:
-            del img['data-original']
+            del img["data-original"]
         except Exception:
             pass
 
     # 移除脚本和样式
-    for script in content_elem.find_all(['script', 'style']):
+    for script in content_elem.find_all(["script", "style"]):
         try:
             script.decompose()
         except Exception:
@@ -333,10 +363,13 @@ def _clean_and_normalize_weixin_content(content_elem, account_name: str | None =
     if removal_rules:
         _apply_removal_rules(content_elem, removal_rules)
 
-def _process_weixin_content(html: str, title: str | None = None, url: str | None = None) -> FetchResult:
+
+def _process_weixin_content(
+    html: str, title: str | None = None, url: str | None = None
+) -> FetchResult:
     """处理微信内容，提取标题、作者、发布日期和正文"""
     try:
-        soup = BeautifulSoup(html, 'lxml')
+        soup = BeautifulSoup(html, "lxml")
     except Exception as e:
         print(f"BeautifulSoup解析失败: {e}")
         return FetchResult(title=None, html_markdown="")
@@ -365,7 +398,13 @@ def _process_weixin_content(html: str, title: str | None = None, url: str | None
         print(f"创建FetchResult失败: {e}")
         return FetchResult(title=None, html_markdown="")
 
-def fetch_weixin_article(session, url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None) -> FetchResult:
+
+def fetch_weixin_article(
+    session,
+    url: str,
+    on_detail: Optional[Callable[[str], None]] = None,
+    shared_browser: Any | None = None,
+) -> FetchResult:
     """
     获取微信公众号文章内容 - 仅使用 Playwright
 
@@ -390,13 +429,17 @@ def fetch_weixin_article(session, url: str, on_detail: Optional[Callable[[str], 
                 print("[清理] 移除广告和无关内容...")
 
                 content = processed_result.html_markdown or ""
-                if content and ("环境异常" in content or "完成验证" in content or "去验证" in content):
+                if content and (
+                    "环境异常" in content or "完成验证" in content or "去验证" in content
+                ):
                     print("[解析] 检测到验证页面，重试...")
                     if retry < max_retries - 1:
                         continue
                     break
 
-                if processed_result.title and ("环境异常" in processed_result.title or "验证" in processed_result.title):
+                if processed_result.title and (
+                    "环境异常" in processed_result.title or "验证" in processed_result.title
+                ):
                     print("[解析] 标题包含验证信息，重试...")
                     if retry < max_retries - 1:
                         continue

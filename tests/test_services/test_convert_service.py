@@ -1,9 +1,11 @@
 """测试转换服务"""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
+from markitdown_app.app_types import ConversionOptions, ProgressEvent, SourceRequest
 from markitdown_app.services.convert_service import ConvertService
-from markitdown_app.app_types import SourceRequest, ConversionOptions, ProgressEvent
 
 
 class TestConvertService:
@@ -16,7 +18,7 @@ class TestConvertService:
             use_proxy=False,
             download_images=True,
             filter_site_chrome=True,
-            use_shared_browser=True
+            use_shared_browser=True,
         )
         self.service = ConvertService()
 
@@ -36,17 +38,17 @@ class TestConvertService:
     def test_run_method_exists(self):
         """测试 run 方法存在"""
         # 验证 run 方法存在且可调用
-        assert hasattr(self.service, 'run')
+        assert hasattr(self.service, "run")
         assert callable(self.service.run)
 
     def test_emit_event_safe_method_exists(self):
         """测试 _emit_event_safe 方法存在"""
         # 验证 _emit_event_safe 方法存在且可调用
-        assert hasattr(self.service, '_emit_event_safe')
+        assert hasattr(self.service, "_emit_event_safe")
         assert callable(self.service._emit_event_safe)
 
     def test_worker_method_exists(self):
         """测试 _worker 方法存在"""
         # 验证 _worker 方法存在且可调用
-        assert hasattr(self.service, '_worker')
+        assert hasattr(self.service, "_worker")
         assert callable(self.service._worker)
