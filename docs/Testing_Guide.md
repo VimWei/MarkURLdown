@@ -129,6 +129,95 @@ uv run pytest tests/ --lf -v --tb=long
 uv run pytest tests/ -n auto
 ```
 
+## 覆盖率（Coverage）
+
+### 基本用法
+```bash
+# 生成覆盖率报告（终端缺失行 + HTML 报告至 tests/htmlcov/）
+uv run pytest tests/ \
+  --cov=markitdown_app \
+  --cov-report=term-missing \
+  --cov-report=html:tests/htmlcov
+
+# 安静模式，仅显示覆盖率摘要
+uv run pytest tests/ --cov=markitdown_app --cov-report=term -q
+
+# 指定子模块覆盖率（例如 core 与 services）
+uv run pytest tests/test_core/ --cov=markitdown_app.core --cov-report=term-missing
+uv run pytest tests/test_services/ --cov=markitdown_app.services --cov-report=term-missing
+```
+
+### 常用选项
+- **--cov=PACKAGE_OR_PATH**: 指定需要统计覆盖率的包或路径（可多次传入）。
+- **--cov-report=REPORT**: 输出报告类型，常用值：`term`, `term-missing`, `html`, `xml`。
+- **--cov-append**: 追加到已有的覆盖率数据，便于分目录/分模块分别执行后合并。
+- **--cov-branch**: 统计分支覆盖率（更严格，建议开启）。
+
+示例：
+```bash
+uv run pytest tests/ --cov=markitdown_app --cov-branch --cov-report=term-missing
+```
+
+### 在 pyproject.toml 中配置（推荐）
+```toml
+[tool.pytest.ini_options]
+addopts = "--cov=markitdown_app --cov-branch --cov-report=term-missing --cov-report=html:tests/htmlcov"
+testpaths = ["tests"]
+```
+
+配置后可直接运行：
+```bash
+uv run pytest
+```
+
+### 生成多种报告
+```bash
+# 终端 + HTML + XML（CI 工具常用，如 Codecov/Sonar）
+uv run pytest tests/ \
+  --cov=markitdown_app \
+  --cov-report=term-missing \
+  --cov-report=html:tests/htmlcov \
+  --cov-report=xml:tests/coverage.xml
+```
+
+### 设定最低覆盖率阈值（发布前门槛）
+在 CI 或本地强制最低覆盖率：
+```bash
+uv run pytest tests/ --cov=markitdown_app --cov-report=term --cov-fail-under=50
+```
+
+### 排除不需要统计的文件
+在项目根目录添加 `.coveragerc`：
+```ini
+[run]
+omit =
+    markitdown_app/ui/*
+    markitdown_app/services/playwright_driver.py
+    tests/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.: 
+```
+
+代码中也可以使用 `# pragma: no cover` 标记特定行不计入覆盖率。
+
+### 分步执行并合并覆盖率
+```bash
+# 步骤1：先跑核心模块
+uv run pytest tests/test_core/ --cov=markitdown_app --cov-append --cov-report=term
+# 步骤2：再跑处理器与服务层
+uv run pytest tests/test_handlers/ tests/test_services/ --cov=markitdown_app --cov-append --cov-report=term
+# 步骤3：最终输出 HTML 报告
+uv run pytest tests/ --cov=markitdown_app --cov-report=html:tests/htmlcov
+```
+
+### 常见问题
+- 覆盖率低：优先增加对 `core/` 与关键 `handlers/` 的功能测试；使用 Mock 隔离网络/IO。
+- 统计不到：确认 `--cov` 指向的是可导入的包名或源码路径，而不是测试路径。
+- HTML 报告空白：确保 `--cov=markitdown_app` 指定了正确的包，且测试确实导入并执行了相应代码。
+
 ## 开发工作流中的测试
 
 ### 1. 日常开发流程

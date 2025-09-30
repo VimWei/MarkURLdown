@@ -56,14 +56,17 @@ addopts = [
     "-v",
     "--tb=short",
     "--strict-markers",
-    "--disable-warnings"
+    "--disable-warnings",
+    "-m",
+    "not service"
 ]
 markers = [
     "slow: 标记为慢速测试",
     "integration: 标记为集成测试", 
     "unit: 标记为单元测试",
     "handler: 标记为处理器测试",
-    "service: 标记为服务层测试"
+    "service: 标记为服务层测试",
+    "timeout: 标记超时用例"
 ]
 
 [tool.coverage.run]

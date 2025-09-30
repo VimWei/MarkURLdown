@@ -327,8 +327,8 @@ def download_images_and_rewrite(
 
     # Match markdown images; be tolerant of titles/angles/spaces: ![alt](URL [title])
     pattern_md = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
-    # also support inline HTML <img src="..."> inside markdown
-    pattern_html = re.compile(r"<img[^>]+src=\"([^\"]+)\"[^>]*>", re.IGNORECASE)
+    # also support inline HTML <img src="..."> inside markdown (support ' or ")
+    pattern_html = re.compile(r"<img[^>]+src=([\"'])([^\"']+)\1[^>]*>", re.IGNORECASE)
 
     matches = list(pattern_md.finditer(md_text)) + list(pattern_html.finditer(md_text))
     total = len(matches)
@@ -350,7 +350,8 @@ def download_images_and_rewrite(
         if should_stop and should_stop():
             break
 
-        raw = match.group(1)
+        # pattern_md has 1 group (url). pattern_html has 2 (quote, url)
+        raw = match.group(1) if match.re is pattern_md else match.group(2)
         # take first token as URL; strip surrounding <>, quotes
         src = raw.strip().split()[0].strip("<>\"'")
         if src.startswith("data:"):
@@ -381,7 +382,10 @@ def download_images_and_rewrite(
                 extra_headers.update(
                     {
                         "Referer": base_url,
-                        "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0"),
+                        "User-Agent": getattr(getattr(session, "headers", {}), "get", lambda *_: None)(
+                            "User-Agent"
+                        )
+                        or "Mozilla/5.0",
                         "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
                     }
                 )
@@ -549,11 +553,12 @@ def download_images_and_rewrite(
 
     # Then replace HTML img tags
     def replace_html(m: re.Match) -> str:
-        fake_md = f"![]({m.group(1)})"
+        url = m.group(2)
+        fake_md = f"![]({url})"
         rewritten = pattern_md.sub(replace_md, fake_md)
         # extract path back
         new_src = re.search(r"!\[[^\]]*\]\(([^)]+)\)", rewritten)
-        return m.group(0).replace(m.group(1), new_src.group(1) if new_src else m.group(1))
+        return m.group(0).replace(url, new_src.group(1) if new_src else url)
 
     result_text = pattern_html.sub(replace_html, result_text)
 

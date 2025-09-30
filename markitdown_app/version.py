@@ -35,8 +35,11 @@ def get_version() -> str:
         # uv not available or failed, try fallback
         pass
 
-    # Fallback to reading pyproject.toml directly
-    return _get_version_from_pyproject()
+    # Fallback to reading pyproject.toml directly. If that fails, return a safe default
+    try:
+        return _get_version_from_pyproject()
+    except Exception:
+        return "0.0.0"
 
 
 def _get_version_from_pyproject() -> str:
