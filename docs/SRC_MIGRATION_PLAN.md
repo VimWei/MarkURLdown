@@ -1,14 +1,14 @@
-## MarkURLdown 源码迁移至现代 src 架构规划
+# MarkURLdown 源码迁移至现代 src 架构规划
 
 本规划旨在将当前项目从根目录直放包的结构迁移为现代的 src 架构，并将运行时包重命名为 `src/markurldown/`，以与 `pyproject.toml` 中的项目名称语义一致且符合社区惯例。
 
-### 目标
+## 目标
 - 将所有源代码移动至 `src/` 目录下
 - 将包从 `markitdown_app` 重命名为 `markurldown`
 - 不引入兼容导入层，统一切换至新包名 `markurldown`
 - 更新构建、测试与覆盖率配置，保持最小变更影响
 
-### 新目录结构（目标）
+## 新目录结构
 - 源代码
   - `src/markurldown/` ← 由 `markitdown_app/` 平移并重命名
     - `__init__.py`（新增，导出公共 API）
@@ -16,7 +16,90 @@
 - 顶层保留：`pyproject.toml`, `README.md`, `tests/`, `docs/`, `scripts/`
   - 入口文件将迁移为 `project.scripts` 控制的 console-script（见下文），不再需要根目录 `MarkURLdown.pyw/.py`
 
+## 执行步骤规划
+
+1) 建分支并准备移动
+
+```powershell
+git checkout -b feat/src-layout
+```
+
+2) 物理移动与重命名（不含兼容层）（详见: [文件移动与映射](#文件移动与映射)）
+
+```powershell
+git mv markitdown_app src
+Rename-Item src\markitdown_app src\markurldown
+```
+
+3) 更新 pyproject（src 布局 + 包名 + 覆盖率来源）（详见: [pyproject.toml 调整](#pyprojecttoml-调整)）
+- 设置 `tool.setuptools.packages.find.where = ["src"]`
+- `include = ["markurldown*"]`
+- 覆盖率 `source = ["markurldown"]`
+
+4) 设置 console-script 入口并实现入口函数（详见: [入口脚本与启动方式](#入口脚本与启动方式)）
+
+```toml
+[project.scripts]
+markurldown = "markurldown.ui.pyside.gui:run_gui"
+```
+
+- 在 `src/markurldown/ui/pyside/gui.py` 中实现/补充 `run_gui()`
+- 将 splash 逻辑抽取到 `src/markurldown/ui/pyside/splash.py`
+- 可选：添加 `src/markurldown/__main__.py` 支持 `python -m markurldown`
+
+5) 替换导入路径（按模块分批）（详见: [代码导入调整策略](#代码导入调整策略)）
+
+```powershell
+rg -n "markitdown_app" -g "!tests/htmlcov/**"
+# 分批替换为 markurldown
+```
+
+6) 迁移启动优化逻辑与资源定位（详见: [迁移启动优化与 Splash 逻辑](#迁移启动优化与-splash-逻辑) · [资源路径与文档更新](#资源路径与文档更新)）
+- 将 `MarkURLdown.pyw` 的启动流程迁移至上一步入口函数
+- 资产路径改为 `importlib.resources.files("markurldown.ui.assets")`
+
+7) 删除旧入口并改造 VBS 启动脚本（详见: [迁移启动优化与 Splash 逻辑](#迁移启动优化与-splash-逻辑)）
+- 删除根目录 `MarkURLdown.pyw`
+- 将 `MarkURLdown.vbs` 改为调用：
+
+```vb
+Set oShell = CreateObject("WScript.Shell")
+oShell.Run "cmd /c uv run markurldown", 0, False
+Set oShell = Nothing
+```
+
+8) 版本管理与发布体系适配（详见: [版本管理与发布体系适配](#版本管理与发布体系适配)）
+- 移动 `version.py` 至 `src/markurldown/version.py`
+- 全局替换导入为 `from markurldown.version import ...`
+- 更新 `docs/Version_management_guide.md` 示例
+- 校正 `scripts/release.py` 与 `.github/workflows`（使用 `uv sync`/`uv run`）
+
+9) 本地验证（更新测试并运行）（详见: [测试与工具链](#测试与工具链)）
+- 更新/新增测试用例，覆盖导入路径、入口脚本、资源定位与版本模块变更
+ - 参考与扩展：测试用例设计与范围参见 `docs/Testing_Guide.md`
+
+```powershell
+uv sync
+uv run markurldown
+uv run pytest -q
+uv run coverage run -m pytest
+uv run coverage html
+```
+
+10) 文档与说明（详见: [资源路径与文档更新](#资源路径与文档更新)）
+- 更新 `README.md`、`STARTUP_OPTIMIZATION.md`（入口命令、路径、截图位置）
+- 更新 `docs/Version_management_guide.md`（导入示例改为 `markurldown.version`、release 命令示例保持 `uv run`）
+- 更新 `docs/HANDLER_DEVELOPMENT_GUIDE.md`（所有 `markitdown_app` 路径替换为 `markurldown`，目录结构示例更新为 `src/markurldown/core/handlers/`）
+- 更新 `docs/new_site_handler_template.py`（导入从 `markitdown_app.*` 改为 `markurldown.*`）
+- 在变更说明中明确 portable 数据目录保持不变，未来统一迁移至 `data/`
+
+11) 合并分支
+- 创建 PR、完成代码评审与合并
+
+## 主题细节
+
 ### 文件移动与映射
+
 - `markitdown_app/*` → `src/markurldown/*`
   - `markitdown_app/core/...` → `src/markurldown/core/...`
   - `markitdown_app/io/...` → `src/markurldown/io/...`
@@ -24,8 +107,6 @@
   - `markitdown_app/ui/...` → `src/markurldown/ui/...`
   - `markitdown_app/app_types.py` → `src/markurldown/app_types.py`
   - `markitdown_app/version.py` → `src/markurldown/version.py`
-
-
 
 ### pyproject.toml 调整
 切换为 src 布局并更新包名与覆盖率来源：
@@ -54,6 +135,8 @@ data_file = "tests/.coverage"
 "" = "src"
 ```
 
+可选说明：若需要显式消除路径歧义，可在同一文件中加入 `[tool.setuptools.package-dir]` 将包根明确指定为 `src`；如包含包内资源，请结合 `include-package-data = true` 或 `package_data` 之一，确保 `ui/assets` 等被正确打包。
+
 ### 代码导入调整策略
 - 批量将代码库中的 `import markitdown_app...` 替换为 `import markurldown...`
 - 测试代码与脚本内的导入同样替换
@@ -75,8 +158,13 @@ data_file = "tests/.coverage"
 ### 测试与工具链
 - pytest 配置无需大改（仍使用 `tests/`），覆盖率来源已切至 `markurldown`
 - mypy/ruff/black/isort 等如基于包名或路径，需一并更新至新包名或 `src/` 根
+ - 成功验收标准：
+   - 全部测试通过
+   - `uv run markurldown` 显示 splash 并打开主窗口
+   - 代码与文档中不再出现 `markitdown_app` 导入（grep 验证）
+   - 文档示例命令均可正常执行
 
-### 入口脚本与启动方式（console-script）
+### 入口脚本与启动方式
 - 统一采用 console-script 作为入口（推荐 `uv run markurldown`），移除根目录 `MarkURLdown.pyw/.py`
 - 在 `pyproject.toml` 中新增脚本入口，例如：
 
@@ -104,6 +192,8 @@ if __name__ == "__main__":
 - 启动方式将从：
   - 旧：`uv run python MarkURLdown.pyw`
   - 新：`uv run markurldown`
+
+便携数据保持：`run_gui()` 内关于 `sessions/`、`output/`、`log/` 的定位仍以项目根目录为基准；后续如迁移至 `data/`，将提供迁移脚本与说明。
 
 ### 迁移启动优化与 Splash 逻辑
 为保留 `STARTUP_OPTIMIZATION.md` 描述的即时 Splash 与分阶段加载体验，需要将 `MarkURLdown.pyw` 中的启动逻辑迁移并模块化：
@@ -156,10 +246,8 @@ Set oShell = Nothing
 
 - 更新 `README.md` 与 `STARTUP_OPTIMIZATION.md` 的启动命令与路径示例：统一为 `uv run markurldown`
 
- 
-
-### 版本管理与发布体系适配（release.py / .github / version.py）
-为兼容 src 布局与新包名，需要同步更新版本管理与发布相关文件：
+### 版本管理与发布体系适配
+为兼容 src 布局与新包名，需要同步更新版本管理与发布相关文件（release.py / .github / version.py）：
 
 1) 版本模块位置与导入
 - 移动：`markitdown_app/version.py` → `src/markurldown/version.py`
@@ -193,17 +281,17 @@ uv run isort --check-only .
 - `uv run python scripts/release.py patch` 可正常运行（可 dry-run 验证）
 - CI 能在新布局下成功安装依赖并通过测试
 
-### 回滚策略
+## 回滚策略
 - 如需回滚：撤销 `src/` 物理移动、恢复包名 `markitdown_app`、移除 `project.scripts` 条目
 
-### 风险与缓解
+## 风险与缓解
 - 导入路径替换范围大：分批提交，确保每步测试通过
 - 资源路径打包缺失：统一通过 `importlib.resources` 访问并确认打包配置
 - 启动入口切换：在变更说明与 README 中明确从 `uv run python MarkURLdown.pyw` 迁移为 `uv run markurldown`
 
 ---
 
-### 建议迁移步骤（最终顺序，可复用命令）
+## 执行检查清单
 
 1) 建分支并准备移动
 
@@ -283,5 +371,3 @@ uv run coverage html
 - 创建 PR、完成代码评审与合并
 
 若无异议，可按以上步骤实施迁移。
-
-
