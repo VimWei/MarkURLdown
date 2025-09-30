@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.0] - 2025-09-30
+
+- feat: add automated release and version management system
+
 ## [0.6.0] - 2025-09-30
 
 ### Added
