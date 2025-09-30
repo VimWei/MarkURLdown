@@ -2,15 +2,16 @@
 log/
 output/
 sessions/
-reference/
-tests/
-run_tests.py
 
 # Python
 **/__pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Package build artifacts
+src/*.egg-info/
+*.egg-info/
 
 # Virtual environments
 .venv/
@@ -29,3 +30,12 @@ Thumbs.db
 GEMINI.md
 .cursorignore
 .cursorrules
+
+# test
+tests/__pycache__/
+tests/.pytest_cache/
+tests/temp_*
+tests/test_data/
+tests/*.tmp
+!tests/test_*.py
+!tests/__init__.py

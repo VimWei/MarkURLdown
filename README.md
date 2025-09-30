@@ -56,7 +56,7 @@ To set up the project locally, you will need a working Python environment (Pytho
    curl -LsSf https://astral.sh/uv/install.sh | sh
 
    # Windows (PowerShell)
-   iwr https://astral.sh/uv/install.ps1 -UseBasicParsing | iex
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
    ```
 
 3. **Install dependencies:**
