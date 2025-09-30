@@ -39,3 +39,11 @@ tests/test_data/
 tests/*.tmp
 !tests/test_*.py
 !tests/__init__.py
+
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+tests/.coverage
+tests/.coverage.*
+tests/htmlcov/
