@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.7] - 2025-10-02
+
+- doc: update README and screenshot
+
 ## [0.8.6] - 2025-10-02
 
 - feat(playwright): align shared-browser launch with standalone (Chrome + anti-detection flags)
