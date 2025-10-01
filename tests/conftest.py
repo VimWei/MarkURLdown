@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+
 import pytest
 
 # Ensure Qt runs in offscreen mode for headless testing environments
@@ -15,6 +16,7 @@ def qapp():
     app = QApplication.instance() or QApplication([])
     yield app
     # Do not quit explicitly; PySide can manage cleanup on interpreter exit
+
 
 """pytest 配置文件"""
 

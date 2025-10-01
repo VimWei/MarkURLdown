@@ -12,7 +12,11 @@ from markurldown.ui.pyside.splash import show_immediate_splash
 
 
 def _emit_startup_progress(app: QApplication, splash, message: str) -> None:
-    splash.showMessage(message, alignment=Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter, color=QColor("white"))
+    splash.showMessage(
+        message,
+        alignment=Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,
+        color=QColor("white"),
+    )
     app.processEvents()
 
 
@@ -53,5 +57,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

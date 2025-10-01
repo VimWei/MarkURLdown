@@ -30,8 +30,8 @@ from markurldown.app_types import ConversionOptions, ProgressEvent, SourceReques
 from markurldown.io.config import (
     load_config,
     load_json_from_root,
-    save_config,
     resolve_project_path,
+    save_config,
     to_project_relative_path,
 )
 from markurldown.ui.pyside.splash import show_immediate_splash
@@ -604,7 +604,9 @@ def run_gui() -> None:
     try:
         app, splash = show_immediate_splash()
         root_dir = os.getcwd()
-        settings = load_json_from_root(os.path.join(root_dir, "data", "sessions"), "settings.json") or {}
+        settings = (
+            load_json_from_root(os.path.join(root_dir, "data", "sessions"), "settings.json") or {}
+        )
         window = PySideApp(root_dir=root_dir, settings=settings)
         window.show()
         splash.finish(window)

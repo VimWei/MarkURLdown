@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from markurldown.io.config import to_project_relative_path, resolve_project_path
+from markurldown.io.config import resolve_project_path, to_project_relative_path
 
 
 @pytest.mark.unit
@@ -70,5 +70,3 @@ def test_resolve_project_path_from_absolute(tmp_path):
     absolute.mkdir(parents=True, exist_ok=True)
     resolved = resolve_project_path(str(absolute), str(project_root))
     assert resolved == str(absolute)
-
-

@@ -4,7 +4,7 @@ import random
 from pathlib import Path
 from typing import Tuple
 
-from PySide6.QtGui import QPixmap, QColor
+from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWidgets import QApplication, QSplashScreen, QStyleFactory
 
 try:

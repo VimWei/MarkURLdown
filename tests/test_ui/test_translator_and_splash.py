@@ -45,5 +45,3 @@ def test_show_immediate_splash_shows_and_returns(qapp):
     assert splash.isVisible()
     # Close splash promptly to avoid affecting other tests
     splash.close()
-
-

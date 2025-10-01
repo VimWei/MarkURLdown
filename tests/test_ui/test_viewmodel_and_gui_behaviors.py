@@ -6,9 +6,9 @@ from unittest import mock
 
 import pytest
 
-from markurldown.ui.viewmodel import ViewModel
+from markurldown.app_types import ConversionOptions, ProgressEvent, SourceRequest
 from markurldown.ui.pyside.gui import PySideApp
-from markurldown.app_types import ProgressEvent, SourceRequest, ConversionOptions
+from markurldown.ui.viewmodel import ViewModel
 
 
 @pytest.mark.unit
@@ -158,7 +158,9 @@ def test_on_event_branches_update_ui(tmp_path, qapp):
     window = _make_window(tmp_path, qapp)
     t = window.translator.t
 
-    window._on_event(ProgressEvent(kind="progress_init", total=3, key="convert_init", data={"total":3}))
+    window._on_event(
+        ProgressEvent(kind="progress_init", total=3, key="convert_init", data={"total": 3})
+    )
     assert window.progress.maximum() == 3
 
     window._on_event(ProgressEvent(kind="status", text="S"))
@@ -193,11 +195,22 @@ def test_list_operations_move_delete_clear(tmp_path, qapp):
     window.url_listbox.addItem("c")
     window.url_listbox.setCurrentRow(1)  # b
     window._move_selected_up()
-    assert [window.url_listbox.item(i).text() for i in range(window.url_listbox.count())] == ["b", "a", "c"]
+    assert [window.url_listbox.item(i).text() for i in range(window.url_listbox.count())] == [
+        "b",
+        "a",
+        "c",
+    ]
     window._move_selected_down()
-    assert [window.url_listbox.item(i).text() for i in range(window.url_listbox.count())] == ["a", "b", "c"]
+    assert [window.url_listbox.item(i).text() for i in range(window.url_listbox.count())] == [
+        "a",
+        "b",
+        "c",
+    ]
     window._delete_selected()
-    assert [window.url_listbox.item(i).text() for i in range(window.url_listbox.count())] == ["a", "c"]
+    assert [window.url_listbox.item(i).text() for i in range(window.url_listbox.count())] == [
+        "a",
+        "c",
+    ]
     window._clear_list()
     assert window.url_listbox.count() == 0
 
@@ -216,6 +229,7 @@ def test_run_gui_entrypoint_is_callable(monkeypatch, tmp_path, qapp):
     class DummyWin:
         def __init__(self, *a, **kw):
             created["inst"] = self
+
         def show(self):
             created["shown"] = True
 
@@ -235,7 +249,10 @@ def test_worker_emit_detail_variants(monkeypatch, tmp_path):
 
     svc = ConvertService()
     # Mock external dependencies
-    monkeypatch.setattr("markurldown.services.convert_service.build_requests_session", lambda **kw: object())
+    monkeypatch.setattr(
+        "markurldown.services.convert_service.build_requests_session", lambda **kw: object()
+    )
+
     # Stub convert to call on_detail with dict and text, and return a minimal result-like object
     class _Result:
         def __init__(self):
@@ -250,14 +267,24 @@ def test_worker_emit_detail_variants(monkeypatch, tmp_path):
         return _Result()
 
     monkeypatch.setattr("markurldown.services.convert_service.registry_convert", _stub_convert)
-    monkeypatch.setattr("markurldown.services.convert_service.write_markdown", lambda out_dir, name, md: str(Path(tmp_path)/name))
+    monkeypatch.setattr(
+        "markurldown.services.convert_service.write_markdown",
+        lambda out_dir, name, md: str(Path(tmp_path) / name),
+    )
 
     events = []
+
     def _on_event(ev):
         events.append(ev)
 
     reqs = [SourceRequest(kind="url", value="https://e.com")]
-    opts = ConversionOptions(use_proxy=False, ignore_ssl=True, download_images=False, filter_site_chrome=False, use_shared_browser=False)
+    opts = ConversionOptions(
+        use_proxy=False,
+        ignore_ssl=True,
+        download_images=False,
+        filter_site_chrome=False,
+        use_shared_browser=False,
+    )
 
     svc._worker(reqs, str(tmp_path), opts, _on_event)
     # Ensure that detail events from both dict and text were emitted
@@ -272,11 +299,17 @@ def test_choose_and_import_export_are_mocked(tmp_path, qapp):
     export_target = sessions_dir / "session.json"
     window.url_listbox.addItem("https://x.com")
     # Mock save dialog
-    with mock.patch("markurldown.ui.pyside.gui.QFileDialog.getSaveFileName", return_value=(str(export_target), "")):
+    with mock.patch(
+        "markurldown.ui.pyside.gui.QFileDialog.getSaveFileName",
+        return_value=(str(export_target), ""),
+    ):
         window._export_session()
         assert export_target.exists()
     # Mock open dialog
-    with mock.patch("markurldown.ui.pyside.gui.QFileDialog.getOpenFileName", return_value=(str(export_target), "")):
+    with mock.patch(
+        "markurldown.ui.pyside.gui.QFileDialog.getOpenFileName",
+        return_value=(str(export_target), ""),
+    ):
         window._import_session()
         # After import, status/detail updated
         assert window.status_label.text() != ""
@@ -297,5 +330,3 @@ def test_copy_selected_updates_clipboard_and_labels(tmp_path, qapp):
     assert "copy.me" in text
     assert window.status_label.text() != ""
     assert window.detail_label.text() != ""
-
-
