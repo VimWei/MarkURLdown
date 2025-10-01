@@ -16,7 +16,7 @@ def test_log_urls_swallows_io_errors(tmp_path):
             # Should not raise
             log_urls(["https://x"])
         # No file created
-        log_dir = os.path.join(str(tmp_path), "log")
+        log_dir = os.path.join(str(tmp_path), "data", "log")
         assert os.path.exists(log_dir)
 
 

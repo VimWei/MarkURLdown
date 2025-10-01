@@ -1,3 +1,21 @@
+from __future__ import annotations
+
+import os
+import sys
+import pytest
+
+# Ensure Qt runs in offscreen mode for headless testing environments
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance() or QApplication([])
+    yield app
+    # Do not quit explicitly; PySide can manage cleanup on interpreter exit
+
 """pytest 配置文件"""
 
 from unittest.mock import Mock

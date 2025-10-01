@@ -40,7 +40,7 @@ def test_build_requests_session_options(monkeypatch):
 def test_log_urls_appends_daily_log(tmp_path):
     # Redirect project log dir to a temp dir via patching _project_root
     with mock.patch("markurldown.io.logger._project_root", return_value=str(tmp_path)):
-        daily = os.path.join(str(tmp_path), "log")
+        daily = os.path.join(str(tmp_path), "data", "log")
         urls = ["https://a", "https://b"]
         log_urls(urls)
         # find today file
@@ -60,5 +60,5 @@ def test_log_urls_noop_on_empty(tmp_path):
     with mock.patch("markurldown.io.logger._project_root", return_value=str(tmp_path)):
         # Should not raise and not create files
         log_urls([])
-        log_dir = os.path.join(str(tmp_path), "log")
+        log_dir = os.path.join(str(tmp_path), "data", "log")
         assert not os.path.exists(log_dir)

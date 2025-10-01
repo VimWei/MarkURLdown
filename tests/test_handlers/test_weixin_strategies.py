@@ -10,6 +10,24 @@ from markurldown.core.handlers import weixin_handler as wx
 
 @pytest.mark.unit
 def test_weixin_try_playwright_crawler_success_shared(monkeypatch):
+    # ensure import of sync_playwright doesn't touch real playwright
+    class DummyP:
+        def __init__(self):
+            self.chromium = types.SimpleNamespace(launch=lambda **kwargs: object())
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    fake_pkg = types.SimpleNamespace()
+    fake_sync = types.SimpleNamespace(sync_playwright=lambda: DummyP())
+    for mod in ["playwright", "playwright.sync_api"]:
+        sys.modules.pop(mod, None)
+    monkeypatch.setitem(sys.modules, "playwright", fake_pkg)
+    monkeypatch.setitem(sys.modules, "playwright.sync_api", fake_sync)
+
     page = types.SimpleNamespace(
         goto=lambda *a, **k: None,
         wait_for_timeout=lambda ms: None,
