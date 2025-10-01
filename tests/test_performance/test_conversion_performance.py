@@ -279,9 +279,7 @@ class TestConversionPerformance:
         import sys
 
         # 清除模块缓存
-        modules_to_clear = [
-            name for name in sys.modules.keys() if name.startswith("markurldown")
-        ]
+        modules_to_clear = [name for name in sys.modules.keys() if name.startswith("markurldown")]
         for module_name in modules_to_clear:
             if module_name in sys.modules:
                 del sys.modules[module_name]

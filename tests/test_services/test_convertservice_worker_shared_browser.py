@@ -48,9 +48,7 @@ def test_shared_browser_start_close_and_restart(tmp_path):
             "markurldown.services.convert_service.registry_convert",
             return_value=mock.Mock(title="T", markdown="# m", suggested_filename="f.md"),
         ),
-        mock.patch(
-            "markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
-        ),
+        mock.patch("markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
         mock.patch("markurldown.core.registry.get_handler_for_url") as get_handler_for_url,
         mock.patch("markurldown.core.registry.should_use_shared_browser_for_url") as should_use,
         mock.patch("markurldown.services.convert_service.threading.Thread") as ThreadMock,

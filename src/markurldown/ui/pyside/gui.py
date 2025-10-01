@@ -28,8 +28,8 @@ from PySide6.QtWidgets import (
 
 from markurldown.app_types import ConversionOptions, ProgressEvent, SourceRequest
 from markurldown.io.config import load_config, load_json_from_root, save_config
-from markurldown.ui.viewmodel import ViewModel
 from markurldown.ui.pyside.splash import show_immediate_splash
+from markurldown.ui.viewmodel import ViewModel
 from markurldown.version import get_app_title
 
 

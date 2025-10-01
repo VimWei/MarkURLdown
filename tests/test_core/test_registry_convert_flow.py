@@ -46,24 +46,14 @@ def test_convert_fallbacks_to_generic_when_handlers_return_none():
 
     # Force all handlers to return None by mocking functions in registry namespace
     with (
-        mock.patch(
-            "markurldown.core.registry.fetch_appinn_article", side_effect=Exception("skip")
-        ),
-        mock.patch(
-            "markurldown.core.registry.fetch_weixin_article", side_effect=Exception("skip")
-        ),
-        mock.patch(
-            "markurldown.core.registry.fetch_zhihu_article", side_effect=Exception("skip")
-        ),
+        mock.patch("markurldown.core.registry.fetch_appinn_article", side_effect=Exception("skip")),
+        mock.patch("markurldown.core.registry.fetch_weixin_article", side_effect=Exception("skip")),
+        mock.patch("markurldown.core.registry.fetch_zhihu_article", side_effect=Exception("skip")),
         mock.patch(
             "markurldown.core.registry.fetch_wordpress_article", side_effect=Exception("skip")
         ),
-        mock.patch(
-            "markurldown.core.registry.fetch_nextjs_article", side_effect=Exception("skip")
-        ),
-        mock.patch(
-            "markurldown.core.registry.fetch_sspai_article", side_effect=Exception("skip")
-        ),
+        mock.patch("markurldown.core.registry.fetch_nextjs_article", side_effect=Exception("skip")),
+        mock.patch("markurldown.core.registry.fetch_sspai_article", side_effect=Exception("skip")),
         mock.patch("markurldown.core.registry.convert_url") as generic_conv,
     ):
         generic_conv.return_value = mock.Mock(

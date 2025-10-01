@@ -33,15 +33,13 @@ def _pick_splash_image() -> QPixmap:
 
 def show_immediate_splash() -> Tuple[QApplication, QSplashScreen]:
     app = QApplication.instance() or QApplication([])
-    
+
     # 设置Fusion样式
     if "Fusion" in QStyleFactory.keys():
         app.setStyle("Fusion")
-    
+
     pixmap = _pick_splash_image()
     splash = QSplashScreen(pixmap)
     splash.show()
     app.processEvents()
     return app, splash
-
-

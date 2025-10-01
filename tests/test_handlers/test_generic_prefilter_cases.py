@@ -80,9 +80,7 @@ def test_try_generic_with_filtering_success_bytes_fallback(monkeypatch):
                 return type("R", (), {"text_content": "MD", "metadata": {"title": "T"}})()
             raise RuntimeError("string path failed")
 
-    monkeypatch.setattr(
-        "markurldown.core.handlers.generic_handler.MarkItDown", lambda: DummyMD()
-    )
+    monkeypatch.setattr("markurldown.core.handlers.generic_handler.MarkItDown", lambda: DummyMD())
     monkeypatch.setattr(
         "markurldown.core.handlers.generic_handler.apply_dom_filters",
         lambda html, sels: (raw_html, ["x"]),
@@ -113,9 +111,7 @@ def test_try_generic_with_filtering_tempfile_fallback(monkeypatch, tmp_path):
         def convert(self, content):
             raise RuntimeError("fail both string and bytes")
 
-    monkeypatch.setattr(
-        "markurldown.core.handlers.generic_handler.MarkItDown", lambda: DummyMD()
-    )
+    monkeypatch.setattr("markurldown.core.handlers.generic_handler.MarkItDown", lambda: DummyMD())
     monkeypatch.setattr(
         "markurldown.core.handlers.generic_handler.apply_dom_filters",
         lambda html, sels: (raw_html, ["x"]),

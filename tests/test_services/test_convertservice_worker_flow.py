@@ -52,9 +52,7 @@ def test_worker_continues_on_error_and_emits_done(tmp_path):
         mock.patch("markurldown.services.convert_service.registry_convert") as reg_convert,
         mock.patch("markurldown.core.registry.convert") as reg_convert2,
         mock.patch("markurldown.core.handlers.generic_handler.convert_url") as gen_conv,
-        mock.patch(
-            "markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
-        ),
+        mock.patch("markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
     ):
 
         def side_effect_convert(payload, session, options):
@@ -99,9 +97,7 @@ def test_worker_stop_early(tmp_path):
         mock.patch("markurldown.services.convert_service.registry_convert") as reg_convert,
         mock.patch("markurldown.core.registry.convert") as reg_convert2,
         mock.patch("markurldown.core.handlers.generic_handler.convert_url") as gen_conv,
-        mock.patch(
-            "markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
-        ),
+        mock.patch("markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
     ):
 
         call_count = {"n": 0}
