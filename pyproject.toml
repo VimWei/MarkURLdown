@@ -32,7 +32,7 @@ include = ["markurldown*"]
 exclude = ["log*", "output*", "sessions*", "tests*", "docs*"]
 
 [project.scripts]
-markurldown = "markurldown.ui.pyside.gui:run_gui"
+markurldown = "markurldown.launch:main"
 
 [dependency-groups]
 dev = [

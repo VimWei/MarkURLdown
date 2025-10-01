@@ -4,7 +4,7 @@ import random
 from pathlib import Path
 from typing import Tuple
 
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QColor
 from PySide6.QtWidgets import QApplication, QSplashScreen, QStyleFactory
 
 try:
@@ -24,11 +24,15 @@ def _pick_splash_image() -> QPixmap:
         ]
         existing = [p for p in candidates if p.is_file()]
         if not existing:
-            return QPixmap(480, 320)
+            pm = QPixmap(600, 350)
+            pm.fill(QColor("#0a2a5e"))
+            return pm
         chosen = Path(random.choice(existing))
         return QPixmap(str(chosen))
     except Exception:
-        return QPixmap(480, 320)
+        pm = QPixmap(600, 350)
+        pm.fill(QColor("#0a2a5e"))
+        return pm
 
 
 def show_immediate_splash() -> Tuple[QApplication, QSplashScreen]:
