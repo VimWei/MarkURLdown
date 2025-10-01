@@ -5,11 +5,11 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from bs4 import BeautifulSoup, NavigableString
-from markitdown_app.core.html_to_md import html_fragment_to_markdown
+from markurldown.core.html_to_md import html_fragment_to_markdown
 
 # 可选：使用 Playwright driver 辅助（共享或独立浏览器均可复用这些工具）
 try:
-    from markitdown_app.services.playwright_driver import (
+    from markurldown.services.playwright_driver import (
         new_context_and_page,
         read_page_content_and_title,
         teardown_context_page,

@@ -6,10 +6,10 @@
 
 ### 目录结构
 
-所有处理器必须放在 `markitdown_app/core/handlers/` 目录下：
+所有处理器必须放在 `src/markurldown/core/handlers/` 目录下：
 
 ```
-markitdown_app/core/handlers/
+src/markurldown/core/handlers/
 ├── __init__.py              # 统一导入接口
 ├── generic_handler.py       # 通用处理器
 ├── weixin_handler.py        # 微信处理器
@@ -26,25 +26,25 @@ markitdown_app/core/handlers/
 
 导入特定处理器
 ```python
-from markitdown_app.core.handlers import fetch_weixin_article
-from markitdown_app.core.handlers import fetch_zhihu_article
-from markitdown_app.core.handlers import generic_convert_url
+from markurldown.core.handlers import fetch_weixin_article
+from markurldown.core.handlers import fetch_zhihu_article
+from markurldown.core.handlers import generic_convert_url
 ```
 
 导入所有处理器
 ```python
-from markitdown_app.core.handlers import *
+from markurldown.core.handlers import *
 ```
 
 查看处理器类型
 ```python
-from markitdown_app.core.handlers import HANDLER_TYPES
+from markurldown.core.handlers import HANDLER_TYPES
 print(HANDLER_TYPES)
 ```
 
 ### 注册新处理器
 
-在 `markitdown_app/core/registry.py` 中：
+在 `src/markurldown/core/registry.py` 中：
 
 1. 导入新处理器函数
 2. 创建处理器函数（返回 `ConvertResult | None`）
@@ -116,7 +116,7 @@ print(HANDLER_TYPES)
 
 #### 共享浏览器管理机制
 
-MarkItDown 支持共享浏览器以加速多次抓取，但允许按站点声明偏好：需要更强隔离/反检测的站点使用独立浏览器，其余默认共享。
+MarkURLdown 支持共享浏览器以加速多次抓取，但允许按站点声明偏好：需要更强隔离/反检测的站点使用独立浏览器，其余默认共享。
 
 - 默认：共享浏览器开启时复用同一 Browser，每次 URL 新建 Context/Page。
 - 站点偏好：在注册时声明 `prefers_shared_browser`；如声明为 False，调度层会在该 URL 前关闭共享并改用独立 Browser。
