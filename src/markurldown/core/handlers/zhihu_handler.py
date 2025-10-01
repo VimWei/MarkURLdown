@@ -562,7 +562,7 @@ def _try_playwright_crawler(
         with sync_playwright() as p:
             # 启动Chrome浏览器，使用必要的反检测配置
             browser = p.chromium.launch(
-                headless=False,  # 使用非headless模式以绕过检测
+                headless=True,  # 使用非headless模式以绕过检测
                 channel="chrome",  # 使用系统安装的Chrome
                 args=[
                     "--no-sandbox",
