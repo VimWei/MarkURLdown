@@ -1,6 +1,6 @@
-# MarkURLDown
+# MarkURLdown
 
-MarkURLDown is a sophisticated desktop application designed to effortlessly convert web articles into clean, readable Markdown files. Built with a modular architecture and modern GUI framework, it's perfect for archiving content, creating a personal knowledge base.
+MarkURLdown is a sophisticated desktop application designed to effortlessly convert web articles into clean, readable Markdown files. Built with a modular architecture and modern GUI framework, it's perfect for archiving content, creating a personal knowledge base.
 
 ## Screenshots
 
