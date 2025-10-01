@@ -29,7 +29,7 @@ uv version --dry-run --bump minor
 
 ### 在代码中使用版本
 ```python
-from markitdown_app.version import get_version, get_app_title
+from markurldown.version import get_version, get_app_title
 
 version = get_version()  # "0.6.0"
 title = get_app_title()  # "MarkURLdown v0.6.0"
@@ -188,10 +188,10 @@ uv run black .
 
 ### 版本模块
 
-`markitdown_app/version.py` 提供统一的版本信息获取：
+`src/markurldown/version.py` 提供统一的版本信息获取：
 
 ```python
-from markitdown_app.version import get_version, get_version_display, get_full_version_info
+from markurldown.version import get_version, get_version_display, get_full_version_info
 
 # 获取版本字符串
 version = get_version()  # "0.6.0"
@@ -211,7 +211,7 @@ print(info['is_prerelease'])  # False
 ### 在 GUI 中显示版本
 
 ```python
-from markitdown_app.version import get_app_title, get_about_text
+from markurldown.version import get_app_title, get_about_text
 
 # 设置窗口标题
 self.setWindowTitle(get_app_title())  # "MarkURLdown v0.6.0"
@@ -228,7 +228,7 @@ about_text = get_about_text()
 # 核心工具和配置
 scripts/release.py              # ✅ 发布脚本
 .github/workflows/              # ✅ GitHub Actions 工作流
-markitdown_app/version.py       # ✅ 版本管理模块
+src/markurldown/version.py       # ✅ 版本管理模块
 docs/Version_management_guide.md # ✅ 版本管理文档
 ```
 
@@ -238,7 +238,7 @@ docs/Version_management_guide.md # ✅ 版本管理文档
 # 添加版本管理相关文件
 git add scripts/release.py
 git add .github/workflows/
-git add markitdown_app/version.py
+git add src/markurldown/version.py
 git add docs/Version_management_guide.md
 
 # 提交更改
