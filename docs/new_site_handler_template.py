@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from bs4 import BeautifulSoup, NavigableString
+
 from markurldown.core.html_to_md import html_fragment_to_markdown
 
 # 可选：使用 Playwright driver 辅助（共享或独立浏览器均可复用这些工具）
