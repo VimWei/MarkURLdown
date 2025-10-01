@@ -4,7 +4,7 @@ import types
 
 import pytest
 
-from markitdown_app.core.handlers import weixin_handler as wx
+from markurldown.core.handlers import weixin_handler as wx
 
 
 @pytest.mark.unit

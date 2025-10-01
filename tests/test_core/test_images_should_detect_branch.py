@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from markitdown_app.core.images import _should_detect_image_format
+from markurldown.core.images import _should_detect_image_format
 
 
 @pytest.mark.unit

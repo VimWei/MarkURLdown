@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import ConversionOptions, ConvertPayload
-from markitdown_app.core.handlers import generic_handler
+from markurldown.app_types import ConversionOptions, ConvertPayload
+from markurldown.core.handlers import generic_handler
 
 
 def make_opts(**kwargs) -> ConversionOptions:
@@ -81,10 +81,10 @@ def test_try_generic_with_filtering_success_bytes_fallback(monkeypatch):
             raise RuntimeError("string path failed")
 
     monkeypatch.setattr(
-        "markitdown_app.core.handlers.generic_handler.MarkItDown", lambda: DummyMD()
+        "markurldown.core.handlers.generic_handler.MarkItDown", lambda: DummyMD()
     )
     monkeypatch.setattr(
-        "markitdown_app.core.handlers.generic_handler.apply_dom_filters",
+        "markurldown.core.handlers.generic_handler.apply_dom_filters",
         lambda html, sels: (raw_html, ["x"]),
     )
 
@@ -114,10 +114,10 @@ def test_try_generic_with_filtering_tempfile_fallback(monkeypatch, tmp_path):
             raise RuntimeError("fail both string and bytes")
 
     monkeypatch.setattr(
-        "markitdown_app.core.handlers.generic_handler.MarkItDown", lambda: DummyMD()
+        "markurldown.core.handlers.generic_handler.MarkItDown", lambda: DummyMD()
     )
     monkeypatch.setattr(
-        "markitdown_app.core.handlers.generic_handler.apply_dom_filters",
+        "markurldown.core.handlers.generic_handler.apply_dom_filters",
         lambda html, sels: (raw_html, ["x"]),
     )
 
@@ -150,7 +150,7 @@ def test_try_generic_with_filtering_tempfile_fallback(monkeypatch, tmp_path):
                 return convert_path(content)
 
         monkeypatch.setattr(
-            "markitdown_app.core.handlers.generic_handler.MarkItDown", lambda: DummyMD2()
+            "markurldown.core.handlers.generic_handler.MarkItDown", lambda: DummyMD2()
         )
 
         r = generic_handler._try_generic_with_filtering("https://example.com/y", session)

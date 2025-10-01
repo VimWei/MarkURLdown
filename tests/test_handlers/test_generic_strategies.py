@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.core.handlers import generic_handler as gh
+from markurldown.core.handlers import generic_handler as gh
 
 
 @pytest.mark.unit

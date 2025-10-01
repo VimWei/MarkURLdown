@@ -4,7 +4,7 @@ import types
 
 import pytest
 
-from markitdown_app.core.handlers import zhihu_handler as zh
+from markurldown.core.handlers import zhihu_handler as zh
 
 
 @pytest.mark.unit

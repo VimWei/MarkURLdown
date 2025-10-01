@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from markitdown_app.app_types import ConversionOptions
-from markitdown_app.core.handlers.zhihu_handler import (
+from markurldown.app_types import ConversionOptions
+from markurldown.core.handlers.zhihu_handler import (
     CrawlerResult,
     FetchResult,
     ZhihuPageType,

@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from markitdown_app.app_types import ConversionOptions
-from markitdown_app.core.handlers.wordpress_handler import (
+from markurldown.app_types import ConversionOptions
+from markurldown.core.handlers.wordpress_handler import (
     FetchResult,
     _process_wordpress_content,
     _try_httpx_crawler,

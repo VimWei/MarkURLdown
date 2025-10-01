@@ -7,16 +7,16 @@ Set WshShell = CreateObject("WScript.Shell")
 appDir = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName)
 
 ' --- User Configuration ---
-entryScript = "MarkURLdown.pyw"
+' Use new console script entry
 ' --------------------------
 
 ' Use chr(34) to represent the double-quote character (") for clarity.
 q = chr(34)
 
-' Use uv run to automatically manage environment
+' Use uv run to automatically manage environment and call console script
 uvPath = "uv"
 cdCmd = "cd /D " & q & appDir & q
-uvCmd = uvPath & " run python " & q & entryScript & q
+uvCmd = uvPath & " run markurldown"
 
 ' Command using uv run
 fullCommand = cdCmd & " & " & uvCmd

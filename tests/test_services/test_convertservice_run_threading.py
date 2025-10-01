@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import ConversionOptions, ProgressEvent, SourceRequest
-from markitdown_app.services.convert_service import ConvertService
+from markurldown.app_types import ConversionOptions, ProgressEvent, SourceRequest
+from markurldown.services.convert_service import ConvertService
 
 
 def make_opts() -> ConversionOptions:
@@ -33,7 +33,7 @@ def test_run_does_not_start_when_thread_alive(monkeypatch, tmp_path):
         def start(self):
             started["count"] += 1
 
-    monkeypatch.setattr("markitdown_app.services.convert_service.threading.Thread", DummyThread)
+    monkeypatch.setattr("markurldown.services.convert_service.threading.Thread", DummyThread)
     on_event = lambda e: None
     svc.run([SourceRequest(kind="url", value="https://a")], str(tmp_path), make_opts(), on_event)
 
@@ -63,14 +63,14 @@ def test_run_starts_thread_and_logs_only_urls(monkeypatch, tmp_path):
         def start(self):
             captured["started"] += 1
 
-    monkeypatch.setattr("markitdown_app.services.convert_service.threading.Thread", DummyThread)
+    monkeypatch.setattr("markurldown.services.convert_service.threading.Thread", DummyThread)
 
     logged = []
 
     def fake_log(urls):
         logged.extend(urls)
 
-    monkeypatch.setattr("markitdown_app.services.convert_service.log_urls", fake_log)
+    monkeypatch.setattr("markurldown.services.convert_service.log_urls", fake_log)
 
     reqs = [
         SourceRequest(kind="url", value="https://a"),

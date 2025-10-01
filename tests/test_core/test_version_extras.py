@@ -9,8 +9,8 @@ import pytest
 
 
 def import_version_with(ver: str):
-    path = Path(__file__).parent.parent.parent / "markitdown_app" / "version.py"
-    spec = importlib.util.spec_from_file_location("markitdown_app.version_tested_extra", str(path))
+    path = Path(__file__).parent.parent.parent / "markurldown" / "version.py"
+    spec = importlib.util.spec_from_file_location("markurldown.version_tested_extra", str(path))
     mod = importlib.util.module_from_spec(spec)
     loader = spec.loader
     assert loader is not None

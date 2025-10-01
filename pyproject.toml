@@ -27,8 +27,12 @@ Homepage = "https://github.com/VimWei/MarkURLdown"
 package = true
 
 [tool.setuptools.packages.find]
-include = ["markitdown_app*"]
+where = ["src"]
+include = ["markurldown*"]
 exclude = ["log*", "output*", "sessions*", "tests*", "docs*"]
+
+[project.scripts]
+markurldown = "markurldown.ui.pyside.gui:run_gui"
 
 [dependency-groups]
 dev = [
@@ -70,7 +74,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["markitdown_app"]
+source = ["markurldown"]
 omit = [
     "*/tests/*",
     "*/test_*",

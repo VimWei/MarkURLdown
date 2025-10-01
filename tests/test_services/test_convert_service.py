@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from markitdown_app.app_types import ConversionOptions, ProgressEvent, SourceRequest
-from markitdown_app.services.convert_service import ConvertService
+from markurldown.app_types import ConversionOptions, ProgressEvent, SourceRequest
+from markurldown.services.convert_service import ConvertService
 
 
 class TestConvertService:

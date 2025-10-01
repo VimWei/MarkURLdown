@@ -2,7 +2,7 @@
 
 import pytest
 
-from markitdown_app.core.normalize import normalize_markdown_headings
+from markurldown.core.normalize import normalize_markdown_headings
 
 
 class TestNormalize:

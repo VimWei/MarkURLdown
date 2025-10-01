@@ -4,16 +4,16 @@ import os
 import threading
 from typing import Callable
 
-from markitdown_app.app_types import (
+from markurldown.app_types import (
     ConversionOptions,
     ConvertPayload,
     ProgressEvent,
     SourceRequest,
 )
-from markitdown_app.core.registry import convert as registry_convert
-from markitdown_app.io.logger import log_urls
-from markitdown_app.io.session import build_requests_session
-from markitdown_app.io.writer import write_markdown
+from markurldown.core.registry import convert as registry_convert
+from markurldown.io.logger import log_urls
+from markurldown.io.session import build_requests_session
+from markurldown.io.writer import write_markdown
 
 EventCallback = Callable[[ProgressEvent], None]
 
@@ -147,7 +147,7 @@ class ConvertService:
                 effective_shared_browser = shared_browser
                 if req.kind == "url" and isinstance(req.value, str):
                     url = req.value
-                    from markitdown_app.core.registry import (
+                    from markurldown.core.registry import (
                         should_use_shared_browser_for_url,
                     )
 
@@ -155,7 +155,7 @@ class ConvertService:
                         # 当前URL的handler声明不使用共享浏览器，先关闭共享浏览器
                         handler_name = "Unknown"
                         try:
-                            from markitdown_app.core.registry import get_handler_for_url
+                            from markurldown.core.registry import get_handler_for_url
 
                             handler = get_handler_for_url(url)
                             if handler:

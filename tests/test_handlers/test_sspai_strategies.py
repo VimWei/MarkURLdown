@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.core.handlers import sspai_handler as sp
+from markurldown.core.handlers import sspai_handler as sp
 
 
 @pytest.mark.unit

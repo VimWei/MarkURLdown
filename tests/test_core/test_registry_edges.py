@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from markitdown_app.core.registry import (
+from markurldown.core.registry import (
     get_handler_for_url,
     should_use_shared_browser_for_url,
 )

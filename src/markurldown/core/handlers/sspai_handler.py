@@ -11,7 +11,7 @@ from typing import Any
 
 from bs4 import BeautifulSoup, NavigableString
 
-from markitdown_app.services.playwright_driver import (
+from markurldown.services.playwright_driver import (
     new_context_and_page,
     read_page_content_and_title,
     teardown_context_page,
@@ -454,7 +454,7 @@ def _process_sspai_content(
 
     if content_elem:
         _clean_and_normalize_sspai_content(content_elem)
-        from markitdown_app.core.html_to_md import html_fragment_to_markdown
+        from markurldown.core.html_to_md import html_fragment_to_markdown
 
         md = html_fragment_to_markdown(content_elem)
     else:

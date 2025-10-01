@@ -7,9 +7,9 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.io.logger import log_urls
-from markitdown_app.io.session import build_requests_session
-from markitdown_app.io.writer import ensure_dir, write_markdown
+from markurldown.io.logger import log_urls
+from markurldown.io.session import build_requests_session
+from markurldown.io.writer import ensure_dir, write_markdown
 
 
 @pytest.mark.unit
@@ -39,7 +39,7 @@ def test_build_requests_session_options(monkeypatch):
 @pytest.mark.unit
 def test_log_urls_appends_daily_log(tmp_path):
     # Redirect project log dir to a temp dir via patching _project_root
-    with mock.patch("markitdown_app.io.logger._project_root", return_value=str(tmp_path)):
+    with mock.patch("markurldown.io.logger._project_root", return_value=str(tmp_path)):
         daily = os.path.join(str(tmp_path), "log")
         urls = ["https://a", "https://b"]
         log_urls(urls)
@@ -57,7 +57,7 @@ def test_log_urls_appends_daily_log(tmp_path):
 
 @pytest.mark.unit
 def test_log_urls_noop_on_empty(tmp_path):
-    with mock.patch("markitdown_app.io.logger._project_root", return_value=str(tmp_path)):
+    with mock.patch("markurldown.io.logger._project_root", return_value=str(tmp_path)):
         # Should not raise and not create files
         log_urls([])
         log_dir = os.path.join(str(tmp_path), "log")

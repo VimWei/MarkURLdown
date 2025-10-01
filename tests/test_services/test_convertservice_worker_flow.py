@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import ConversionOptions, ConvertPayload, SourceRequest
-from markitdown_app.services.convert_service import ConvertService
+from markurldown.app_types import ConversionOptions, ConvertPayload, SourceRequest
+from markurldown.services.convert_service import ConvertService
 
 
 def make_opts(**kwargs) -> ConversionOptions:
@@ -45,15 +45,15 @@ def test_worker_continues_on_error_and_emits_done(tmp_path):
 
     # Patch components used inside _worker
     with (
-        mock.patch("markitdown_app.services.convert_service.build_requests_session"),
+        mock.patch("markurldown.services.convert_service.build_requests_session"),
         mock.patch(
-            "markitdown_app.core.registry.should_use_shared_browser_for_url", return_value=True
+            "markurldown.core.registry.should_use_shared_browser_for_url", return_value=True
         ),
-        mock.patch("markitdown_app.services.convert_service.registry_convert") as reg_convert,
-        mock.patch("markitdown_app.core.registry.convert") as reg_convert2,
-        mock.patch("markitdown_app.core.handlers.generic_handler.convert_url") as gen_conv,
+        mock.patch("markurldown.services.convert_service.registry_convert") as reg_convert,
+        mock.patch("markurldown.core.registry.convert") as reg_convert2,
+        mock.patch("markurldown.core.handlers.generic_handler.convert_url") as gen_conv,
         mock.patch(
-            "markitdown_app.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
+            "markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
         ),
     ):
 
@@ -92,15 +92,15 @@ def test_worker_stop_early(tmp_path):
     events = []
 
     with (
-        mock.patch("markitdown_app.services.convert_service.build_requests_session"),
+        mock.patch("markurldown.services.convert_service.build_requests_session"),
         mock.patch(
-            "markitdown_app.core.registry.should_use_shared_browser_for_url", return_value=True
+            "markurldown.core.registry.should_use_shared_browser_for_url", return_value=True
         ),
-        mock.patch("markitdown_app.services.convert_service.registry_convert") as reg_convert,
-        mock.patch("markitdown_app.core.registry.convert") as reg_convert2,
-        mock.patch("markitdown_app.core.handlers.generic_handler.convert_url") as gen_conv,
+        mock.patch("markurldown.services.convert_service.registry_convert") as reg_convert,
+        mock.patch("markurldown.core.registry.convert") as reg_convert2,
+        mock.patch("markurldown.core.handlers.generic_handler.convert_url") as gen_conv,
         mock.patch(
-            "markitdown_app.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
+            "markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
         ),
     ):
 

@@ -15,8 +15,8 @@ def import_version_with_uv(stdout: str = "0.7.2\n"):
     completed = types.SimpleNamespace(stdout=stdout)
     with mock.patch("subprocess.run", return_value=completed):
         # Load module from file path to ensure patches apply during execution
-        path = Path(__file__).parent.parent.parent / "markitdown_app" / "version.py"
-        spec = importlib.util.spec_from_file_location("markitdown_app.version_tested", str(path))
+        path = Path(__file__).parent.parent.parent / "src" / "markurldown" / "version.py"
+        spec = importlib.util.spec_from_file_location("markurldown.version_tested", str(path))
         mod = importlib.util.module_from_spec(spec)
         loader = spec.loader
         assert loader is not None
@@ -36,8 +36,8 @@ version = "{ver}"
         mock.patch("subprocess.run", side_effect=FileNotFoundError()),
         mock.patch.object(builtins, "open", m),
     ):
-        path = Path(__file__).parent.parent.parent / "markitdown_app" / "version.py"
-        spec = importlib.util.spec_from_file_location("markitdown_app.version_tested", str(path))
+        path = Path(__file__).parent.parent.parent / "src" / "markurldown" / "version.py"
+        spec = importlib.util.spec_from_file_location("markurldown.version_tested", str(path))
         mod = importlib.util.module_from_spec(spec)
         loader = spec.loader
         assert loader is not None
@@ -93,7 +93,7 @@ def test_get_version_display(monkeypatch):
 @pytest.mark.unit
 def test_module_level_version_reload(monkeypatch):
     # Reload using patches so module-level __version__ is set
-    path = Path(__file__).parent.parent.parent / "markitdown_app" / "version.py"
+    path = Path(__file__).parent.parent.parent / "src" / "markurldown" / "version.py"
     fake_pyproject = """
 [project]
 name = "x"
@@ -105,7 +105,7 @@ version = "9.9.9"
         mock.patch.object(builtins, "open", m),
     ):
         spec = importlib.util.spec_from_file_location(
-            "markitdown_app.version_tested_reload", str(path)
+            "markurldown.version_tested_reload", str(path)
         )
         reloaded = importlib.util.module_from_spec(spec)
         loader = spec.loader

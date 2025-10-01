@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.core.images import download_images_and_rewrite
+from markurldown.core.images import download_images_and_rewrite
 
 
 @pytest.mark.unit
@@ -26,7 +26,7 @@ def test_special_headers_injection_failure_does_not_crash(tmp_path):
     session = mock.Mock()
     session.headers = {}
 
-    with mock.patch("markitdown_app.core.images._download_images_async", side_effect=dl_async):
+    with mock.patch("markurldown.core.images._download_images_async", side_effect=dl_async):
         out = download_images_and_rewrite(md, base, str(images_dir), session)
 
     # download failed, so original link remains

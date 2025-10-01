@@ -4,14 +4,14 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from markitdown_app.app_types import (
+from markurldown.app_types import (
     ConversionOptions,
     ConvertPayload,
     ConvertResult,
     SourceRequest,
 )
-from markitdown_app.io.session import build_requests_session
-from markitdown_app.services.convert_service import ConvertService
+from markurldown.io.session import build_requests_session
+from markurldown.services.convert_service import ConvertService
 
 
 class TestConversionFlow:

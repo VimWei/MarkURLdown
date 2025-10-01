@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.services import playwright_driver as drv
+from markurldown.services import playwright_driver as drv
 
 
 class DummyPage:

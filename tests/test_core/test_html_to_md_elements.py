@@ -5,7 +5,7 @@ from unittest import mock
 import pytest
 from bs4 import BeautifulSoup
 
-from markitdown_app.core.html_to_md import html_fragment_to_markdown
+from markurldown.core.html_to_md import html_fragment_to_markdown
 
 
 @pytest.mark.unit

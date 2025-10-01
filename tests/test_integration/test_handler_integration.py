@@ -4,13 +4,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from markitdown_app.app_types import ConversionOptions, ConvertPayload
-from markitdown_app.core.handlers.generic_handler import convert_url
-from markitdown_app.core.handlers.nextjs_handler import fetch_nextjs_article
-from markitdown_app.core.handlers.sspai_handler import fetch_sspai_article
-from markitdown_app.core.handlers.weixin_handler import fetch_weixin_article
-from markitdown_app.core.handlers.wordpress_handler import fetch_wordpress_article
-from markitdown_app.core.handlers.zhihu_handler import fetch_zhihu_article
+from markurldown.app_types import ConversionOptions, ConvertPayload
+from markurldown.core.handlers.generic_handler import convert_url
+from markurldown.core.handlers.nextjs_handler import fetch_nextjs_article
+from markurldown.core.handlers.sspai_handler import fetch_sspai_article
+from markurldown.core.handlers.weixin_handler import fetch_weixin_article
+from markurldown.core.handlers.wordpress_handler import fetch_wordpress_article
+from markurldown.core.handlers.zhihu_handler import fetch_zhihu_article
 
 
 class TestHandlerIntegration:

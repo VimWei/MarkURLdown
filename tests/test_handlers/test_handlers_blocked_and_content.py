@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import ConversionOptions, ConvertPayload
-from markitdown_app.core.registry import convert
+from markurldown.app_types import ConversionOptions, ConvertPayload
+from markurldown.core.registry import convert
 
 
 def make_opts(**kwargs) -> ConversionOptions:
@@ -24,8 +24,8 @@ def test_weixin_blocked_fallbacks_to_generic():
     session = mock.Mock()
 
     with (
-        mock.patch("markitdown_app.core.registry.fetch_weixin_article") as fw,
-        mock.patch("markitdown_app.core.registry.convert_url") as gen,
+        mock.patch("markurldown.core.registry.fetch_weixin_article") as fw,
+        mock.patch("markurldown.core.registry.convert_url") as gen,
     ):
         # Simulate blocked/invalid short content -> handler returns None
         fw.return_value = mock.Mock(title="验证", html_markdown="需完成验证")
@@ -43,9 +43,9 @@ def test_zhihu_content_passes():
     session = mock.Mock()
 
     with (
-        mock.patch("markitdown_app.core.registry.fetch_zhihu_article") as fz,
+        mock.patch("markurldown.core.registry.fetch_zhihu_article") as fz,
         mock.patch(
-            "markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+            "markurldown.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
         ),
     ):
         fz.return_value = mock.Mock(title="Z", html_markdown="valid content" * 100)
@@ -62,8 +62,8 @@ def test_sspai_too_short_fallbacks():
     session = mock.Mock()
 
     with (
-        mock.patch("markitdown_app.core.registry.fetch_sspai_article") as fs,
-        mock.patch("markitdown_app.core.registry.convert_url") as gen,
+        mock.patch("markurldown.core.registry.fetch_sspai_article") as fs,
+        mock.patch("markurldown.core.registry.convert_url") as gen,
     ):
         fs.return_value = mock.Mock(title="S", html_markdown="short")
         gen.return_value = mock.Mock(title="G", markdown="Generic", suggested_filename="g.md")
@@ -79,9 +79,9 @@ def test_wordpress_basic_pass():
     session = mock.Mock()
 
     with (
-        mock.patch("markitdown_app.core.registry.fetch_wordpress_article") as fw,
+        mock.patch("markurldown.core.registry.fetch_wordpress_article") as fw,
         mock.patch(
-            "markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+            "markurldown.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
         ),
     ):
         fw.return_value = mock.Mock(title="W", html_markdown="ok content")
@@ -97,9 +97,9 @@ def test_nextjs_basic_pass():
     session = mock.Mock()
 
     with (
-        mock.patch("markitdown_app.core.registry.fetch_nextjs_article") as fn,
+        mock.patch("markurldown.core.registry.fetch_nextjs_article") as fn,
         mock.patch(
-            "markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+            "markurldown.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
         ),
     ):
         fn.return_value = mock.Mock(title="N", html_markdown="ok content")

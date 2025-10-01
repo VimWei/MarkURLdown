@@ -1,6 +1,7 @@
 """
-WordPress网站处理器 - 专门处理WordPress站点，如skywind.me
-过滤掉导航、侧边栏、评论等非正文内容
+Next.js Blog 处理器 - 专门处理 Next.js 静态博客（如 guangzhengli.com/blog）
+目标：保持完整 HTML 结构，删除 head、导航、目录、评论、页脚等非正文元素
+示例页面： https://guangzhengli.com/blog/zh/vibe-coding-and-context-coding
 """
 
 import random
@@ -11,7 +12,7 @@ from typing import Any
 from bs4 import BeautifulSoup
 from markitdown import MarkItDown
 
-from markitdown_app.services.playwright_driver import (
+from markurldown.services.playwright_driver import (
     new_context_and_page,
     read_page_content_and_title,
     teardown_context_page,
@@ -33,16 +34,22 @@ class FetchResult:
 # 2. 底层工具函数（按调用关系排序）
 
 
-def _extract_wordpress_title(soup: BeautifulSoup, title_hint: str | None = None) -> str | None:
-    """提取WordPress文章标题"""
+def _extract_nextjs_title(soup: BeautifulSoup, title_hint: str | None = None) -> str | None:
+    """提取Next.js博客文章标题"""
     title = None
 
-    # 策略1: 优先查找 <div id="content" role="main"> 下的标题
+    # 策略1: 优先查找主内容区域的标题
     title_selectors = [
-        'div#content[role="main"] h1.entry-title',
-        'div#content[role="main"] h1.post-title',
-        'div#content[role="main"] h1.page-title',
-        'div#content[role="main"] h1',
+        "main div.max-w-4xl div:first-child h1",  # 针对特定Next.js博客结构
+        "article h1",
+        ".post h1",
+        ".blog-post h1",
+        ".content h1",
+        ".entry-content h1",
+        "h1.post-title",
+        "h1.entry-title",
+        "h1.page-title",
+        "h1",
     ]
 
     for selector in title_selectors:
@@ -67,34 +74,47 @@ def _extract_wordpress_title(soup: BeautifulSoup, title_hint: str | None = None)
     return title
 
 
-def _extract_wordpress_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
-    """提取WordPress文章的元数据（作者、发布时间等）"""
+def _extract_nextjs_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
+    """提取Next.js博客文章的元数据（作者、发布时间等）"""
     metadata = {"author": None, "publish_time": None, "categories": None, "tags": None}
 
     # 提取作者信息
     author_selectors = [
-        ".author.vcard a",
-        ".entry-author a",
-        ".post-author a",
-        ".byline a",
-        ".author-name a",
-        ".author a",
+        ".author",
+        ".post-author",
+        ".blog-author",
+        ".entry-author",
+        ".byline",
+        ".author-name",
+        "[data-author]",
+        ".meta-author",
+        ".post-meta .author",
     ]
 
     for selector in author_selectors:
         author_elem = soup.select_one(selector)
         if author_elem:
-            metadata["author"] = author_elem.get_text(strip=True)
+            # 尝试获取链接文本或直接文本
+            author_link = author_elem.find("a")
+            if author_link:
+                metadata["author"] = author_link.get_text(strip=True)
+            else:
+                metadata["author"] = author_elem.get_text(strip=True)
             break
 
     # 提取发布时间
     time_selectors = [
-        "time.entry-date",
-        ".entry-date",
-        ".post-date",
-        ".published",
+        "main div.max-w-4xl div.my-4 p.text-sm",
+        ".text-sm",
         "time[datetime]",
+        ".publish-date",
+        ".post-date",
+        ".entry-date",
+        ".blog-date",
         ".date",
+        ".meta-date",
+        ".post-meta .date",
+        "[data-date]",
     ]
 
     for selector in time_selectors:
@@ -110,12 +130,14 @@ def _extract_wordpress_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
 
     # 提取分类
     category_selectors = [
-        ".entry-categories a",
-        ".post-categories a",
         ".categories a",
-        ".cat-links a",
-        'a[rel="category tag"]',  # 匹配 rel="category tag" 的链接
-        '.entry-utility a[rel="category tag"]',  # 在 entry-utility 容器内匹配
+        ".post-categories a",
+        ".blog-categories a",
+        ".entry-categories a",
+        ".category a",
+        ".meta-category a",
+        ".post-meta .category a",
+        'a[rel="category"]',
     ]
 
     categories = []
@@ -131,12 +153,14 @@ def _extract_wordpress_metadata(soup: BeautifulSoup) -> dict[str, str | None]:
 
     # 提取标签
     tag_selectors = [
-        ".entry-tags a",
-        ".post-tags a",
         ".tags a",
-        ".tag-links a",
-        'a[rel="tag"]',  # 匹配 rel="tag" 的链接
-        '.entry-utility a[rel="tag"]',  # 在 entry-utility 容器内匹配
+        ".post-tags a",
+        ".blog-tags a",
+        ".entry-tags a",
+        ".tag a",
+        ".meta-tags a",
+        ".post-meta .tags a",
+        'a[rel="tag"]',
     ]
 
     tags = []
@@ -178,7 +202,7 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
             response = client.get(url, timeout=30)
             response.raise_for_status()
 
-            # 返回原始HTML，让上层统一处理
+            # 返回原始HTML，让上层进行两阶段处理
             return FetchResult(title=None, html_markdown=response.text)
 
     except Exception as e:
@@ -253,14 +277,14 @@ def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> Fetc
         )
 
 
-def _build_wordpress_header_parts(
+def _build_nextjs_header_parts(
     soup: BeautifulSoup, url: str | None = None, title_hint: str | None = None
 ) -> tuple[str | None, list[str]]:
-    """构建WordPress文章的Markdown头部信息片段（标题、来源、作者、时间等），并返回 (title, parts)"""
+    """构建Next.js博客文章的Markdown头部信息片段（标题、来源、作者、时间等），并返回 (title, parts)"""
     header_parts: list[str] = []
 
     # 提取标题
-    title = _extract_wordpress_title(soup, title_hint)
+    title = _extract_nextjs_title(soup, title_hint)
     if title:
         header_parts.append(f"# {title}")
 
@@ -269,7 +293,7 @@ def _build_wordpress_header_parts(
         header_parts.append(f"* 来源：{url}")
 
     # 提取并添加元数据
-    metadata = _extract_wordpress_metadata(soup)
+    metadata = _extract_nextjs_metadata(soup)
 
     # 将元数据合并为一行，借鉴weixin_handler的处理方式
     if metadata["author"] or metadata["publish_time"] or metadata["categories"] or metadata["tags"]:
@@ -288,41 +312,49 @@ def _build_wordpress_header_parts(
     return title, header_parts
 
 
-def _build_wordpress_content_element(soup: BeautifulSoup):
-    """定位并返回WordPress正文容器元素"""
+def _build_nextjs_content_element(soup: BeautifulSoup):
+    """定位并返回Next.js博客正文容器元素"""
     content_elem = None
 
-    # 策略1: 查找 <div id="content" role="main"> 下的 <div class="entry-content">
-    content_main = soup.find("div", id="content", role="main")
-    if content_main:
-        content_elem = content_main.find("div", class_="entry-content")
+    # 策略1: 查找主内容区域
+    content_selectors = [
+        "div.max-w-4xl.mx-auto.w-full.px-6",
+        "main",
+        "main article",
+        "main .post",
+        "main .blog-post",
+        "main .content",
+        "main .entry-content",
+        "article .post-content",
+        "article .content",
+        "article .entry-content",
+        ".post .content",
+        ".blog-post .content",
+        ".entry-content",
+        ".post-content",
+        ".content",
+    ]
 
-    # 策略2: 直接查找 <div class="entry-content">
+    for selector in content_selectors:
+        content_elem = soup.select_one(selector)
+        if content_elem:
+            break
+
+    # 策略2: 如果没找到，尝试查找包含h1的容器
     if not content_elem:
-        content_elem = soup.find("div", class_="entry-content")
-
-    # 策略3: 查找其他常见的WordPress内容容器
-    if not content_elem:
-        content_selectors = [
-            "div.post-content",
-            "div.entry-body",
-            "div.article-content",
-            "div.content",
-            "article .entry-content",
-            "main .entry-content",
-            ".post .entry-content",
-        ]
-
-        for selector in content_selectors:
-            content_elem = soup.select_one(selector)
-            if content_elem:
-                break
+        h1_elem = soup.find("h1")
+        if h1_elem:
+            # 向上查找包含h1的内容容器
+            for parent in h1_elem.parents:
+                if parent.name in ["article", "main", "div"] and parent.get("class"):
+                    content_elem = parent
+                    break
 
     return content_elem
 
 
-def _clean_and_normalize_wordpress_content(content_elem) -> None:
-    """清洗与标准化WordPress正文容器"""
+def _clean_and_normalize_nextjs_content(content_elem) -> None:
+    """清洗与标准化Next.js博客正文容器"""
     if not content_elem:
         return
 
@@ -348,9 +380,51 @@ def _clean_and_normalize_wordpress_content(content_elem) -> None:
         except Exception:
             pass
 
-    # 移除WordPress特定的非内容元素
+    # 移除Next.js特定的非内容元素
     unwanted_in_content = [
-        # 广告和推广
+        # 标题 和 meta
+        "h1",
+        "p.text-sm",
+        # 导航和菜单
+        "nav",
+        ".nav",
+        ".navigation",
+        ".menu",
+        ".navbar",
+        "header",
+        ".header",
+        "#header",
+        # 侧边栏和目录
+        "aside",
+        ".sidebar",
+        ".toc",
+        "#toc",
+        ".table-of-contents",
+        ".on-this-page",
+        ".toc-container",
+        ".toc-sidebar",
+        ".hidden.text-sm.xl\\:block",
+        ".hydrated",
+        # 评论相关
+        ".comments",
+        "#comments",
+        ".comment-list",
+        ".comment-form",
+        # 页脚
+        "footer",
+        ".footer",
+        ".site-footer",
+        # 社交分享
+        ".social",
+        ".social-links",
+        ".share",
+        ".share-buttons",
+        ".social-media",
+        ".social-share",
+        # 面包屑
+        ".breadcrumb",
+        ".breadcrumbs",
+        # 广告
         ".advertisement",
         ".ads",
         ".ad",
@@ -359,13 +433,6 @@ def _clean_and_normalize_wordpress_content(content_elem) -> None:
         ".promo",
         ".sponsored",
         ".affiliate",
-        # 社交分享按钮
-        ".social-share",
-        ".share",
-        ".social",
-        ".social-links",
-        ".share-buttons",
-        ".social-media",
         # 相关文章推荐
         ".related-posts",
         ".more-posts",
@@ -374,37 +441,22 @@ def _clean_and_normalize_wordpress_content(content_elem) -> None:
         ".post-navigation",
         ".nav-links",
         ".page-links",
-        # 评论相关
-        ".comments",
-        ".comment",
-        "#comments",
-        "#respond",
-        ".comment-form",
-        ".comment-list",
-        ".comment-reply",
-        ".comment-respond",
         # 作者信息（在正文中重复的）
-        ".entry-author-info",
         ".author-info",
         ".post-author",
+        ".blog-author",
         # 元数据（在正文中重复的）
-        ".entry-meta",
         ".post-meta",
-        ".entry-utility",
+        ".entry-meta",
+        ".meta",
+        ".meta-info",
         # 其他非内容元素
-        ".wp-caption-text",
-        ".gallery-caption",
         ".screen-reader-text",
         ".sr-only",
         ".skip-link",
-        # 特定于skywind.me的元素（根据分析结果）
-        "#entry-author-info",
-        ".pvc_stats.pvc_load_by_ajax_update",
-        ".entry-utility",
-        ".likebtn_container",
-        ".meta-prep.meta-prep-author",
-        ".meta-sep",
-        ".author.vcard",
+        ".loading",
+        ".spinner",
+        ".placeholder",
     ]
 
     for selector in unwanted_in_content:
@@ -416,10 +468,10 @@ def _clean_and_normalize_wordpress_content(content_elem) -> None:
                 pass
 
 
-def _process_wordpress_content(
+def _process_nextjs_content(
     html: str, url: str | None = None, title_hint: str | None = None
 ) -> FetchResult:
-    """处理WordPress内容，提取标题、元数据和过滤后的正文"""
+    """处理Next.js内容，提取标题、元数据和过滤后的正文"""
     try:
         soup = BeautifulSoup(html, "lxml")
     except Exception as e:
@@ -427,20 +479,17 @@ def _process_wordpress_content(
         return FetchResult(title=None, html_markdown="")
 
     # 构建头部信息（包含标题抽取）
-    title, header_parts = _build_wordpress_header_parts(soup, url, title_hint)
+    title, header_parts = _build_nextjs_header_parts(soup, url, title_hint)
     header_str = ("\n".join(header_parts) + "\n\n") if header_parts else ""
 
     # 正文：定位并构建正文容器
-    content_elem = _build_wordpress_content_element(soup)
-
-    # 初始化md变量
-    md = ""
+    content_elem = _build_nextjs_content_element(soup)
 
     # 清洗与标准化正文
     if content_elem:
-        _clean_and_normalize_wordpress_content(content_elem)
+        _clean_and_normalize_nextjs_content(content_elem)
         # 使用 html_fragment_to_markdown 转换正文内容
-        from markitdown_app.core.html_to_md import html_fragment_to_markdown
+        from markurldown.core.html_to_md import html_fragment_to_markdown
 
         md = html_fragment_to_markdown(content_elem)
 
@@ -458,9 +507,9 @@ def _process_wordpress_content(
 # 4. 主入口函数
 
 
-def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None) -> FetchResult:
+def fetch_nextjs_article(session, url: str, shared_browser: Any | None = None) -> FetchResult:
     """
-    获取WordPress文章内容
+    获取Next.js博客文章内容
 
     使用多策略方案：
     1. 使用httpx获取原始HTML，然后统一进行内容过滤
@@ -482,10 +531,10 @@ def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None
         for retry in range(max_retries):
             try:
                 if retry > 0:
-                    print(f"[抓取] WordPress策略 {i} 重试 {retry}/{max_retries-1}...")
+                    print(f"[抓取] Next.js策略 {i} 重试 {retry}/{max_retries-1}...")
                     time.sleep(random.uniform(2, 4))  # 重试时等待
                 else:
-                    print(f"[抓取] WordPress策略 {i}...")
+                    print(f"[抓取] Next.js策略 {i}...")
 
                 result = strategy()
                 if result.success:
@@ -494,7 +543,7 @@ def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None
                     # 两阶段处理：先获取原始HTML，再处理内容
                     if result.html_markdown:
                         print("[解析] 提取标题和正文...")
-                        processed_result = _process_wordpress_content(
+                        processed_result = _process_nextjs_content(
                             result.html_markdown, url, title_hint=result.title
                         )
 

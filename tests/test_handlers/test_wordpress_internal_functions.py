@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
-from markitdown_app.core.handlers import wordpress_handler as wp
+from markurldown.core.handlers import wordpress_handler as wp
 
 
 @pytest.mark.unit

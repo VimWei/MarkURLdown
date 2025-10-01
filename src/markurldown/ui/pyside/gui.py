@@ -26,9 +26,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from markitdown_app.app_types import ConversionOptions, ProgressEvent, SourceRequest
-from markitdown_app.io.config import load_config, load_json_from_root, save_config
-from markitdown_app.ui.viewmodel import ViewModel
+from markurldown.app_types import ConversionOptions, ProgressEvent, SourceRequest
+from markurldown.io.config import load_config, load_json_from_root, save_config
+from markurldown.ui.viewmodel import ViewModel
+from markurldown.ui.pyside.splash import show_immediate_splash
 
 
 class Translator:
@@ -583,3 +584,19 @@ class PySideApp(QMainWindow):
                 )
         except Exception as e:
             QMessageBox.critical(self, t("dialog_error_title"), t("dialog_import_failed", error=e))
+
+
+def run_gui() -> None:
+    try:
+        app, splash = show_immediate_splash()
+        root_dir = os.getcwd()
+        settings = load_json_from_root(os.path.join(root_dir, "sessions"), "settings.json") or {}
+        window = PySideApp(root_dir=root_dir, settings=settings)
+        window.show()
+        splash.finish(window)
+        app.exec()
+    except Exception as e:
+        # Fallback minimal app to display error
+        app = QApplication.instance() or QApplication([])
+        QMessageBox.critical(None, "MarkURLdown", f"Failed to start: {e}")
+        raise

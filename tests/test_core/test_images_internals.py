@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.core.images import (
+from markurldown.core.images import (
     ImageDomainConfig,
     _convert_github_url,
     _detect_image_format_from_header,

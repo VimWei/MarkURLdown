@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.app_types import ConversionOptions, ConvertPayload
-from markitdown_app.core.registry import convert
+from markurldown.app_types import ConversionOptions, ConvertPayload
+from markurldown.core.registry import convert
 
 
 def make_opts(**kwargs) -> ConversionOptions:
@@ -24,11 +24,11 @@ def test_nextjs_success_basic():
     session = mock.Mock()
 
     with (
-        mock.patch("markitdown_app.core.registry.fetch_nextjs_article") as fn,
+        mock.patch("markurldown.core.registry.fetch_nextjs_article") as fn,
         mock.patch(
-            "markitdown_app.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+            "markurldown.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
         ),
-        mock.patch("markitdown_app.core.registry.derive_md_filename", return_value="n.md"),
+        mock.patch("markurldown.core.registry.derive_md_filename", return_value="n.md"),
     ):
         fn.return_value = mock.Mock(title="N", html_markdown="ok content")
         res = convert(payload, session, make_opts(download_images=False))
@@ -44,8 +44,8 @@ def test_nextjs_empty_fallback():
     session = mock.Mock()
 
     with (
-        mock.patch("markitdown_app.core.registry.fetch_nextjs_article") as fn,
-        mock.patch("markitdown_app.core.registry.convert_url") as gen,
+        mock.patch("markurldown.core.registry.fetch_nextjs_article") as fn,
+        mock.patch("markurldown.core.registry.convert_url") as gen,
     ):
         fn.return_value = mock.Mock(title="any", html_markdown="   ")
         gen.return_value = mock.Mock(title="G", markdown="Generic", suggested_filename="g.md")

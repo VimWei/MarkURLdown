@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markitdown_app.core.images import _convert_github_url, download_images_and_rewrite
+from markurldown.core.images import _convert_github_url, download_images_and_rewrite
 
 
 @pytest.mark.unit
@@ -18,7 +18,7 @@ def test_download_failures_keep_original_links(tmp_path):
     def dl_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
         return {url: (False, path) for url, path, _ in image_tasks}
 
-    with mock.patch("markitdown_app.core.images._download_images_async", side_effect=dl_async):
+    with mock.patch("markurldown.core.images._download_images_async", side_effect=dl_async):
         session = mock.Mock()
         session.headers = {"User-Agent": "UA"}
         out = download_images_and_rewrite(md, base, str(images_dir), session)
@@ -45,7 +45,7 @@ def test_github_raw_conversion_path(tmp_path):
             results[url] = (True, path)
         return results
 
-    with mock.patch("markitdown_app.core.images._download_images_async", side_effect=dl_async):
+    with mock.patch("markurldown.core.images._download_images_async", side_effect=dl_async):
         session = mock.Mock()
         session.headers = {"User-Agent": "UA"}
         out = download_images_and_rewrite(md, base, str(images_dir), session)

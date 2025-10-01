@@ -13,8 +13,10 @@ def _ensure_dir(path: str) -> None:
 
 
 def _project_root() -> str:
-    # Project root assumed as three levels up from this file: markitdown_app/io/logger.py -> project
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    # Project root assumed as two levels up from this file: markurldown/io/logger.py -> project/src
+    # Then one level up to project root
+    src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    return os.path.abspath(os.path.join(src_dir, ".."))
 
 
 def _log_dir() -> str:
