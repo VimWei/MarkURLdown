@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.1] - 2025-10-01
+
+- chore: update VBScript launcher and README
+
 ## [0.8.0] - 2025-10-01
 
 - refactor(tests): update test coverage commands and streamline version checks
