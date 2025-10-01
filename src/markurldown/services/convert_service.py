@@ -100,8 +100,26 @@ class ConvertService:
                     from playwright.sync_api import sync_playwright
 
                     playwright_runtime = sync_playwright().start()
-                    # 采用通用、稳健的最小配置。站点特定选项在 new_context 时设置。
-                    shared_browser = playwright_runtime.chromium.launch(headless=True)
+                    # 采用与独立浏览器一致的启动选项，提升反检测能力
+                    shared_browser = playwright_runtime.chromium.launch(
+                        headless=True,
+                        channel="chrome",
+                        args=[
+                            "--no-sandbox",
+                            "--disable-dev-shm-usage",
+                            "--disable-blink-features=AutomationControlled",
+                            "--disable-web-security",
+                            "--disable-features=VizDisplayCompositor",
+                            "--disable-gpu",
+                            "--no-first-run",
+                            "--no-default-browser-check",
+                            "--disable-extensions",
+                            "--disable-plugins",
+                            "--disable-background-timer-throttling",
+                            "--disable-backgrounding-occluded-windows",
+                            "--disable-renderer-backgrounding",
+                        ],
+                    )
                     self._emit_event_safe(
                         ProgressEvent(kind="detail", key="convert_shared_browser_started"), on_event
                     )
@@ -248,7 +266,25 @@ class ConvertService:
                                 from playwright.sync_api import sync_playwright
 
                                 playwright_runtime = sync_playwright().start()
-                                shared_browser = playwright_runtime.chromium.launch(headless=True)
+                                shared_browser = playwright_runtime.chromium.launch(
+                                    headless=True,
+                                    channel="chrome",
+                                    args=[
+                                        "--no-sandbox",
+                                        "--disable-dev-shm-usage",
+                                        "--disable-blink-features=AutomationControlled",
+                                        "--disable-web-security",
+                                        "--disable-features=VizDisplayCompositor",
+                                        "--disable-gpu",
+                                        "--no-first-run",
+                                        "--no-default-browser-check",
+                                        "--disable-extensions",
+                                        "--disable-plugins",
+                                        "--disable-background-timer-throttling",
+                                        "--disable-backgrounding-occluded-windows",
+                                        "--disable-renderer-backgrounding",
+                                    ],
+                                )
                                 self._emit_event_safe(
                                     ProgressEvent(
                                         kind="detail", key="convert_shared_browser_restarted"
