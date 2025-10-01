@@ -1,6 +1,6 @@
 [project]
 name = "MarkURLdown"
-version = "0.8.5"
+version = "0.8.6"
 description = "Scraping web pages and convert to clean, readable Markdown files."
 readme = "README.md"
 requires-python = ">=3.11"

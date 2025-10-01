@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.6] - 2025-10-02
+
+- feat(playwright): align shared-browser launch with standalone (Chrome + anti-detection flags)
+- refactor(zhihu_handler): change browser launch mode to headless
+
 ## [0.8.5] - 2025-10-01
 
 - feat(startup): add launch entry and improve splash handling
