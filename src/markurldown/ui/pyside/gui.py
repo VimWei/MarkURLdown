@@ -27,7 +27,13 @@ from PySide6.QtWidgets import (
 )
 
 from markurldown.app_types import ConversionOptions, ProgressEvent, SourceRequest
-from markurldown.io.config import load_config, load_json_from_root, save_config
+from markurldown.io.config import (
+    load_config,
+    load_json_from_root,
+    save_config,
+    resolve_project_path,
+    to_project_relative_path,
+)
 from markurldown.ui.pyside.splash import show_immediate_splash
 from markurldown.ui.viewmodel import ViewModel
 from markurldown.version import get_app_title
@@ -104,7 +110,7 @@ class PySideApp(QMainWindow):
         try:
             state_data = {
                 "urls": [self.url_listbox.item(i).text() for i in range(self.url_listbox.count())],
-                "output_dir": self.output_entry.text(),
+                "output_dir": to_project_relative_path(self.output_entry.text(), self.root_dir),
                 "use_proxy": self.use_proxy_cb.isChecked(),
                 "ignore_ssl": self.ignore_ssl_cb.isChecked(),
                 "download_images": self.download_images_cb.isChecked(),
@@ -374,7 +380,8 @@ class PySideApp(QMainWindow):
         for url in state.get("urls", []):
             self.url_listbox.addItem(url)
         if "output_dir" in state:
-            self.output_entry.setText(state["output_dir"])
+            resolved = resolve_project_path(state["output_dir"], self.root_dir)
+            self.output_entry.setText(resolved)
         if "use_proxy" in state:
             self.use_proxy_cb.setChecked(bool(state["use_proxy"]))
         if "ignore_ssl" in state:
@@ -554,7 +561,7 @@ class PySideApp(QMainWindow):
         try:
             data = {
                 "urls": [self.url_listbox.item(i).text() for i in range(self.url_listbox.count())],
-                "output_dir": self.output_entry.text(),
+                "output_dir": to_project_relative_path(self.output_entry.text(), self.root_dir),
                 "use_proxy": self.use_proxy_cb.isChecked(),
                 "ignore_ssl": self.ignore_ssl_cb.isChecked(),
                 "download_images": self.download_images_cb.isChecked(),
