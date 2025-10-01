@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.2] - 2025-10-01
+
+- doc: Update screenshot
+
 ## [0.8.1] - 2025-10-01
 
 - chore: update VBScript launcher and README
