@@ -20,7 +20,8 @@ def _project_root() -> str:
 
 
 def _log_dir() -> str:
-    return os.path.join(_project_root(), "log")
+    # Place logs under project_root/data/log
+    return os.path.join(_project_root(), "data", "log")
 
 
 def _daily_log_path() -> str:

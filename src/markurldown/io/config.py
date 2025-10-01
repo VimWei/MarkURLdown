@@ -6,6 +6,10 @@ from dataclasses import asdict
 
 
 def save_config(path: str, data: dict) -> None:
+    # Ensure parent directory exists before writing
+    parent = os.path.dirname(path)
+    if parent and not os.path.isdir(parent):
+        os.makedirs(parent, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 

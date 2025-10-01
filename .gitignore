@@ -1,7 +1,5 @@
-# Application data
-log/
-output/
-sessions/
+# under data/
+data/
 
 # Python
 **/__pycache__/

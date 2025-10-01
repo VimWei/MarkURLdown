@@ -78,7 +78,8 @@ class PySideApp(QMainWindow):
         self.current_lang = settings.get("language", "auto")
         self.translator.load_language(self.current_lang)
 
-        self.output_dir_var = os.path.abspath(os.path.join(root_dir, "output"))
+        # Default output under project_root/data/output
+        self.output_dir_var = os.path.abspath(os.path.join(root_dir, "data", "output"))
         self.is_running = False
 
         # Default options
@@ -110,7 +111,7 @@ class PySideApp(QMainWindow):
                 "filter_site_chrome": self.filter_site_chrome_cb.isChecked(),
                 "use_shared_browser": self.use_shared_browser_cb.isChecked(),
             }
-            state_path = os.path.join(self.root_dir, "sessions", "last_state.json")
+            state_path = os.path.join(self.root_dir, "data", "sessions", "last_state.json")
             save_config(state_path, state_data)
         except Exception as e:
             print(f"Error saving session state on exit: {e}")
@@ -346,13 +347,13 @@ class PySideApp(QMainWindow):
         self.status_label.setText(self.translator.t("status_restart_required"))
 
         # Save the setting
-        settings_path = os.path.join(self.root_dir, "sessions", "settings.json")
+        settings_path = os.path.join(self.root_dir, "data", "sessions", "settings.json")
         settings_data = {"language": lang_code}
         save_config(settings_path, settings_data)
 
     def _restore_last_session(self):
         try:
-            sessions_dir = os.path.join(self.root_dir, "sessions")
+            sessions_dir = os.path.join(self.root_dir, "data", "sessions")
             state = load_json_from_root(sessions_dir, "last_state.json")
             if not state:
                 self.status_label.setText(self.translator.t("status_no_session"))
@@ -549,7 +550,7 @@ class PySideApp(QMainWindow):
 
     def _export_session(self):
         t = self.translator.t
-        sessions_dir = os.path.join(self.root_dir, "sessions")
+        sessions_dir = os.path.join(self.root_dir, "data", "sessions")
         try:
             data = {
                 "urls": [self.url_listbox.item(i).text() for i in range(self.url_listbox.count())],
@@ -574,7 +575,7 @@ class PySideApp(QMainWindow):
 
     def _import_session(self):
         t = self.translator.t
-        sessions_dir = os.path.join(self.root_dir, "sessions")
+        sessions_dir = os.path.join(self.root_dir, "data", "sessions")
         try:
             filename, _ = QFileDialog.getOpenFileName(
                 self, t("dialog_import_config"), sessions_dir, t("file_filter_json")
@@ -596,7 +597,7 @@ def run_gui() -> None:
     try:
         app, splash = show_immediate_splash()
         root_dir = os.getcwd()
-        settings = load_json_from_root(os.path.join(root_dir, "sessions"), "settings.json") or {}
+        settings = load_json_from_root(os.path.join(root_dir, "data", "sessions"), "settings.json") or {}
         window = PySideApp(root_dir=root_dir, settings=settings)
         window.show()
         splash.finish(window)
