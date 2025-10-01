@@ -205,7 +205,7 @@ def run_tests() -> bool:
     """Run project tests"""
     print("🧪 Running tests...")
     try:
-        result = run_command("uv run pytest", capture_output=False)
+        result = run_command("uv run pytest tests/ --tb=no -q", capture_output=False)
         print("✅ Tests passed")
         return True
     except SystemExit:

@@ -30,6 +30,7 @@ from markurldown.app_types import ConversionOptions, ProgressEvent, SourceReques
 from markurldown.io.config import load_config, load_json_from_root, save_config
 from markurldown.ui.viewmodel import ViewModel
 from markurldown.ui.pyside.splash import show_immediate_splash
+from markurldown.version import get_app_title
 
 
 class Translator:
@@ -243,7 +244,7 @@ class PySideApp(QMainWindow):
         progress_layout.setContentsMargins(0, 4, 0, 4)
         self.progress = QProgressBar()
         self.progress.setVisible(True)
-        self.progress.setRange(0, 100)
+        self.progress.setRange(0, 100)  # 初始化为百分比模式，实际转换时会重新设置
         self.progress.setValue(0)
         self.progress.setStyleSheet(
             "QProgressBar { border: 1px solid #ccc; border-radius: 2px; text-align: center; }\n"
@@ -290,7 +291,7 @@ class PySideApp(QMainWindow):
 
     def _retranslate_ui(self):
         t = self.translator.t
-        self.setWindowTitle(t("window_title"))
+        self.setWindowTitle(get_app_title())
         self.url_label.setText(t("url_label"))
         self.add_btn.setText(t("add_button"))
         self.url_list_label.setText(t("url_list_label"))
@@ -460,8 +461,13 @@ class PySideApp(QMainWindow):
                 if message:
                     self.detail_label.setText(message)
             elif ev.kind == "progress_step":
-                current = self.progress.value()
-                self.progress.setValue(current + 1)
+                # 使用事件中的实际完成数量，而不是累加
+                if ev.data and "completed" in ev.data:
+                    self.progress.setValue(ev.data["completed"])
+                else:
+                    # 向后兼容：如果没有提供completed数据，则累加
+                    current = self.progress.value()
+                    self.progress.setValue(current + 1)
                 if message:
                     self.detail_label.setText(message)
             elif ev.kind == "progress_done":
