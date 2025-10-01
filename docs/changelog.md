@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.3] - 2025-10-01
+
+- refactor(docs): migrate documentation to new src structure and update handler paths
+
 ## [0.8.2] - 2025-10-01
 
 - doc: Update screenshot
