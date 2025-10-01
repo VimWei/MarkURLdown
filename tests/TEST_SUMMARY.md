@@ -89,10 +89,10 @@ uv run pytest tests/test_core/test_filename.py::TestFilename::test_derive_md_fil
 ### 覆盖率测试命令
 ```bash
 # 生成覆盖率报告
-uv run pytest tests/ --cov=markitdown_app --cov-report=term-missing --cov-report=html
+uv run pytest tests/ --cov=markurldown --cov-report=term-missing --cov-report=html
 
 # 只运行覆盖率测试（不显示详细输出）
-uv run pytest tests/ --cov=markitdown_app --cov-report=term-missing -q
+uv run pytest tests/ --cov=markurldown --cov-report=term-missing -q
 ```
 
 ### 性能测试命令

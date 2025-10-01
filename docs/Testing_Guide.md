@@ -134,17 +134,14 @@ uv run pytest tests/ -n auto
 ### 基本用法
 ```bash
 # 生成覆盖率报告（终端缺失行 + HTML 报告至 tests/htmlcov/）
-uv run pytest tests/ \
-  --cov=markitdown_app \
-  --cov-report=term-missing \
-  --cov-report=html:tests/htmlcov
+uv run pytest tests/ --cov=markurldown --cov-report=term-missing --cov-report=html:tests/htmlcov
 
 # 安静模式，仅显示覆盖率摘要
-uv run pytest tests/ --cov=markitdown_app --cov-report=term -q
+uv run pytest tests/ --cov=markurldown --cov-report=term -q
 
 # 指定子模块覆盖率（例如 core 与 services）
-uv run pytest tests/test_core/ --cov=markitdown_app.core --cov-report=term-missing
-uv run pytest tests/test_services/ --cov=markitdown_app.services --cov-report=term-missing
+uv run pytest tests/test_core/ --cov=markurldown.core --cov-report=term-missing
+uv run pytest tests/test_services/ --cov=markurldown.services --cov-report=term-missing
 ```
 
 ### 常用选项
@@ -155,13 +152,13 @@ uv run pytest tests/test_services/ --cov=markitdown_app.services --cov-report=te
 
 示例：
 ```bash
-uv run pytest tests/ --cov=markitdown_app --cov-branch --cov-report=term-missing
+uv run pytest tests/ --cov=markurldown --cov-branch --cov-report=term-missing
 ```
 
 ### 在 pyproject.toml 中配置（推荐）
 ```toml
 [tool.pytest.ini_options]
-addopts = "--cov=markitdown_app --cov-branch --cov-report=term-missing --cov-report=html:tests/htmlcov"
+addopts = "--cov=markurldown --cov-branch --cov-report=term-missing --cov-report=html:tests/htmlcov"
 testpaths = ["tests"]
 ```
 
@@ -174,7 +171,7 @@ uv run pytest
 ```bash
 # 终端 + HTML + XML（CI 工具常用，如 Codecov/Sonar）
 uv run pytest tests/ \
-  --cov=markitdown_app \
+  --cov=markurldown \
   --cov-report=term-missing \
   --cov-report=html:tests/htmlcov \
   --cov-report=xml:tests/coverage.xml
@@ -183,7 +180,7 @@ uv run pytest tests/ \
 ### 设定最低覆盖率阈值（发布前门槛）
 在 CI 或本地强制最低覆盖率：
 ```bash
-uv run pytest tests/ --cov=markitdown_app --cov-report=term --cov-fail-under=50
+uv run pytest tests/ --cov=markurldown --cov-report=term --cov-fail-under=50
 ```
 
 ### 排除不需要统计的文件
@@ -191,8 +188,8 @@ uv run pytest tests/ --cov=markitdown_app --cov-report=term --cov-fail-under=50
 ```ini
 [run]
 omit =
-    markitdown_app/ui/*
-    markitdown_app/services/playwright_driver.py
+    markurldown/ui/*
+    markurldown/services/playwright_driver.py
     tests/*
 
 [report]
@@ -206,17 +203,17 @@ exclude_lines =
 ### 分步执行并合并覆盖率
 ```bash
 # 步骤1：先跑核心模块
-uv run pytest tests/test_core/ --cov=markitdown_app --cov-append --cov-report=term
+uv run pytest tests/test_core/ --cov=markurldown --cov-append --cov-report=term
 # 步骤2：再跑处理器与服务层
-uv run pytest tests/test_handlers/ tests/test_services/ --cov=markitdown_app --cov-append --cov-report=term
+uv run pytest tests/test_handlers/ tests/test_services/ --cov=markurldown --cov-append --cov-report=term
 # 步骤3：最终输出 HTML 报告
-uv run pytest tests/ --cov=markitdown_app --cov-report=html:tests/htmlcov
+uv run pytest tests/ --cov=markurldown --cov-report=html:tests/htmlcov
 ```
 
 ### 常见问题
 - 覆盖率低：优先增加对 `core/` 与关键 `handlers/` 的功能测试；使用 Mock 隔离网络/IO。
 - 统计不到：确认 `--cov` 指向的是可导入的包名或源码路径，而不是测试路径。
-- HTML 报告空白：确保 `--cov=markitdown_app` 指定了正确的包，且测试确实导入并执行了相应代码。
+- HTML 报告空白：确保 `--cov=markurldown` 指定了正确的包，且测试确实导入并执行了相应代码。
 
 ## 开发工作流中的测试
 
@@ -362,14 +359,6 @@ cache_dir = "tests/.pytest_cache"
 ## 故障排除
 
 ### 1. 常见测试失败
-
-#### 导入错误
-```bash
-# 错误：ImportError: No module named 'markitdown_app.core.handlers'
-# 解决：更新导入路径
-# 从：from markitdown_app.core.handlers import GenericHandler
-# 到：from markitdown_app.core.handlers import generic_convert_url
-```
 
 #### Mock 对象错误
 ```bash

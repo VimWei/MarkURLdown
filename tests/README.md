@@ -65,7 +65,7 @@ uv run pytest -m "integration"
 uv run pytest -m "not slow"
 
 # 显示测试覆盖率
-uv run pytest --cov=markitdown_app
+uv run pytest --cov=markurldown
 
 # 并行运行测试
 uv run pytest -n auto
@@ -131,7 +131,7 @@ def test_with_fixtures(mock_session, default_options):
 ### 网络请求 Mock
 
 ```python
-@patch('markitdown_app.core.handlers.generic_handler._try_lightweight_markitdown')
+@patch('markurldown.core.handlers.generic_handler._try_lightweight_markitdown')
 def test_with_mock(mock_lightweight):
     mock_lightweight.return_value = Mock(success=True, title="测试标题")
     # 测试代码
@@ -158,5 +158,5 @@ uv sync --dev
 uv run pytest --tb=short -q
 
 # 生成覆盖率报告
-uv run pytest --cov=markitdown_app --cov-report=xml
+uv run pytest --cov=markurldown --cov-report=xml
 ```
