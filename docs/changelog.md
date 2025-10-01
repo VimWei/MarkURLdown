@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.5] - 2025-10-01
+
+- feat(startup): add launch entry and improve splash handling
+- feat(tests): add relative output_dir tests; improve handler coverage
+- feat: store output_dir as project-relative path; resolve on load
+- refactor: move user data directories under data/
+
 ## [0.8.4] - 2025-10-01
 
 - fix(docs): update doc to reflect src structure
