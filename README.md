@@ -4,9 +4,9 @@ MarkURLDown is a sophisticated desktop application designed to effortlessly conv
 
 ## Screenshots
 
-![Splash Screen](markitdown_app/ui/assets/screenshot_splash.png)
+![Splash Screen](src/markurldown/ui/assets/screenshot_splash.png)
 
-![Main Application Window](markitdown_app/ui/assets/screenshot_MarkURLdown.png)
+![Main Application Window](src/markurldown/ui/assets/screenshot_MarkURLdown.png)
 
 ## Features
 
@@ -68,10 +68,10 @@ To set up the project locally, you will need a working Python environment (Pytho
 
 ### Launching the Application
 
-Option 1: (Windows only) Double-click launcher file `MarkItDown.vbs`.
+Option 1: (Windows only) Double-click launcher file `MarkURLdown.vbs`.
 Option 2: (Windows/Linux/macOS) Command line:
 ```bash
-uv run python MarkURLdown.pyw
+uv run markurldown
 ```
 
 ### Basic Usage

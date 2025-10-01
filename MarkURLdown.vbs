@@ -6,25 +6,22 @@ Set WshShell = CreateObject("WScript.Shell")
 ' Get the directory where this VBScript is located.
 appDir = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName)
 
-' --- User Configuration ---
-' Use new console script entry
-' --------------------------
-
 ' Use chr(34) to represent the double-quote character (") for clarity.
 q = chr(34)
 
 ' Use uv run to automatically manage environment and call console script
-uvPath = "uv"
 cdCmd = "cd /D " & q & appDir & q
-uvCmd = uvPath & " run markurldown"
+uvCmd = "uv run markurldown"
 
 ' Command using uv run
 fullCommand = cdCmd & " & " & uvCmd
 
 ' Create the final command to be executed by cmd.exe, wrapped in quotes.
+'   /K  Keep the window open after running the specified command
+'   /C  Run the specified command and then exit
 cmdToRun = "cmd.exe /C " & q & fullCommand & q
 
-' Run the command: 
+' Run the command:
 ' 0 = The window is hidden.
 ' True = The script waits for the command to finish.
 WshShell.Run cmdToRun, 0, True
