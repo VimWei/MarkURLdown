@@ -1,4 +1,4 @@
-# MarkURLdown 测试指南
+# MarkdownAll 测试指南
 
 我们将采用 pytest，它是 Python 中最流行且功能强大的第三方单元测试框架，广泛应用
 于单元测试、集成测试、功能测试等自动化测试场景。相比 Python 自带的 unittest 框
@@ -6,7 +6,7 @@
 
 ## 项目特点
 
-MarkURLdown 是一个网页转 Markdown 的桌面应用，具有以下特点：
+MarkdownAll 是一个网页转 Markdown 的桌面应用，具有以下特点：
 - **多站点处理器**：微信、知乎、WordPress、Next.js、少数派等专用处理器
 - **多策略爬虫**：支持 Playwright、httpx、requests 等多种爬取策略
 - **内容过滤**：智能清理广告、导航等无关内容
@@ -134,14 +134,14 @@ uv run pytest tests/ -n auto
 ### 基本用法
 ```bash
 # 生成覆盖率报告（终端缺失行 + HTML 报告至 tests/htmlcov/）
-uv run pytest tests/ --cov=markurldown --cov-report=term-missing --cov-report=html:tests/htmlcov
+uv run pytest tests/ --cov=markdownall --cov-report=term-missing --cov-report=html:tests/htmlcov
 
 # 安静模式，仅显示覆盖率摘要
-uv run pytest tests/ --cov=markurldown --cov-report=term -q
+uv run pytest tests/ --cov=markdownall --cov-report=term -q
 
 # 指定子模块覆盖率（例如 core 与 services）
-uv run pytest tests/test_core/ --cov=markurldown.core --cov-report=term-missing
-uv run pytest tests/test_services/ --cov=markurldown.services --cov-report=term-missing
+uv run pytest tests/test_core/ --cov=markdownall.core --cov-report=term-missing
+uv run pytest tests/test_services/ --cov=markdownall.services --cov-report=term-missing
 ```
 
 ### 常用选项
@@ -152,13 +152,13 @@ uv run pytest tests/test_services/ --cov=markurldown.services --cov-report=term-
 
 示例：
 ```bash
-uv run pytest tests/ --cov=markurldown --cov-branch --cov-report=term-missing
+uv run pytest tests/ --cov=markdownall --cov-branch --cov-report=term-missing
 ```
 
 ### 在 pyproject.toml 中配置（推荐）
 ```toml
 [tool.pytest.ini_options]
-addopts = "--cov=markurldown --cov-branch --cov-report=term-missing --cov-report=html:tests/htmlcov"
+addopts = "--cov=markdownall --cov-branch --cov-report=term-missing --cov-report=html:tests/htmlcov"
 testpaths = ["tests"]
 ```
 
@@ -171,7 +171,7 @@ uv run pytest
 ```bash
 # 终端 + HTML + XML（CI 工具常用，如 Codecov/Sonar）
 uv run pytest tests/ \
-  --cov=markurldown \
+  --cov=markdownall \
   --cov-report=term-missing \
   --cov-report=html:tests/htmlcov \
   --cov-report=xml:tests/coverage.xml
@@ -180,7 +180,7 @@ uv run pytest tests/ \
 ### 设定最低覆盖率阈值（发布前门槛）
 在 CI 或本地强制最低覆盖率：
 ```bash
-uv run pytest tests/ --cov=markurldown --cov-report=term --cov-fail-under=50
+uv run pytest tests/ --cov=markdownall --cov-report=term --cov-fail-under=50
 ```
 
 ### 排除不需要统计的文件
@@ -188,8 +188,8 @@ uv run pytest tests/ --cov=markurldown --cov-report=term --cov-fail-under=50
 ```ini
 [run]
 omit =
-    markurldown/ui/*
-    markurldown/services/playwright_driver.py
+    markdownall/ui/*
+    markdownall/services/playwright_driver.py
     tests/*
 
 [report]
@@ -203,17 +203,17 @@ exclude_lines =
 ### 分步执行并合并覆盖率
 ```bash
 # 步骤1：先跑核心模块
-uv run pytest tests/test_core/ --cov=markurldown --cov-append --cov-report=term
+uv run pytest tests/test_core/ --cov=markdownall --cov-append --cov-report=term
 # 步骤2：再跑处理器与服务层
-uv run pytest tests/test_handlers/ tests/test_services/ --cov=markurldown --cov-append --cov-report=term
+uv run pytest tests/test_handlers/ tests/test_services/ --cov=markdownall --cov-append --cov-report=term
 # 步骤3：最终输出 HTML 报告
-uv run pytest tests/ --cov=markurldown --cov-report=html:tests/htmlcov
+uv run pytest tests/ --cov=markdownall --cov-report=html:tests/htmlcov
 ```
 
 ### 常见问题
 - 覆盖率低：优先增加对 `core/` 与关键 `handlers/` 的功能测试；使用 Mock 隔离网络/IO。
 - 统计不到：确认 `--cov` 指向的是可导入的包名或源码路径，而不是测试路径。
-- HTML 报告空白：确保 `--cov=markurldown` 指定了正确的包，且测试确实导入并执行了相应代码。
+- HTML 报告空白：确保 `--cov=markdownall` 指定了正确的包，且测试确实导入并执行了相应代码。
 
 ## 开发工作流中的测试
 
@@ -488,7 +488,7 @@ uv run pytest tests/ --tb=short -q
 - 测试失败时阻止代码合并
 - 定期分析测试执行报告
 
-## MarkURLdown 特定测试建议
+## MarkdownAll 特定测试建议
 
 ### 1. Handler 测试重点
 
