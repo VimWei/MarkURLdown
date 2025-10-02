@@ -15,7 +15,7 @@ except Exception:  # pragma: no cover
 
 def _pick_splash_image() -> QPixmap:
     try:
-        assets_pkg = "markurldown.ui.assets"
+        assets_pkg = "markdownall.ui.assets"
         base = resources.files(assets_pkg)
         candidates = [
             base / "splash_01.png",

@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from markurldown.app_types import ConversionOptions, ProgressEvent, SourceRequest
-from markurldown.services.convert_service import ConvertService
+from markdownall.app_types import ConversionOptions, ProgressEvent, SourceRequest
+from markdownall.services.convert_service import ConvertService
 
 OnEvent = Callable[[ProgressEvent], None]
 

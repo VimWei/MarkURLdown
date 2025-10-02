@@ -26,17 +26,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from markurldown.app_types import ConversionOptions, ProgressEvent, SourceRequest
-from markurldown.io.config import (
+from markdownall.app_types import ConversionOptions, ProgressEvent, SourceRequest
+from markdownall.io.config import (
     load_config,
     load_json_from_root,
     resolve_project_path,
     save_config,
     to_project_relative_path,
 )
-from markurldown.ui.pyside.splash import show_immediate_splash
-from markurldown.ui.viewmodel import ViewModel
-from markurldown.version import get_app_title
+from markdownall.ui.pyside.splash import show_immediate_splash
+from markdownall.ui.viewmodel import ViewModel
+from markdownall.version import get_app_title
 
 
 class Translator:
@@ -614,5 +614,5 @@ def run_gui() -> None:
     except Exception as e:
         # Fallback minimal app to display error
         app = QApplication.instance() or QApplication([])
-        QMessageBox.critical(None, "MarkURLdown", f"Failed to start: {e}")
+        QMessageBox.critical(None, "MarkdownAll", f"Failed to start: {e}")
         raise

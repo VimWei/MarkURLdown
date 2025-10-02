@@ -11,7 +11,7 @@ from typing import Any
 from bs4 import BeautifulSoup
 from markitdown import MarkItDown
 
-from markurldown.services.playwright_driver import (
+from markdownall.services.playwright_driver import (
     new_context_and_page,
     read_page_content_and_title,
     teardown_context_page,
@@ -440,7 +440,7 @@ def _process_wordpress_content(
     if content_elem:
         _clean_and_normalize_wordpress_content(content_elem)
         # 使用 html_fragment_to_markdown 转换正文内容
-        from markurldown.core.html_to_md import html_fragment_to_markdown
+        from markdownall.core.html_to_md import html_fragment_to_markdown
 
         md = html_fragment_to_markdown(content_elem)
 

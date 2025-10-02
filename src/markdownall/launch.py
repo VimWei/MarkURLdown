@@ -8,7 +8,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 # Reuse existing splash utilities
-from markurldown.ui.pyside.splash import show_immediate_splash
+from markdownall.ui.pyside.splash import show_immediate_splash
 
 
 def _emit_startup_progress(app: QApplication, splash, message: str) -> None:
@@ -25,7 +25,7 @@ def main() -> None:
     try:
         _emit_startup_progress(app, splash, "Loading settings…")
         # Import lightweight config helper first
-        from markurldown.io.config import load_json_from_root  # noqa: WPS433
+        from markdownall.io.config import load_json_from_root  # noqa: WPS433
 
         root_dir = os.getcwd()
         sessions_dir = os.path.join(root_dir, "data", "sessions")
@@ -41,7 +41,7 @@ def main() -> None:
 
         _emit_startup_progress(app, splash, msg_init)
         # Delay heavy GUI import until after settings are read
-        from markurldown.ui.pyside.gui import PySideApp  # noqa: WPS433
+        from markdownall.ui.pyside.gui import PySideApp  # noqa: WPS433
 
         window = PySideApp(root_dir=root_dir, settings=settings)
         _emit_startup_progress(app, splash, msg_start)
@@ -51,7 +51,7 @@ def main() -> None:
     except Exception as e:
         # Fallback minimal app to display error
         app = QApplication.instance() or QApplication([])
-        QMessageBox.critical(None, "MarkURLdown", f"Failed to start: {e}")
+        QMessageBox.critical(None, "MarkdownAll", f"Failed to start: {e}")
         raise
 
 

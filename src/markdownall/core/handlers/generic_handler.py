@@ -11,18 +11,18 @@ from urllib.parse import urlparse
 
 from markitdown import MarkItDown
 
-from markurldown.app_types import ConversionOptions, ConvertPayload, ConvertResult
-from markurldown.core.common_utils import (
+from markdownall.app_types import ConversionOptions, ConvertPayload, ConvertResult
+from markdownall.core.common_utils import (
     COMMON_FILTERS,
     DOMAIN_FILTERS,
     apply_dom_filters,
     extract_title_from_body,
     extract_title_from_html,
 )
-from markurldown.core.filename import derive_md_filename
-from markurldown.core.images import download_images_and_rewrite
-from markurldown.core.normalize import normalize_markdown_headings
-from markurldown.io.session import build_requests_session
+from markdownall.core.filename import derive_md_filename
+from markdownall.core.images import download_images_and_rewrite
+from markdownall.core.normalize import normalize_markdown_headings
+from markdownall.io.session import build_requests_session
 
 
 @dataclass

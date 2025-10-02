@@ -9,9 +9,9 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup, NavigableString
 
-from markurldown.core.handlers import generic_handler as _generic
-from markurldown.core.html_to_md import html_fragment_to_markdown
-from markurldown.services.playwright_driver import (
+from markdownall.core.handlers import generic_handler as _generic
+from markdownall.core.html_to_md import html_fragment_to_markdown
+from markdownall.services.playwright_driver import (
     new_context_and_page,
     read_page_content_and_title,
     teardown_context_page,

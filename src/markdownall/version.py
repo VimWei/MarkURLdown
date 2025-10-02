@@ -1,6 +1,6 @@
-"""Version information for MarkURLdown.
+"""Version information for MarkdownAll.
 
-This module provides version information for the MarkURLdown application.
+This module provides version information for the MarkdownAll application.
 It uses uv as the primary source of version information, with fallback
 to reading pyproject.toml directly.
 """
@@ -184,9 +184,9 @@ def get_app_title() -> str:
     """Get application title with version.
 
     Returns:
-        str: Application title (e.g., "MarkURLdown v0.6.0")
+        str: Application title (e.g., "MarkdownAll v0.6.0")
     """
-    return f"MarkURLdown {get_version_display()}"
+    return f"MarkdownAll {get_version_display()}"
 
 
 def get_about_text() -> str:
@@ -197,7 +197,7 @@ def get_about_text() -> str:
     """
     version_info = get_full_version_info()
 
-    text = f"""MarkURLdown {version_info['display']}
+    text = f"""MarkdownAll {version_info['display']}
 
 Version: {version_info['version']}
 Build: {version_info['version_info']}

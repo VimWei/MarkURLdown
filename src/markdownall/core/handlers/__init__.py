@@ -6,7 +6,7 @@
 - 通用处理器：处理所有其他网站
 
 使用方式：
-    from markurldown.core.handlers import (
+    from markdownall.core.handlers import (
         GenericHandler,
         WeixinHandler,
         ZhihuHandler,
