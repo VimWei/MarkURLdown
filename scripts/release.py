@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Release script for MarkURLdown
+"""Release script for MarkdownAll
 
 This script automates the version release process including:
 - Version bumping using uv
