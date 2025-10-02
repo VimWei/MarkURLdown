@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.9.1] - 2025-10-03
+
+- Update README and asset files
+
 ## [0.9.0] - 2025-10-03
 
 - Rename more
