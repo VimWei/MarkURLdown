@@ -11,7 +11,7 @@ q = chr(34)
 
 ' Use uv run to automatically manage environment and call console script
 cdCmd = "cd /D " & q & appDir & q
-uvCmd = "uv run markurldown"
+uvCmd = "uv run markdownall"
 
 ' Command using uv run
 fullCommand = cdCmd & " & " & uvCmd
