@@ -6,7 +6,7 @@ MarkdownAll is a sophisticated desktop application designed to effortlessly conv
 
 ![Splash Screen](src/markdownall/ui/assets/screenshot_splash.png)
 
-![Main Application Window](src/markdownall/ui/assets/screenshot_MarkdownAll.png)
+![Main Application Window](src/markdownall/ui/assets/screenshot.png)
 
 ## Features
 
