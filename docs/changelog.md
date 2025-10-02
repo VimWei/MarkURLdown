@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.8] - 2025-10-02
+
+- docs: add project rename guide for MarkURLdown to MarkdownAll
+
 ## [0.8.7] - 2025-10-02
 
 - doc: update README and screenshot
