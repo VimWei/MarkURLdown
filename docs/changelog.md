@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0] - 2025-10-03
+
+- Rename more
+- Rename MarkdownAll.vbs
+- Rename tests/
+- Rename files about release
+- Rename docs/
+- Rename src/markdownall/
+- Rename project step 1-5
+
 ## [0.8.8] - 2025-10-02
 
 - docs: add project rename guide for MarkURLdown to MarkdownAll
