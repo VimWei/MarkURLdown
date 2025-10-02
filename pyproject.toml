@@ -1,7 +1,7 @@
 [project]
-name = "MarkURLdown"
+name = "MarkdownAll"
 version = "0.8.8"
-description = "Scraping web pages and convert to clean, readable Markdown files."
+description = "Convert webpage or file to clean, readable Markdown files."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -21,18 +21,18 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/VimWei/MarkURLdown"
+Homepage = "https://github.com/VimWei/MarkdownAll"
 
 [tool.uv]
 package = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["markurldown*"]
+include = ["markdownall*"]
 exclude = ["log*", "output*", "sessions*", "tests*", "docs*"]
 
 [project.scripts]
-markurldown = "markurldown.launch:main"
+markdownall = "markdownall.launch:main"
 
 [dependency-groups]
 dev = [
@@ -66,7 +66,7 @@ addopts = [
 ]
 markers = [
     "slow: 标记为慢速测试",
-    "integration: 标记为集成测试", 
+    "integration: 标记为集成测试",
     "unit: 标记为单元测试",
     "handler: 标记为处理器测试",
     "service: 标记为服务层测试",
@@ -74,7 +74,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["markurldown"]
+source = ["markdownall"]
 omit = [
     "*/tests/*",
     "*/test_*",

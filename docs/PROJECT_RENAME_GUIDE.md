@@ -63,15 +63,6 @@ git clone https://github.com/VimWei/MarkdownAll
 
 ### 第二阶段：项目内容重命名
 
-#### 4. 备份项目
-
-```bash
-# 创建备份（可选但推荐）
-git add .
-git commit -m "Backup before project rename"
-git push
-```
-
 #### 5. 包目录重命名
 
 ```bash

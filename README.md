@@ -1,12 +1,12 @@
-# MarkURLdown
+# MarkdownAll
 
-MarkURLdown is a sophisticated desktop application designed to effortlessly convert web articles into clean, readable Markdown files. Built with a modular architecture and modern GUI framework, it's perfect for archiving content, creating a personal knowledge base.
+MarkdownAll is a sophisticated desktop application designed to effortlessly convert web articles into clean, readable Markdown files. Built with a modular architecture and modern GUI framework, it's perfect for archiving content, creating a personal knowledge base.
 
 ## Screenshots
 
-![Splash Screen](src/markurldown/ui/assets/screenshot_splash.png)
+![Splash Screen](src/markdownall/ui/assets/screenshot_splash.png)
 
-![Main Application Window](src/markurldown/ui/assets/screenshot_MarkURLdown.png)
+![Main Application Window](src/markdownall/ui/assets/screenshot_MarkdownAll.png)
 
 ## Features
 
@@ -46,7 +46,7 @@ To set up the project locally, you will need a working Python environment (Pytho
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/VimWei/MarkURLdown
+   git clone https://github.com/VimWei/MarkdownAll
    ```
 2. **Install Python venv:**
    ```bash
@@ -56,7 +56,7 @@ To set up the project locally, you will need a working Python environment (Pytho
    ## Linux/macOS
    curl -LsSf https://astral.sh/uv/install.sh | sh
    # 2.2 sync python environment
-   cd MarkURLdown
+   cd MarkdownAll
    uv sync
    ```
 3. **Install Playwright browsers:**
@@ -68,10 +68,10 @@ To set up the project locally, you will need a working Python environment (Pytho
 
 ### Launching the Application
 
-Option 1: (Windows only) Double-click launcher file `MarkURLdown.vbs`.
+Option 1: (Windows only) Double-click launcher file `MarkdownAll.vbs`.
 Option 2: (Windows/Linux/macOS) Command line:
 ```bash
-uv run markurldown
+uv run markdownall
 ```
 
 ### Basic Usage
