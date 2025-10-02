@@ -6,8 +6,8 @@ from unittest import mock
 
 import pytest
 
-from markurldown.app_types import ConversionOptions, SourceRequest
-from markurldown.services.convert_service import ConvertService
+from markdownall.app_types import ConversionOptions, SourceRequest
+from markdownall.services.convert_service import ConvertService
 
 
 def make_opts() -> ConversionOptions:
@@ -20,10 +20,10 @@ def make_opts() -> ConversionOptions:
 
 
 @pytest.mark.integration
-@mock.patch("markurldown.core.images._download_images_async")
-@mock.patch("markurldown.io.writer.write_markdown")
-@mock.patch("markurldown.services.convert_service.registry_convert")
-@mock.patch("markurldown.services.convert_service.build_requests_session")
+@mock.patch("markdownall.core.images._download_images_async")
+@mock.patch("markdownall.io.writer.write_markdown")
+@mock.patch("markdownall.services.convert_service.registry_convert")
+@mock.patch("markdownall.services.convert_service.build_requests_session")
 def test_end_to_end_mixed_urls(
     mock_build_sess, mock_reg_convert, mock_write_md, mock_dl_async, tmp_path
 ):

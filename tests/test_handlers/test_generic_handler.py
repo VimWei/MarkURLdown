@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from markurldown.app_types import ConversionOptions, ConvertPayload
-from markurldown.core.handlers.generic_handler import convert_url
+from markdownall.app_types import ConversionOptions, ConvertPayload
+from markdownall.core.handlers.generic_handler import convert_url
 
 
 class TestGenericHandler:

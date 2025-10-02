@@ -5,8 +5,8 @@ from unittest import mock
 
 import pytest
 
-from markurldown.ui.pyside.gui import Translator
-from markurldown.ui.pyside.splash import _pick_splash_image, show_immediate_splash
+from markdownall.ui.pyside.gui import Translator
+from markdownall.ui.pyside.splash import _pick_splash_image, show_immediate_splash
 
 
 @pytest.mark.unit

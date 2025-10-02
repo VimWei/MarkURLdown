@@ -4,10 +4,10 @@ import types
 
 import pytest
 
-from markurldown.core.handlers import appinn_handler as ap
-from markurldown.core.handlers import nextjs_handler as nx
-from markurldown.core.handlers import sspai_handler as sp
-from markurldown.core.handlers import wordpress_handler as wp
+from markdownall.core.handlers import appinn_handler as ap
+from markdownall.core.handlers import nextjs_handler as nx
+from markdownall.core.handlers import sspai_handler as sp
+from markdownall.core.handlers import wordpress_handler as wp
 
 
 @pytest.mark.unit

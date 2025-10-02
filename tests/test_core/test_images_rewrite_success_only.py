@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from markurldown.core.images import download_images_and_rewrite
+from markdownall.core.images import download_images_and_rewrite
 
 
 @pytest.mark.unit
@@ -22,8 +22,8 @@ def test_download_images_and_rewrite_maps_only_success(tmp_path):
 
     # Patch only the async downloader; let asyncio.run execute immediately with our patched coroutine
     with (
-        mock.patch("markurldown.core.images._download_images_async", return_value=fake_results),
-        mock.patch("markurldown.core.images.datetime") as dt_mock,
+        mock.patch("markdownall.core.images._download_images_async", return_value=fake_results),
+        mock.patch("markdownall.core.images.datetime") as dt_mock,
     ):
         dt_mock.now.return_value = dt_mock.strptime("2025-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
         dt_mock.strftime = lambda dt, fmt: "20250101_000000"

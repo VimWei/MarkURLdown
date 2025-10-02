@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markurldown.app_types import ConversionOptions, ConvertPayload
-from markurldown.core.registry import convert
+from markdownall.app_types import ConversionOptions, ConvertPayload
+from markdownall.core.registry import convert
 
 
 def make_opts(**kwargs) -> ConversionOptions:
@@ -24,11 +24,11 @@ def test_wordpress_success_basic():
     session = mock.Mock()
 
     with (
-        mock.patch("markurldown.core.registry.fetch_wordpress_article") as fw,
+        mock.patch("markdownall.core.registry.fetch_wordpress_article") as fw,
         mock.patch(
-            "markurldown.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+            "markdownall.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
         ),
-        mock.patch("markurldown.core.registry.derive_md_filename", return_value="w.md"),
+        mock.patch("markdownall.core.registry.derive_md_filename", return_value="w.md"),
     ):
         fw.return_value = mock.Mock(title="W", html_markdown="ok content")
         res = convert(payload, session, make_opts(download_images=False))
@@ -44,8 +44,8 @@ def test_wordpress_empty_fallback():
     session = mock.Mock()
 
     with (
-        mock.patch("markurldown.core.registry.fetch_wordpress_article") as fw,
-        mock.patch("markurldown.core.registry.convert_url") as gen,
+        mock.patch("markdownall.core.registry.fetch_wordpress_article") as fw,
+        mock.patch("markdownall.core.registry.convert_url") as gen,
     ):
         fw.return_value = mock.Mock(title="any", html_markdown="   ")
         gen.return_value = mock.Mock(title="G", markdown="Generic", suggested_filename="g.md")

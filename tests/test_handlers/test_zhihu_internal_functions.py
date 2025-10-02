@@ -5,7 +5,7 @@ import types
 import pytest
 from bs4 import BeautifulSoup
 
-from markurldown.core.handlers import zhihu_handler as zh
+from markdownall.core.handlers import zhihu_handler as zh
 
 
 @pytest.mark.unit

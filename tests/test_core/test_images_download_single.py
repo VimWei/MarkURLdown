@@ -7,7 +7,7 @@ from unittest import mock
 import aiohttp
 import pytest
 
-from markurldown.core.images import _download_single_image
+from markdownall.core.images import _download_single_image
 
 
 @pytest.mark.unit

@@ -8,8 +8,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from markurldown.app_types import ConversionOptions, ConvertPayload, SourceRequest
-from markurldown.services.convert_service import ConvertService
+from markdownall.app_types import ConversionOptions, ConvertPayload, SourceRequest
+from markdownall.services.convert_service import ConvertService
 
 
 class TestMemoryUsage:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from markurldown.core.normalize import normalize_markdown_headings
+from markdownall.core.normalize import normalize_markdown_headings
 
 
 @pytest.mark.unit

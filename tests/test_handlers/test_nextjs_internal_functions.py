@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
-from markurldown.core.handlers import nextjs_handler as nx
+from markdownall.core.handlers import nextjs_handler as nx
 
 
 @pytest.mark.unit

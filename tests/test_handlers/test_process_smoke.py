@@ -3,11 +3,11 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
-from markurldown.core.handlers import appinn_handler as ap
-from markurldown.core.handlers import nextjs_handler as nx
-from markurldown.core.handlers import sspai_handler as sp
-from markurldown.core.handlers import wordpress_handler as wp
-from markurldown.core.handlers import zhihu_handler as zh
+from markdownall.core.handlers import appinn_handler as ap
+from markdownall.core.handlers import nextjs_handler as nx
+from markdownall.core.handlers import sspai_handler as sp
+from markdownall.core.handlers import wordpress_handler as wp
+from markdownall.core.handlers import zhihu_handler as zh
 
 
 @pytest.mark.unit

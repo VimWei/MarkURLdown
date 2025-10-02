@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
-from markurldown.core.handlers import weixin_handler as wx
+from markdownall.core.handlers import weixin_handler as wx
 
 
 @pytest.mark.unit

@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markurldown.app_types import ConversionOptions, ConvertPayload
-from markurldown.core.registry import convert
+from markdownall.app_types import ConversionOptions, ConvertPayload
+from markdownall.core.registry import convert
 
 
 def make_opts(**kwargs) -> ConversionOptions:
@@ -24,8 +24,8 @@ def test_weixin_blocked_returns_none_and_fallbacks():
     session = mock.Mock()
 
     with (
-        mock.patch("markurldown.core.registry.fetch_weixin_article") as fw,
-        mock.patch("markurldown.core.registry.convert_url") as gen,
+        mock.patch("markdownall.core.registry.fetch_weixin_article") as fw,
+        mock.patch("markdownall.core.registry.convert_url") as gen,
     ):
         fw.return_value = mock.Mock(title="需完成验证", html_markdown="验证")
         gen.return_value = mock.Mock(title="G", markdown="Generic", suggested_filename="g.md")
@@ -41,9 +41,9 @@ def test_weixin_normal_content_passes():
     session = mock.Mock()
 
     with (
-        mock.patch("markurldown.core.registry.fetch_weixin_article") as fw,
+        mock.patch("markdownall.core.registry.fetch_weixin_article") as fw,
         mock.patch(
-            "markurldown.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
+            "markdownall.core.normalize.normalize_markdown_headings", side_effect=lambda t, x: t
         ),
     ):
         fw.return_value = mock.Mock(title="WX", html_markdown="ok" * 1000)

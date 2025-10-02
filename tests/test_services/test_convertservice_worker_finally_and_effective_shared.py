@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markurldown.app_types import SourceRequest
-from markurldown.services.convert_service import ConvertService
+from markdownall.app_types import SourceRequest
+from markdownall.services.convert_service import ConvertService
 
 
 def _make_options(shared: bool = True):
@@ -50,10 +50,10 @@ def test_worker_finally_closes_browser_and_runtime_on_early_stop(tmp_path, monke
         lambda: type("P", (), {"start": lambda self=None: DummyRuntime()})(),
     )
     monkeypatch.setattr(
-        "markurldown.services.convert_service.build_requests_session", lambda **k: object()
+        "markdownall.services.convert_service.build_requests_session", lambda **k: object()
     )
     monkeypatch.setattr(
-        "markurldown.core.registry.should_use_shared_browser_for_url", lambda url: True
+        "markdownall.core.registry.should_use_shared_browser_for_url", lambda url: True
     )
 
     # Trigger early stop right after entering loop
@@ -104,11 +104,11 @@ def test_effective_shared_browser_none_when_url_disallows_shared(tmp_path, monke
         lambda: type("P", (), {"start": lambda self=None: runtime})(),
     )
     monkeypatch.setattr(
-        "markurldown.services.convert_service.build_requests_session", lambda **k: object()
+        "markdownall.services.convert_service.build_requests_session", lambda **k: object()
     )
     # Policy: never use shared for this URL
     monkeypatch.setattr(
-        "markurldown.core.registry.should_use_shared_browser_for_url", lambda url: False
+        "markdownall.core.registry.should_use_shared_browser_for_url", lambda url: False
     )
 
     captured_payloads = []
@@ -117,9 +117,9 @@ def test_effective_shared_browser_none_when_url_disallows_shared(tmp_path, monke
         captured_payloads.append(payload)
         return mock.Mock(title="T", markdown="# md", suggested_filename="f.md")
 
-    monkeypatch.setattr("markurldown.services.convert_service.registry_convert", fake_convert)
+    monkeypatch.setattr("markdownall.services.convert_service.registry_convert", fake_convert)
     monkeypatch.setattr(
-        "markurldown.io.writer.write_markdown", lambda out_dir, fn, text: str(tmp_path / fn)
+        "markdownall.io.writer.write_markdown", lambda out_dir, fn, text: str(tmp_path / fn)
     )
 
     svc._worker(reqs, str(tmp_path), _make_options(shared=True), events.append)

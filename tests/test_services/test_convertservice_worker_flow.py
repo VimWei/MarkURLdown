@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markurldown.app_types import ConversionOptions, ConvertPayload, SourceRequest
-from markurldown.services.convert_service import ConvertService
+from markdownall.app_types import ConversionOptions, ConvertPayload, SourceRequest
+from markdownall.services.convert_service import ConvertService
 
 
 def make_opts(**kwargs) -> ConversionOptions:
@@ -45,14 +45,14 @@ def test_worker_continues_on_error_and_emits_done(tmp_path):
 
     # Patch components used inside _worker
     with (
-        mock.patch("markurldown.services.convert_service.build_requests_session"),
+        mock.patch("markdownall.services.convert_service.build_requests_session"),
         mock.patch(
-            "markurldown.core.registry.should_use_shared_browser_for_url", return_value=True
+            "markdownall.core.registry.should_use_shared_browser_for_url", return_value=True
         ),
-        mock.patch("markurldown.services.convert_service.registry_convert") as reg_convert,
-        mock.patch("markurldown.core.registry.convert") as reg_convert2,
-        mock.patch("markurldown.core.handlers.generic_handler.convert_url") as gen_conv,
-        mock.patch("markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
+        mock.patch("markdownall.services.convert_service.registry_convert") as reg_convert,
+        mock.patch("markdownall.core.registry.convert") as reg_convert2,
+        mock.patch("markdownall.core.handlers.generic_handler.convert_url") as gen_conv,
+        mock.patch("markdownall.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
     ):
 
         def side_effect_convert(payload, session, options):
@@ -90,14 +90,14 @@ def test_worker_stop_early(tmp_path):
     events = []
 
     with (
-        mock.patch("markurldown.services.convert_service.build_requests_session"),
+        mock.patch("markdownall.services.convert_service.build_requests_session"),
         mock.patch(
-            "markurldown.core.registry.should_use_shared_browser_for_url", return_value=True
+            "markdownall.core.registry.should_use_shared_browser_for_url", return_value=True
         ),
-        mock.patch("markurldown.services.convert_service.registry_convert") as reg_convert,
-        mock.patch("markurldown.core.registry.convert") as reg_convert2,
-        mock.patch("markurldown.core.handlers.generic_handler.convert_url") as gen_conv,
-        mock.patch("markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
+        mock.patch("markdownall.services.convert_service.registry_convert") as reg_convert,
+        mock.patch("markdownall.core.registry.convert") as reg_convert2,
+        mock.patch("markdownall.core.handlers.generic_handler.convert_url") as gen_conv,
+        mock.patch("markdownall.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
     ):
 
         call_count = {"n": 0}

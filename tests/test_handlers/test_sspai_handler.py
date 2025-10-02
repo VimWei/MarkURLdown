@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from markurldown.app_types import ConversionOptions
-from markurldown.core.handlers.sspai_handler import (
+from markdownall.app_types import ConversionOptions
+from markdownall.core.handlers.sspai_handler import (
     FetchResult,
     _process_sspai_content,
     _try_httpx_crawler,

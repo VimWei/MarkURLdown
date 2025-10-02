@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from markurldown.core.common_utils import (
+from markdownall.core.common_utils import (
     COMMON_FILTERS,
     DOMAIN_FILTERS,
     apply_dom_filters,

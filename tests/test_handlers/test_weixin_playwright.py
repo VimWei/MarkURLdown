@@ -5,7 +5,7 @@ import types
 
 import pytest
 
-from markurldown.core.handlers import weixin_handler as wx
+from markdownall.core.handlers import weixin_handler as wx
 
 
 @pytest.mark.unit

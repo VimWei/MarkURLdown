@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markurldown.app_types import SourceRequest
-from markurldown.services.convert_service import ConvertService
+from markdownall.app_types import SourceRequest
+from markdownall.services.convert_service import ConvertService
 
 
 def _make_options():
@@ -27,13 +27,13 @@ def test_worker_emit_detail_handles_str_and_dict(tmp_path, monkeypatch):
 
     # Patch via monkeypatch to be robust under combined runs
     monkeypatch.setattr(
-        "markurldown.services.convert_service.build_requests_session", lambda **k: object()
+        "markdownall.services.convert_service.build_requests_session", lambda **k: object()
     )
     monkeypatch.setattr(
-        "markurldown.core.registry.should_use_shared_browser_for_url", lambda url: True
+        "markdownall.core.registry.should_use_shared_browser_for_url", lambda url: True
     )
     monkeypatch.setattr(
-        "markurldown.io.writer.write_markdown",
+        "markdownall.io.writer.write_markdown",
         lambda out_dir, fn, text: str(tmp_path / "out.md"),
     )
 
@@ -46,17 +46,17 @@ def test_worker_emit_detail_handles_str_and_dict(tmp_path, monkeypatch):
 
     # Critically, patch the alias used inside convert_service module
     monkeypatch.setattr(
-        "markurldown.services.convert_service.registry_convert", _reg_convert_side_effect
+        "markdownall.services.convert_service.registry_convert", _reg_convert_side_effect
     )
     # Also patch potential fallbacks to ensure no unexpected network/logic paths
-    monkeypatch.setattr("markurldown.core.registry.convert", _reg_convert_side_effect)
+    monkeypatch.setattr("markdownall.core.registry.convert", _reg_convert_side_effect)
     monkeypatch.setattr(
-        "markurldown.core.handlers.generic_handler.convert_url",
+        "markdownall.core.handlers.generic_handler.convert_url",
         lambda payload, session, options: _reg_convert_side_effect(payload, session, options),
     )
     # Patch the re-export used inside core.registry as well
     monkeypatch.setattr(
-        "markurldown.core.registry.convert_url",
+        "markdownall.core.registry.convert_url",
         lambda payload, session, options: _reg_convert_side_effect(payload, session, options),
     )
 

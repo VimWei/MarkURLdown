@@ -24,7 +24,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from markurldown.app_types import ConversionOptions
+from markdownall.app_types import ConversionOptions
 
 
 @pytest.fixture

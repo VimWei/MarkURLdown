@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from markurldown.io.config import resolve_project_path, to_project_relative_path
+from markdownall.io.config import resolve_project_path, to_project_relative_path
 
 
 @pytest.mark.unit

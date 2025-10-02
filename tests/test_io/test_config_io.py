@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from markurldown.io.config import load_config, load_json_from_root, save_config
+from markdownall.io.config import load_config, load_json_from_root, save_config
 
 
 @pytest.mark.unit

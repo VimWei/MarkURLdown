@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from markurldown.core.handlers import appinn_handler as app
+from markdownall.core.handlers import appinn_handler as app
 
 
 @pytest.mark.unit

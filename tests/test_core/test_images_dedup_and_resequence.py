@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from markurldown.core.images import download_images_and_rewrite
+from markdownall.core.images import download_images_and_rewrite
 
 
 @pytest.mark.unit
@@ -33,8 +33,8 @@ def test_image_dedup_by_content(tmp_path):
         return results
 
     with (
-        mock.patch("markurldown.core.images._download_images_async", side_effect=fake_async),
-        mock.patch("markurldown.core.images.datetime") as dt_mock,
+        mock.patch("markdownall.core.images._download_images_async", side_effect=fake_async),
+        mock.patch("markdownall.core.images.datetime") as dt_mock,
     ):
         dt_mock.now.return_value = datetime(2025, 1, 1, 0, 0, 0)
         session = mock.Mock()
@@ -67,8 +67,8 @@ def test_compact_resequence_rename(tmp_path):
         return results
 
     with (
-        mock.patch("markurldown.core.images._download_images_async", side_effect=fake_async),
-        mock.patch("markurldown.core.images.datetime") as dt_mock,
+        mock.patch("markdownall.core.images._download_images_async", side_effect=fake_async),
+        mock.patch("markdownall.core.images.datetime") as dt_mock,
     ):
         dt_mock.now.return_value = datetime(2025, 1, 1, 0, 0, 0)
         session = mock.Mock()

@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markurldown.app_types import SourceRequest
-from markurldown.services.convert_service import ConvertService
+from markdownall.app_types import SourceRequest
+from markdownall.services.convert_service import ConvertService
 
 
 def _make_options():
@@ -43,15 +43,15 @@ def test_shared_browser_start_close_and_restart(tmp_path):
     dummy_runtime.chromium.launch.return_value = DummyBrowser("initial")
 
     with (
-        mock.patch("markurldown.services.convert_service.build_requests_session"),
+        mock.patch("markdownall.services.convert_service.build_requests_session"),
         mock.patch(
-            "markurldown.services.convert_service.registry_convert",
+            "markdownall.services.convert_service.registry_convert",
             return_value=mock.Mock(title="T", markdown="# m", suggested_filename="f.md"),
         ),
-        mock.patch("markurldown.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
-        mock.patch("markurldown.core.registry.get_handler_for_url") as get_handler_for_url,
-        mock.patch("markurldown.core.registry.should_use_shared_browser_for_url") as should_use,
-        mock.patch("markurldown.services.convert_service.threading.Thread") as ThreadMock,
+        mock.patch("markdownall.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
+        mock.patch("markdownall.core.registry.get_handler_for_url") as get_handler_for_url,
+        mock.patch("markdownall.core.registry.should_use_shared_browser_for_url") as should_use,
+        mock.patch("markdownall.services.convert_service.threading.Thread") as ThreadMock,
         mock.patch("playwright.sync_api.sync_playwright") as sp,
     ):
 

@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from markurldown.core.handlers import wordpress_handler as wp
+from markdownall.core.handlers import wordpress_handler as wp
 
 
 @pytest.mark.unit

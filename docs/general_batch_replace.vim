@@ -13,7 +13,7 @@
 "
 " 方案 2：搜索特定类型的文本文件（常见源码和文档）
 " let g:target_files = '**/*.txt **/*.md **/*.py **/*.js **/*.html **/*.css'
-let g:target_files = 'Testing_Guide.md Version_management_guide.md HANDLER_DEVELOPMENT_GUIDE.md new_site_handler_template.py'
+let g:target_files = '**/*.py'
 "
 " 方案 3：仅搜索当前目录下的文件（不递归子目录）
 " let g:target_files = '*'
@@ -37,6 +37,7 @@ let g:ignore_patterns = [
 " 更多可选的忽略模式（可根据项目类型启用）
 let g:ignore_patterns += ['.git']                   " git 相关目录
 let g:ignore_patterns += ['.venv', '__pycache__']   " python 相关目录
+let g:ignore_patterns += ['.pytest_cache', 'test_data', 'htmlcov', '.coverage']   " pytest 相关目录
 let g:ignore_patterns += ['*.swp', '*.bak']         " vim 相关文件
 let g:ignore_patterns += ['*.jpg', '*.jpeg', '*.gif', '*.png', '*.webp', '*.psd']   " 图片文件
 let g:ignore_patterns += ['*.ico', '*.gfie']        " 图标文件
@@ -157,7 +158,7 @@ function! s:CalculateElapsedTime()
     " 使用 reltime() 计算精确时间差（更可靠）
     let l:elapsed_reltime = reltime(s:start_reltime, s:end_reltime)
     let l:elapsed_str = reltimestr(l:elapsed_reltime)
-    
+
     " 解析 elapsed_str（格式类似 "1.234567"）
     let l:elapsed_float = str2float(l:elapsed_str)
     let l:elapsed_ms = float2nr(l:elapsed_float * 1000)
@@ -200,7 +201,6 @@ function! s:CalculateElapsedTime()
         return l:days . " 天 " . l:hours . " 小时 " . l:minutes . " 分 " . l:seconds . "." . printf("%03d", l:ms) . " 秒"
     endif
 endfunction
-
 
 " 替换函数：执行实际的搜索替换操作 ---------------------------------------{{{2
 function! s:PerformReplacement(pattern, replacement)
@@ -509,4 +509,4 @@ finally
 endtry
 
 " Created:  2025/10/02 12:51:18
-" Modified: 2025/10/03 01:55:00
+" Modified: 2025/10/03 02:11:36

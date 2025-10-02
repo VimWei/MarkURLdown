@@ -6,9 +6,9 @@ from unittest import mock
 
 import pytest
 
-from markurldown.app_types import ConversionOptions, ProgressEvent, SourceRequest
-from markurldown.ui.pyside.gui import PySideApp
-from markurldown.ui.viewmodel import ViewModel
+from markdownall.app_types import ConversionOptions, ProgressEvent, SourceRequest
+from markdownall.ui.pyside.gui import PySideApp
+from markdownall.ui.viewmodel import ViewModel
 
 
 @pytest.mark.unit
@@ -129,7 +129,7 @@ def test_restore_last_session_loads_and_applies(tmp_path, qapp):
 def test_choose_output_dir_uses_dialog_return(tmp_path, qapp):
     window = _make_window(tmp_path, qapp)
     with mock.patch(
-        "markurldown.ui.pyside.gui.QFileDialog.getExistingDirectory",
+        "markdownall.ui.pyside.gui.QFileDialog.getExistingDirectory",
         return_value=str(tmp_path),
     ):
         window._choose_output_dir()
@@ -218,7 +218,7 @@ def test_list_operations_move_delete_clear(tmp_path, qapp):
 @pytest.mark.unit
 def test_run_gui_entrypoint_is_callable(monkeypatch, tmp_path, qapp):
     # Patch heavy parts to avoid real GUI loop
-    import markurldown.ui.pyside.gui as gui_mod
+    import markdownall.ui.pyside.gui as gui_mod
 
     fake_app = qapp
     splash_mock = mock.Mock()
@@ -245,12 +245,12 @@ def test_run_gui_entrypoint_is_callable(monkeypatch, tmp_path, qapp):
 @pytest.mark.unit
 def test_worker_emit_detail_variants(monkeypatch, tmp_path):
     # Exercise ConvertService._worker and its inner _emit_detail path
-    from markurldown.services.convert_service import ConvertService
+    from markdownall.services.convert_service import ConvertService
 
     svc = ConvertService()
     # Mock external dependencies
     monkeypatch.setattr(
-        "markurldown.services.convert_service.build_requests_session", lambda **kw: object()
+        "markdownall.services.convert_service.build_requests_session", lambda **kw: object()
     )
 
     # Stub convert to call on_detail with dict and text, and return a minimal result-like object
@@ -266,9 +266,9 @@ def test_worker_emit_detail_variants(monkeypatch, tmp_path):
         on_detail("text line")
         return _Result()
 
-    monkeypatch.setattr("markurldown.services.convert_service.registry_convert", _stub_convert)
+    monkeypatch.setattr("markdownall.services.convert_service.registry_convert", _stub_convert)
     monkeypatch.setattr(
-        "markurldown.services.convert_service.write_markdown",
+        "markdownall.services.convert_service.write_markdown",
         lambda out_dir, name, md: str(Path(tmp_path) / name),
     )
 
@@ -300,14 +300,14 @@ def test_choose_and_import_export_are_mocked(tmp_path, qapp):
     window.url_listbox.addItem("https://x.com")
     # Mock save dialog
     with mock.patch(
-        "markurldown.ui.pyside.gui.QFileDialog.getSaveFileName",
+        "markdownall.ui.pyside.gui.QFileDialog.getSaveFileName",
         return_value=(str(export_target), ""),
     ):
         window._export_session()
         assert export_target.exists()
     # Mock open dialog
     with mock.patch(
-        "markurldown.ui.pyside.gui.QFileDialog.getOpenFileName",
+        "markdownall.ui.pyside.gui.QFileDialog.getOpenFileName",
         return_value=(str(export_target), ""),
     ):
         window._import_session()

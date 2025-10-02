@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from markurldown.core.handlers.appinn_handler import (
+from markdownall.core.handlers.appinn_handler import (
     CrawlerResult,
     FetchResult,
     _build_appinn_content_element,

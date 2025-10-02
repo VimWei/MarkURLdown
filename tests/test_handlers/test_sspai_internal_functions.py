@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
-from markurldown.core.handlers import sspai_handler as sp
+from markdownall.core.handlers import sspai_handler as sp
 
 
 @pytest.mark.unit

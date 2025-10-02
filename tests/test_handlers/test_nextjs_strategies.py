@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from markurldown.core.handlers import nextjs_handler as nx
+from markdownall.core.handlers import nextjs_handler as nx
 
 
 @pytest.mark.unit

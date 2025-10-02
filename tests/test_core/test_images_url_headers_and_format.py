@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from markurldown.core.images import ImageDomainConfig, download_images_and_rewrite
+from markdownall.core.images import ImageDomainConfig, download_images_and_rewrite
 
 
 @pytest.mark.unit
@@ -29,8 +29,8 @@ def test_images_adds_special_headers_for_weixin_and_sspai(tmp_path):
         }
 
     with (
-        mock.patch("markurldown.core.images._download_images_async", side_effect=fake_async),
-        mock.patch("markurldown.core.images.datetime") as dt_mock,
+        mock.patch("markdownall.core.images._download_images_async", side_effect=fake_async),
+        mock.patch("markdownall.core.images.datetime") as dt_mock,
     ):
         dt_mock.now.return_value = datetime(2025, 1, 1, 0, 0, 0)
 
@@ -68,9 +68,9 @@ def test_images_format_detection_and_rename(tmp_path):
         return results
 
     with (
-        mock.patch("markurldown.core.images._download_images_async", side_effect=fake_async),
-        mock.patch("markurldown.core.images._should_detect_image_format", return_value=True),
-        mock.patch("markurldown.core.images.datetime") as dt_mock,
+        mock.patch("markdownall.core.images._download_images_async", side_effect=fake_async),
+        mock.patch("markdownall.core.images._should_detect_image_format", return_value=True),
+        mock.patch("markdownall.core.images.datetime") as dt_mock,
     ):
         dt_mock.now.return_value = datetime(2025, 1, 1, 0, 0, 0)
 

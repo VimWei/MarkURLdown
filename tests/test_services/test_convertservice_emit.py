@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from markurldown.app_types import ProgressEvent
-from markurldown.services.convert_service import ConvertService
+from markdownall.app_types import ProgressEvent
+from markdownall.services.convert_service import ConvertService
 
 
 @dataclass

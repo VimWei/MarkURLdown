@@ -5,11 +5,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from markurldown.app_types import ConversionOptions, ConvertPayload
-from markurldown.core.filename import derive_md_filename
-from markurldown.core.handlers.generic_handler import convert_url
-from markurldown.core.normalize import normalize_markdown_headings
-from markurldown.services.convert_service import ConvertService
+from markdownall.app_types import ConversionOptions, ConvertPayload
+from markdownall.core.filename import derive_md_filename
+from markdownall.core.handlers.generic_handler import convert_url
+from markdownall.core.normalize import normalize_markdown_headings
+from markdownall.services.convert_service import ConvertService
 
 
 class TestConversionPerformance:
@@ -279,7 +279,7 @@ class TestConversionPerformance:
         import sys
 
         # 清除模块缓存
-        modules_to_clear = [name for name in sys.modules.keys() if name.startswith("markurldown")]
+        modules_to_clear = [name for name in sys.modules.keys() if name.startswith("markdownall")]
         for module_name in modules_to_clear:
             if module_name in sys.modules:
                 del sys.modules[module_name]
@@ -287,9 +287,9 @@ class TestConversionPerformance:
         start_time = time.time()
 
         # 重新导入模块
-        import markurldown.app_types
-        import markurldown.core.handlers.generic_handler
-        import markurldown.services.convert_service
+        import markdownall.app_types
+        import markdownall.core.handlers.generic_handler
+        import markdownall.services.convert_service
 
         end_time = time.time()
         duration = end_time - start_time

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
-from markurldown.core.handlers import appinn_handler as ap
+from markdownall.core.handlers import appinn_handler as ap
 
 
 @pytest.mark.unit

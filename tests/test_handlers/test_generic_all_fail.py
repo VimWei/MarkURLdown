@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from markurldown.app_types import ConversionOptions, ConvertPayload
-from markurldown.core.handlers import generic_handler
+from markdownall.app_types import ConversionOptions, ConvertPayload
+from markdownall.core.handlers import generic_handler
 
 
 def make_opts(**kwargs) -> ConversionOptions:

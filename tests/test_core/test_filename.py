@@ -2,7 +2,7 @@
 
 import pytest
 
-from markurldown.core.filename import derive_md_filename
+from markdownall.core.filename import derive_md_filename
 
 
 class TestFilename:

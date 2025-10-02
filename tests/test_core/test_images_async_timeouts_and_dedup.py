@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from markurldown.core.images import download_images_and_rewrite
+from markdownall.core.images import download_images_and_rewrite
 
 
 @pytest.mark.unit
@@ -20,7 +20,7 @@ def test_async_timeout_errors_are_swallowed(tmp_path):
         # Simulate timeout behavior by marking all downloads as failed, without raising
         return {url: (False, path) for url, path, _ in image_tasks}
 
-    with mock.patch("markurldown.core.images._download_images_async", side_effect=dl_async):
+    with mock.patch("markdownall.core.images._download_images_async", side_effect=dl_async):
         session = mock.Mock()
         out = download_images_and_rewrite(md, base, str(images_dir), session)
 
@@ -60,8 +60,8 @@ def test_async_dedup_concurrency_same_path(tmp_path):
         return results
 
     with (
-        mock.patch("markurldown.core.images._download_images_async", side_effect=dl_async),
-        mock.patch("markurldown.core.images.datetime") as dt_mock,
+        mock.patch("markdownall.core.images._download_images_async", side_effect=dl_async),
+        mock.patch("markdownall.core.images.datetime") as dt_mock,
     ):
         dt_mock.now.return_value = datetime(2025, 1, 1, 0, 0, 0)
         session = mock.Mock()
