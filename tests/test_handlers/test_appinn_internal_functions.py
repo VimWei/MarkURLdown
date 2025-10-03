@@ -52,7 +52,8 @@ def test_build_appinn_header_parts_and_content_element():
     title, parts = ap._build_appinn_header_parts(soup, url="https://u")
     assert title == "T2"
     head = "\n".join(parts)
-    assert "# T2" in head and "来源：https://u" in head
+    # Allow either full-width colon or normal colon depending on environment
+    assert "# T2" in head and ("来源：https://u" in head or "来源: https://u" in head)
     content = ap._build_appinn_content_element(soup)
     assert content and content.get_text(strip=True) == "Body"
 

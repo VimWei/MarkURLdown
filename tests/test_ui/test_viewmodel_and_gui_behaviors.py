@@ -7,7 +7,7 @@ from unittest import mock
 import pytest
 
 from markdownall.app_types import ConversionOptions, ProgressEvent, SourceRequest
-from markdownall.ui.pyside.gui import PySideApp
+from markdownall.ui.pyside.gui import PySideApp, QFileDialog
 from markdownall.ui.viewmodel import ViewModel
 
 
@@ -128,10 +128,7 @@ def test_restore_last_session_loads_and_applies(tmp_path, qapp):
 @pytest.mark.unit
 def test_choose_output_dir_uses_dialog_return(tmp_path, qapp):
     window = _make_window(tmp_path, qapp)
-    with mock.patch(
-        "markdownall.ui.pyside.gui.QFileDialog.getExistingDirectory",
-        return_value=str(tmp_path),
-    ):
+    with mock.patch.object(QFileDialog, "getExistingDirectory", return_value=str(tmp_path)):
         window._choose_output_dir()
         assert window.output_entry.text() == str(tmp_path)
 
@@ -299,17 +296,11 @@ def test_choose_and_import_export_are_mocked(tmp_path, qapp):
     export_target = sessions_dir / "session.json"
     window.url_listbox.addItem("https://x.com")
     # Mock save dialog
-    with mock.patch(
-        "markdownall.ui.pyside.gui.QFileDialog.getSaveFileName",
-        return_value=(str(export_target), ""),
-    ):
+    with mock.patch.object(QFileDialog, "getSaveFileName", return_value=(str(export_target), "")):
         window._export_session()
         assert export_target.exists()
     # Mock open dialog
-    with mock.patch(
-        "markdownall.ui.pyside.gui.QFileDialog.getOpenFileName",
-        return_value=(str(export_target), ""),
-    ):
+    with mock.patch.object(QFileDialog, "getOpenFileName", return_value=(str(export_target), "")):
         window._import_session()
         # After import, status/detail updated
         assert window.status_label.text() != ""

@@ -103,6 +103,60 @@ def setup_test_environment():
     pass
 
 
+@pytest.fixture(autouse=True)
+def prevent_blocking_qt_dialogs(monkeypatch):
+    """Prevent modal Qt dialogs from blocking in headless/test runs.
+
+    Individual tests can override with mock.patch/monkeypatch as needed.
+    """
+    # Patch at the module-under-test level to ensure dialogs never block
+    try:
+        import markdownall.ui.pyside.gui as gui_mod
+
+        # Ensure the class keeps identity; only stub methods so tests can patch them
+        if hasattr(gui_mod, "QFileDialog"):
+            if not hasattr(gui_mod.QFileDialog, "getExistingDirectory"):
+                setattr(gui_mod.QFileDialog, "getExistingDirectory", staticmethod(lambda *a, **k: ""))
+            else:
+                monkeypatch.setattr(gui_mod.QFileDialog, "getExistingDirectory", lambda *a, **k: "", raising=False)
+            if not hasattr(gui_mod.QFileDialog, "getOpenFileName"):
+                setattr(gui_mod.QFileDialog, "getOpenFileName", staticmethod(lambda *a, **k: ("", "")))
+            else:
+                monkeypatch.setattr(gui_mod.QFileDialog, "getOpenFileName", lambda *a, **k: ("", ""), raising=False)
+            if not hasattr(gui_mod.QFileDialog, "getSaveFileName"):
+                setattr(gui_mod.QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: ("", "")))
+            else:
+                monkeypatch.setattr(gui_mod.QFileDialog, "getSaveFileName", lambda *a, **k: ("", ""), raising=False)
+
+        monkeypatch.setattr(gui_mod.QMessageBox, "critical", lambda *a, **k: None, raising=False)
+    except Exception:
+        pass
+
+    # Also patch at the PySide6 layer
+    try:
+        from PySide6 import QtWidgets as QtW
+
+        # Safe defaults; tests can override
+        if hasattr(QtW, "QFileDialog"):
+            if not hasattr(QtW.QFileDialog, "getExistingDirectory"):
+                setattr(QtW.QFileDialog, "getExistingDirectory", staticmethod(lambda *a, **k: ""))
+            else:
+                monkeypatch.setattr(QtW.QFileDialog, "getExistingDirectory", lambda *a, **k: "", raising=False)
+            if not hasattr(QtW.QFileDialog, "getOpenFileName"):
+                setattr(QtW.QFileDialog, "getOpenFileName", staticmethod(lambda *a, **k: ("", "")))
+            else:
+                monkeypatch.setattr(QtW.QFileDialog, "getOpenFileName", lambda *a, **k: ("", ""), raising=False)
+            if not hasattr(QtW.QFileDialog, "getSaveFileName"):
+                setattr(QtW.QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: ("", "")))
+            else:
+                monkeypatch.setattr(QtW.QFileDialog, "getSaveFileName", lambda *a, **k: ("", ""), raising=False)
+
+        # Ensure QMessageBox.critical is non-blocking
+        monkeypatch.setattr(QtW.QMessageBox, "critical", lambda *a, **k: None, raising=False)
+    except Exception:
+        pass
+
+
 def pytest_configure(config):
     """pytest 配置"""
     # 添加自定义标记

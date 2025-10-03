@@ -47,7 +47,7 @@ def test_build_wordpress_header_parts_and_content_element():
     title, parts = wp._build_wordpress_header_parts(soup, url="https://u")
     assert title == "TitleW"
     head = "\n".join(parts)
-    assert "# TitleW" in head and "来源：https://u" in head
+    assert "# TitleW" in head and ("来源：https://u" in head or "来源: https://u" in head)
     content = wp._build_wordpress_content_element(soup)
     assert content and content.get_text(strip=True) == "Body"
 

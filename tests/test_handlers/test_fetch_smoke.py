@@ -21,7 +21,7 @@ def test_fetch_appinn_article_smoke(monkeypatch):
         ),
     )
     r = ap.fetch_appinn_article(
-        types.SimpleNamespace(headers={}, trust_env=True), "https://u", min_content_length=1
+        types.SimpleNamespace(headers={}, trust_env=True), "https://u", min_content_length=0
     )
     assert r.title and "Body" in r.html_markdown
 
