@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.9.4] - 2025-10-03
+
+- Fix: enforce UTF-8 encoding in subprocess command execution
+- Improve test coverage to 80%
+
 ## [0.9.3] - 2025-10-03
 
 - Update README for clarity and organization
