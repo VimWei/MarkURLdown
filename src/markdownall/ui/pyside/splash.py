@@ -12,15 +12,14 @@ try:
 except Exception:  # pragma: no cover
     import importlib_resources as resources  # type: ignore
 
-
 def _pick_splash_image() -> QPixmap:
     try:
         assets_pkg = "markdownall.ui.assets"
         base = resources.files(assets_pkg)
         candidates = [
-            base / "splash_01.png",
-            base / "splash_02.png",
-            base / "splash_03.png",
+            base / "splash_01.webp",
+            base / "splash_02.webp",
+            base / "splash_03.webp",
         ]
         existing = [p for p in candidates if p.is_file()]
         if not existing:
@@ -33,7 +32,6 @@ def _pick_splash_image() -> QPixmap:
         pm = QPixmap(600, 350)
         pm.fill(QColor("#0a2a5e"))
         return pm
-
 
 def show_immediate_splash() -> Tuple[QApplication, QSplashScreen]:
     app = QApplication.instance() or QApplication([])
