@@ -51,15 +51,16 @@ To set up the project locally, you will need a working Python environment (Pytho
 2. **Install Python venv:**
    ```bash
    # 2.1 Intasll uv
-   # Windows (PowerShell)
+   ## Windows (PowerShell)
    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
    ## Linux/macOS
    curl -LsSf https://astral.sh/uv/install.sh | sh
+
    # 2.2 sync python environment
    cd MarkdownAll
    uv sync
    ```
-3. **Install Playwright browsers:**
+4. **Install Playwright browsers:**
    ```bash
    playwright install
    ```
@@ -68,11 +69,11 @@ To set up the project locally, you will need a working Python environment (Pytho
 
 ### Launching the Application
 
-Option 1: (Windows only) Double-click launcher file `MarkdownAll.vbs`.
-Option 2: (Windows/Linux/macOS) Command line:
+Option 1: (Windows/Linux/macOS) Command line:
 ```bash
 uv run markdownall
 ```
+Option 2: (Windows only) Double-click launcher file `MarkdownAll.vbs`.
 
 ### Basic Usage
 
