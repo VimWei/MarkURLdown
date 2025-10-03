@@ -14,7 +14,9 @@ def _install_fake_pyside(monkeypatch):
         AlignHCenter = 2
 
     class _Qt:
-        AlignmentFlag = SimpleNamespace(AlignBottom=_Align.AlignBottom, AlignHCenter=_Align.AlignHCenter)
+        AlignmentFlag = SimpleNamespace(
+            AlignBottom=_Align.AlignBottom, AlignHCenter=_Align.AlignHCenter
+        )
 
     class _QObject:
         def __init__(self, *args, **kwargs):
@@ -134,6 +136,7 @@ def _install_fake_pyside(monkeypatch):
             pass
 
     class _QWidget: ...
+
     class _QLabel:
         def __init__(self, *a, **k):
             pass
@@ -410,7 +413,9 @@ def test_launch_main_success(monkeypatch, tmp_path):
 
     # Inject the loader symbol into the module namespace after it is imported inside main
     monkeypatch.setattr(
-        importlib.import_module("markdownall.io.config"), "load_json_from_root", fake_load_json_from_root
+        importlib.import_module("markdownall.io.config"),
+        "load_json_from_root",
+        fake_load_json_from_root,
     )
 
     # Stub PySideApp class
@@ -426,7 +431,9 @@ def test_launch_main_success(monkeypatch, tmp_path):
         return FakeWindow()
 
     monkeypatch.setattr(
-        importlib.import_module("markdownall.ui.pyside.gui"), "PySideApp", staticmethod(lambda **kw: fake_pyside_app(**kw))
+        importlib.import_module("markdownall.ui.pyside.gui"),
+        "PySideApp",
+        staticmethod(lambda **kw: fake_pyside_app(**kw)),
     )
 
     # Run
@@ -489,7 +496,9 @@ def test_launch_main_exception(monkeypatch, tmp_path):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(
-        importlib.import_module("markdownall.ui.pyside.gui"), "PySideApp", staticmethod(lambda **kw: raising_pyside_app(**kw))
+        importlib.import_module("markdownall.ui.pyside.gui"),
+        "PySideApp",
+        staticmethod(lambda **kw: raising_pyside_app(**kw)),
     )
 
     # Stub config loader to return empty
@@ -517,6 +526,7 @@ def test_emit_startup_progress_invokes_qt_and_process_events(monkeypatch):
     # Arrange fake PySide and import launch module
     _install_fake_pyside(monkeypatch)
     import importlib
+
     if "markdownall.launch" in sys.modules:
         del sys.modules["markdownall.launch"]
     launch = importlib.import_module("markdownall.launch")
@@ -550,5 +560,3 @@ def test_emit_startup_progress_invokes_qt_and_process_events(monkeypatch):
     # Color class comes from fake PySide _QColor
     assert captured["color_class"].lower().endswith("qcolor")
     assert app.processed is True
-
-

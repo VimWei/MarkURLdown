@@ -45,9 +45,7 @@ def test_worker_shared_browser_start_failure_downgrades(tmp_path):
             "markdownall.services.convert_service.registry_convert",
             return_value=mock.Mock(title="T", markdown="# md", suggested_filename="f.md"),
         ),
-        mock.patch(
-            "markdownall.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
-        ),
+        mock.patch("markdownall.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
         mock.patch("playwright.sync_api.sync_playwright", side_effect=RuntimeError("no pw")),
     ):
         # use_shared_browser=True but playwright startup fails -> should downgrade gracefully
@@ -77,9 +75,7 @@ def test_worker_emits_via_signals_when_provided(tmp_path):
             "markdownall.services.convert_service.registry_convert",
             return_value=mock.Mock(title="T", markdown="# md", suggested_filename="f.md"),
         ),
-        mock.patch(
-            "markdownall.io.writer.write_markdown", return_value=str(tmp_path / "out.md")
-        ),
+        mock.patch("markdownall.io.writer.write_markdown", return_value=str(tmp_path / "out.md")),
     ):
         # Run through public run() to set signals and avoid threading by calling _worker directly
         svc._signals = signals
@@ -87,4 +83,3 @@ def test_worker_emits_via_signals_when_provided(tmp_path):
 
     kinds = [getattr(e, "kind", None) for e in signal_events]
     assert "progress_init" in kinds and "progress_done" in kinds
-

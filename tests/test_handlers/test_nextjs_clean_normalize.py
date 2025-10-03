@@ -10,8 +10,7 @@ def _make_soup(html: str):
 
 
 def test_nextjs_clean_normalize_handles_lazy_images_and_removes_unwanted():
-    html = (
-        """
+    html = """
         <div id="content">
           <h1>Title Should Be Removed</h1>
           <nav>nav</nav>
@@ -26,7 +25,6 @@ def test_nextjs_clean_normalize_handles_lazy_images_and_removes_unwanted():
           <p>Keep me</p>
         </div>
         """
-    )
     soup = _make_soup(html)
     content = soup.find(id="content")
     _clean_and_normalize_nextjs_content(content)
@@ -45,7 +43,11 @@ def test_nextjs_clean_normalize_handles_lazy_images_and_removes_unwanted():
     # lazy images fixed
     imgs = content.find_all("img")
     srcs = [img.get("src") for img in imgs]
-    assert "https://x/img1.png" in srcs and "https://x/img2.png" in srcs and "https://x/img3.png" in srcs
+    assert (
+        "https://x/img1.png" in srcs
+        and "https://x/img2.png" in srcs
+        and "https://x/img3.png" in srcs
+    )
     # data-src and data-original removed where present
     for img in imgs:
         assert "data-src" not in img.attrs
@@ -55,5 +57,3 @@ def test_nextjs_clean_normalize_handles_lazy_images_and_removes_unwanted():
 def test_nextjs_clean_normalize_noop_on_none():
     # Should not raise
     _clean_and_normalize_nextjs_content(None)
-
-

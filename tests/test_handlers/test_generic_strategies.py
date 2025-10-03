@@ -126,7 +126,8 @@ def test_generic_try_enhanced_success(monkeypatch):
             return False
 
     # Inject fake playwright
-    import sys, types
+    import sys
+    import types
 
     monkeypatch.setitem(
         sys.modules, "playwright.sync_api", types.SimpleNamespace(sync_playwright=lambda: _CM())
@@ -190,7 +191,8 @@ def test_generic_try_enhanced_empty_result(monkeypatch):
         def __exit__(self, exc_type, exc, tb):
             return False
 
-    import sys, types
+    import sys
+    import types
 
     monkeypatch.setitem(
         sys.modules, "playwright.sync_api", types.SimpleNamespace(sync_playwright=lambda: _CM())

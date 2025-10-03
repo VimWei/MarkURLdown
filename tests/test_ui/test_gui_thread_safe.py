@@ -16,7 +16,12 @@ def _install_fake_pyside(monkeypatch):
         AlignHCenter = 2
 
     class _Qt:
-        AlignmentFlag = SimpleNamespace(AlignBottom=_Align.AlignBottom, AlignHCenter=_Align.AlignHCenter, AlignRight=4, AlignCenter=8)
+        AlignmentFlag = SimpleNamespace(
+            AlignBottom=_Align.AlignBottom,
+            AlignHCenter=_Align.AlignHCenter,
+            AlignRight=4,
+            AlignCenter=8,
+        )
 
     class _QObject:
         def __init__(self, *a, **k):
@@ -103,7 +108,7 @@ def _install_fake_pyside(monkeypatch):
         "QVBoxLayout",
         "QWidget",
     ]:
-        setattr(qtwidgets, name, type(name, (), {}) )
+        setattr(qtwidgets, name, type(name, (), {}))
 
     # Provide QFileDialog and QMessageBox with required static methods so tests can monkeypatch them
     class QFileDialog:
@@ -149,7 +154,9 @@ def test_on_event_thread_safe_calls_on_event(monkeypatch, tmp_path):
     monkeypatch.setattr(gui.PySideApp, "_retranslate_ui", lambda self: None)
     monkeypatch.setattr(gui.PySideApp, "_connect_signals", lambda self: None)
     # Make translator load without filesystem
-    monkeypatch.setattr(gui.Translator, "load_language", lambda self, code: setattr(self, "language", "en"))
+    monkeypatch.setattr(
+        gui.Translator, "load_language", lambda self, code: setattr(self, "language", "en")
+    )
 
     app = gui.PySideApp(root_dir=str(tmp_path), settings={})
 
@@ -177,7 +184,9 @@ def test_on_event_thread_safe_handles_exception(monkeypatch, tmp_path):
     monkeypatch.setattr(gui.PySideApp, "_setup_ui", lambda self: None)
     monkeypatch.setattr(gui.PySideApp, "_retranslate_ui", lambda self: None)
     monkeypatch.setattr(gui.PySideApp, "_connect_signals", lambda self: None)
-    monkeypatch.setattr(gui.Translator, "load_language", lambda self, code: setattr(self, "language", "en"))
+    monkeypatch.setattr(
+        gui.Translator, "load_language", lambda self, code: setattr(self, "language", "en")
+    )
 
     app = gui.PySideApp(root_dir=str(tmp_path), settings={})
 
@@ -192,5 +201,3 @@ def test_on_event_thread_safe_handles_exception(monkeypatch, tmp_path):
     # Cleanup: ensure later tests re-import gui with real Qt
     if "markdownall.ui.pyside.gui" in sys.modules:
         del sys.modules["markdownall.ui.pyside.gui"]
-
-
