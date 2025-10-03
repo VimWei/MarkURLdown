@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.9.3] - 2025-10-03
+
+- Update README for clarity and organization
+
 ## [0.9.2] - 2025-10-03
 
 - Update splash screen assets and README
