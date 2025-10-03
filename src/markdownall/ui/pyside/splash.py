@@ -12,6 +12,7 @@ try:
 except Exception:  # pragma: no cover
     import importlib_resources as resources  # type: ignore
 
+
 def _pick_splash_image() -> QPixmap:
     try:
         assets_pkg = "markdownall.ui.assets"
@@ -32,6 +33,7 @@ def _pick_splash_image() -> QPixmap:
         pm = QPixmap(600, 350)
         pm.fill(QColor("#0a2a5e"))
         return pm
+
 
 def show_immediate_splash() -> Tuple[QApplication, QSplashScreen]:
     app = QApplication.instance() or QApplication([])
