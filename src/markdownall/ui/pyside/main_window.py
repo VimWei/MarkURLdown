@@ -148,6 +148,9 @@ class MainWindow(QMainWindow):
         # Apply modern styling (模仿MdxScraper)
         self._apply_modern_styling()
         
+        # Load saved configuration
+        self._load_config()
+        
         # Override showEvent to force splitter behavior after window is shown (模仿MdxScraper)
         self.showEvent = self._on_show_event
         
@@ -648,13 +651,7 @@ class MainWindow(QMainWindow):
 
     def _restore_default_config(self):
         """Restore default configuration."""
-        from PySide6.QtWidgets import QMessageBox
-        reply = QMessageBox.question(
-            self, "Restore Default Config",
-            "Are you sure you want to restore default configuration? This will reset all settings.",
-            QMessageBox.Yes | QMessageBox.No
-        )
-        if reply == QMessageBox.Yes:
+        try:
             # Reset to default values
             self.basic_page.set_config({"urls": [], "output_dir": self.output_dir_var})
             self.webpage_page.set_config({
@@ -664,22 +661,67 @@ class MainWindow(QMainWindow):
                 "filter_site_chrome": True,
                 "use_shared_browser": True,
             })
-            self.log_panel.appendLog("Default configuration restored")
+            self.advanced_page.set_config({
+                "language": "auto",
+                "log_level": "INFO",
+                "debug_mode": False
+            })
+            
+            # Save the restored config
+            self._save_config()
+            
+            self.log_success("Default configuration restored successfully")
+        except Exception as e:
+            self.log_error(f"Failed to restore default config: {e}")
 
     def _on_language_changed(self, lang_code: str):
         """Handle language changes."""
-        if lang_code != self.translator.language:
-            self.translator.load_language(lang_code)
-            self._retranslate_ui()
-            self.log_panel.appendLog(f"Language changed to: {lang_code}")
+        try:
+            # Handle auto language detection
+            if lang_code == "auto":
+                import locale
+                system_lang = locale.getdefaultlocale()[0]
+                if system_lang and system_lang.startswith('zh'):
+                    lang_code = "zh"
+                else:
+                    lang_code = "en"
+            
+            # Update translator
+            if lang_code != self.translator.language:
+                self.translator.load_language(lang_code)
+                self._retranslate_ui()
+                
+                # Save language setting
+                self._save_config()
+                
+                self.log_info(f"Language changed to: {lang_code}")
+        except Exception as e:
+            self.log_error(f"Failed to change language: {e}")
 
     def _on_log_level_changed(self, level: str):
         """Handle log level changes."""
-        self.log_panel.appendLog(f"Log level changed to: {level}")
+        try:
+            # Update log level in config
+            self._save_config()
+            
+            # Apply log level filtering (if implemented)
+            self.log_info(f"Log level changed to: {level}")
+        except Exception as e:
+            self.log_error(f"Failed to change log level: {e}")
 
     def _on_debug_mode_changed(self, enabled: bool):
         """Handle debug mode changes."""
-        self.log_panel.appendLog(f"Debug mode {'enabled' if enabled else 'disabled'}")
+        try:
+            # Update debug mode in config
+            self._save_config()
+            
+            if enabled:
+                self.log_info("Debug mode enabled")
+                self.log_debug("Debug logging is now active")
+            else:
+                self.log_info("Debug mode disabled")
+        except Exception as e:
+            self.log_error(f"Failed to change debug mode: {e}")
 
     def _check_updates(self):
         """Check for updates."""
@@ -848,6 +890,48 @@ class MainWindow(QMainWindow):
         """Handle performance warning."""
         self.log_warning(f"Performance warning: {warning_message}")
         # Show warning to user or take corrective action
+
+    def _save_config(self):
+        """Save current configuration to file."""
+        try:
+            # Get current state from all pages
+            state = self._get_current_state()
+            
+            # Add advanced page settings
+            advanced_config = self.advanced_page.get_config()
+            state.update({
+                "language": advanced_config.get("language", "auto"),
+                "log_level": advanced_config.get("log_level", "INFO"),
+                "debug_mode": advanced_config.get("debug_mode", False)
+            })
+            
+            # Save to config file
+            config_file = os.path.join(self.root_dir, "data", "config.json")
+            save_config(config_file, state)
+            
+        except Exception as e:
+            self.log_error(f"Failed to save config: {e}")
+
+    def _load_config(self):
+        """Load configuration from file."""
+        try:
+            config_file = os.path.join(self.root_dir, "data", "config.json")
+            if os.path.exists(config_file):
+                config = load_config(config_file)
+                
+                # Apply advanced page settings
+                if "language" in config:
+                    self.advanced_page.set_language(config["language"])
+                if "log_level" in config:
+                    self.advanced_page.set_log_level(config["log_level"])
+                if "debug_mode" in config:
+                    self.advanced_page.set_debug_mode(config["debug_mode"])
+                
+                # Apply other settings
+                self._apply_state(config)
+                
+        except Exception as e:
+            self.log_error(f"Failed to load config: {e}")
 
 
 # Alias for backward compatibility
