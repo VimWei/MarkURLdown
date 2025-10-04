@@ -108,6 +108,14 @@ class LogPanel(QWidget):
         scrollbar = self.log_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
+    def addLog(self, text: str, level: str = "INFO") -> None:
+        """Add log text with level (for compatibility)."""
+        if level and level != "INFO":
+            formatted_text = f"[{level}] {text}"
+        else:
+            formatted_text = text
+        self.appendLog(formatted_text)
+
     def appendTaskLog(self, task_id: str, message: str) -> None:
         """Append task-specific log (for multi-task operations)."""
         formatted_text = f"[{task_id}] {message}"
@@ -128,7 +136,8 @@ class LogPanel(QWidget):
 
     def clearLog(self) -> None:
         """Clear log content."""
-        self._clear_log()
+        self.log_text.clear()
+        self.logCleared.emit()
 
     def setEnabled(self, enabled: bool) -> None:
         """Set enabled state."""
@@ -150,6 +159,7 @@ class LogPanel(QWidget):
         """Get current component configuration."""
         return {
             "log_content": self.getLogContent(),
+            "max_lines": 1000,  # Default max lines
         }
 
     def set_config(self, config: dict) -> None:

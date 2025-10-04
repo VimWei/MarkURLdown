@@ -169,11 +169,13 @@ class AboutPage(QWidget):
     def get_config(self) -> dict:
         """Get current configuration from the page."""
         return {
-            "homepage_clicked": False,  # Track if homepage was accessed
-            "last_update_check": None,  # Track last update check time
+            "homepage_clicked": getattr(self, '_homepage_clicked', False),
+            "last_update_check": getattr(self, '_last_update_check', None),
         }
 
     def set_config(self, config: dict) -> None:
         """Set configuration for the page."""
-        # No specific configuration to set for About page
-        pass
+        if "homepage_clicked" in config:
+            self._homepage_clicked = config["homepage_clicked"]
+        if "last_update_check" in config:
+            self._last_update_check = config["last_update_check"]

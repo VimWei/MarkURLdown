@@ -398,6 +398,7 @@ class MainWindow(QMainWindow):
         self.command_panel.importRequested.connect(self._import_session)
         self.command_panel.exportRequested.connect(self._export_session)
         self.command_panel.convertRequested.connect(self._on_convert)
+        self.command_panel.stopRequested.connect(self._stop_conversion)
         
         # Progress panel signals (now in command_panel)
         # self.command_panel already has progress bar, no separate signals needed
@@ -501,50 +502,45 @@ class MainWindow(QMainWindow):
         }
 
     def _on_event_thread_safe(self, ev: ProgressEvent):
-        """Thread-safe event handler with log integration."""
+        """Simplified event handler - only handles progress events."""
         if not self.ui_ready:
             return
             
         try:
             message = ev.text or ""
             
-            # Handle different event types
+            # Only handle progress-related events
             if ev.kind == "progress_init":
-                self.progress_panel.setProgress(0, "Starting conversion...")
+                self.command_panel.set_progress(0, "Starting conversion...")
                 if message:
-                    self.log_panel.appendLog(f"🚀 {message}")
-            elif ev.kind == "status":
-                if message:
-                    self.log_panel.appendLog(f"ℹ️ {message}")
-            elif ev.kind == "detail":
-                if message:
-                    self.log_panel.appendLog(f"📝 {message}")
+                    self.log_info(f"Starting conversion: {message}")
             elif ev.kind == "progress_step":
                 # Update progress
                 if ev.data and "completed" in ev.data:
                     completed = ev.data["completed"]
                     total = ev.data.get("total", 0)
-                    self.progress_panel.setMultiTaskProgress(completed, total, message)
-                    self.log_panel.appendLog(f"📊 Progress: {completed}/{total} URLs")
+                    progress_value = int((completed / total) * 100) if total > 0 else 0
+                    self.command_panel.set_progress(progress_value, f"{completed}/{total} URLs")
+                    self.log_info(f"Progress: {completed}/{total} URLs")
                 else:
-                    current = self.progress_panel.progress.value()
-                    self.progress_panel.setProgress(current + 1)
+                    current = self.command_panel.progress.value()
+                    self.command_panel.set_progress(current + 1)
             elif ev.kind == "progress_done":
-                self.progress_panel.setProgress(100, "Conversion completed")
-                self.log_panel.appendLog(f"🎉 {message or 'Conversion completed'}")
+                self.command_panel.set_progress(100, "Conversion completed")
+                self.log_success(message or "Conversion completed")
                 self.is_running = False
-                self.command_panel.setConvertButtonText("Convert to Markdown")
+                self.command_panel.setConvertingState(False)  # Show convert button, hide stop button
             elif ev.kind == "stopped":
-                self.log_panel.appendLog(f"⏹️ {message or 'Conversion stopped'}")
+                self.log_warning(message or "Conversion stopped")
                 self.is_running = False
-                self.command_panel.setConvertButtonText("Convert to Markdown")
+                self.command_panel.setConvertingState(False)  # Show convert button, hide stop button
             elif ev.kind == "error":
-                self.log_panel.appendLog(f"❌ Error: {message or 'Unknown error'}")
+                self.log_error(message or "Unknown error")
                 self.is_running = False
-                self.command_panel.setConvertButtonText("Convert to Markdown")
+                self.command_panel.setConvertingState(False)  # Show convert button, hide stop button
             
         except Exception as e:
-            self.log_panel.appendLog(f"❌ Event handler error: {e}")
+            self.log_error(f"Event handler error: {e}")
 
     # Signal handler methods
     def _on_url_list_changed(self, urls: list):
@@ -685,9 +681,9 @@ class MainWindow(QMainWindow):
         
         # Start conversion
         self.is_running = True
-        self.command_panel.setConvertButtonText("Stop")
-        self.progress_panel.setProgress(0, "Starting conversion...")
-        self.log_panel.appendLog(f"Starting conversion of {len(urls)} URLs")
+        self.command_panel.setConvertingState(True)  # Show stop button, hide convert button
+        self.command_panel.set_progress(0, "Starting conversion...")
+        self.log_info(f"Starting conversion of {len(urls)} URLs")
         
         # Create conversion objects
         reqs = [SourceRequest(kind="url", value=u) for u in urls]
@@ -703,7 +699,7 @@ class MainWindow(QMainWindow):
 
     def _update_progress(self, value: int, text: str):
         """Update progress display."""
-        self.progress_panel.setProgress(value, text)
+        self.command_panel.set_progress(value, text)
 
     def _clear_log(self):
         """Clear log content."""
@@ -744,12 +740,38 @@ class MainWindow(QMainWindow):
         
     def _on_error_occurred(self, error_type: str, error_message: str):
         """Handle error occurrence."""
-        print(f"Error occurred: {error_type} - {error_message}")
+        self.log_error(f"Error occurred: {error_type} - {error_message}")
         # Update UI to show error status
+
+    def _on_performance_warning(self, warning_message: str):
+        """Handle performance warning."""
+        self.log_warning(f"Performance warning: {warning_message}")
+
+    # Direct log methods (adopting MdxScraper's simple design)
+    def log_info(self, message: str) -> None:
+        """Log info message directly."""
+        self.log_panel.appendLog(f"ℹ️ {message}")
+
+    def log_success(self, message: str) -> None:
+        """Log success message directly."""
+        self.log_panel.appendLog(f"✅ {message}")
+
+    def log_warning(self, message: str) -> None:
+        """Log warning message directly."""
+        self.log_panel.appendLog(f"⚠️ {message}")
+
+    def log_error(self, message: str) -> None:
+        """Log error message directly."""
+        self.log_panel.appendLog(f"❌ {message}")
+
+    def log_debug(self, message: str) -> None:
+        """Log debug message directly."""
+        if self.advanced_page.get_debug_mode():
+            self.log_panel.appendLog(f"🐛 {message}")
         
     def _on_performance_warning(self, warning_message: str):
         """Handle performance warning."""
-        print(f"Performance warning: {warning_message}")
+        self.log_warning(f"Performance warning: {warning_message}")
         # Show warning to user or take corrective action
 
 

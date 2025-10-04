@@ -250,6 +250,11 @@ class BasicPage(QWidget):
         """Set output directory."""
         self.output_entry.setText(path)
 
+    def clear_urls(self) -> None:
+        """Clear all URLs from the list."""
+        self.url_listbox.clear()
+        self._emit_url_list_changed()
+
     def retranslate_ui(self):
         """Retranslate UI elements."""
         if not self.translator:

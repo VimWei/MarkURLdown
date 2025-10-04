@@ -12,7 +12,7 @@ import sys
 import os
 import unittest
 from unittest.mock import Mock, patch
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
 from PySide6.QtCore import Qt
 
 # Add the src directory to the path
@@ -34,8 +34,8 @@ class TestBasicPage(unittest.TestCase):
         if self.app is None:
             self.app = QApplication([])
         
-        # Mock parent and translator
-        self.parent = Mock()
+        # Use real QWidget as parent, mock translator
+        self.parent = QWidget()
         self.translator = Mock()
         self.translator.t = lambda key: key  # Mock translation function
         
@@ -104,8 +104,8 @@ class TestWebpagePage(unittest.TestCase):
         if self.app is None:
             self.app = QApplication([])
         
-        # Mock parent and translator
-        self.parent = Mock()
+        # Use real QWidget as parent, mock translator
+        self.parent = QWidget()
         self.translator = Mock()
         self.translator.t = lambda key: key
         
@@ -168,8 +168,8 @@ class TestAdvancedPage(unittest.TestCase):
         if self.app is None:
             self.app = QApplication([])
         
-        # Mock parent and translator
-        self.parent = Mock()
+        # Use real QWidget as parent, mock translator
+        self.parent = QWidget()
         self.translator = Mock()
         self.translator.t = lambda key: key
         
@@ -240,8 +240,8 @@ class TestAboutPage(unittest.TestCase):
         if self.app is None:
             self.app = QApplication([])
         
-        # Mock parent and translator
-        self.parent = Mock()
+        # Use real QWidget as parent, mock translator
+        self.parent = QWidget()
         self.translator = Mock()
         self.translator.t = lambda key: key
         
@@ -280,18 +280,21 @@ class TestTranslator(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures."""
-        self.locales_dir = os.path.join(os.path.dirname(__file__), '..', 'src', 'markdownall', 'ui', 'locales')
+        # Get the correct path to locales directory
+        current_dir = os.path.dirname(__file__)
+        project_root = os.path.dirname(os.path.dirname(current_dir))  # Go up to project root
+        self.locales_dir = os.path.join(project_root, 'src', 'markdownall', 'ui', 'locales')
         self.translator = Translator(self.locales_dir)
     
     def test_load_language(self):
         """Test language loading."""
         # Test loading English
         self.translator.load_language("en")
-        self.assertEqual(self.translator.current_lang, "en")
+        self.assertEqual(self.translator.language, "en")
         
         # Test loading Chinese
         self.translator.load_language("zh")
-        self.assertEqual(self.translator.current_lang, "zh")
+        self.assertEqual(self.translator.language, "zh")
     
     def test_translation(self):
         """Test translation functionality."""

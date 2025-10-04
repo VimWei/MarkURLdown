@@ -11,7 +11,7 @@ import sys
 import os
 import unittest
 from unittest.mock import Mock, patch
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
 from PySide6.QtCore import Qt
 
 # Add the src directory to the path
@@ -31,8 +31,8 @@ class TestCommandPanel(unittest.TestCase):
         if self.app is None:
             self.app = QApplication([])
         
-        # Mock parent and translator
-        self.parent = Mock()
+        # Use real QWidget as parent, mock translator
+        self.parent = QWidget()
         self.translator = Mock()
         self.translator.t = lambda key: key
         
@@ -61,11 +61,11 @@ class TestCommandPanel(unittest.TestCase):
         """Test progress bar functionality."""
         # Test setting progress
         self.panel.set_progress(50)
-        self.assertEqual(self.panel.progress_bar.value(), 50)
+        self.assertEqual(self.panel.progress.value(), 50)
         
         # Test setting progress with message
         self.panel.set_progress(75, "Processing...")
-        self.assertEqual(self.panel.progress_bar.value(), 75)
+        self.assertEqual(self.panel.progress.value(), 75)
     
     def test_config_management(self):
         """Test configuration management."""
@@ -107,8 +107,8 @@ class TestLogPanel(unittest.TestCase):
         if self.app is None:
             self.app = QApplication([])
         
-        # Mock parent and translator
-        self.parent = Mock()
+        # Use real QWidget as parent, mock translator
+        self.parent = QWidget()
         self.translator = Mock()
         self.translator.t = lambda key: key
         

@@ -203,6 +203,13 @@ class AdvancedPage(QWidget):
         """Get user data directory path."""
         return self.user_data_path
 
+    def set_user_data_path(self, path: str) -> None:
+        """Set user data directory path."""
+        self.user_data_path = path
+        # Update the display if there's a label
+        if hasattr(self, 'user_data_label'):
+            self.user_data_label.setText(path)
+
     def get_language(self) -> str:
         """Get current language setting."""
         return self.language_combo.currentData()

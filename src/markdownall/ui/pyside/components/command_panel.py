@@ -82,17 +82,25 @@ class CommandPanel(QWidget):
         row_actions.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
         root.addLayout(row_actions)
 
-        # Row 2: convert (centered alone)
+        # Row 2: convert/stop (centered)
         row_convert = QHBoxLayout()
         row_convert.setContentsMargins(0, 0, 0, 0)
         row_convert.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
         
         self.btn_convert = QPushButton("Convert to Markdown", self)
-        self.btn_convert.setFixedWidth(220)
-        self.btn_convert.setFixedHeight(45)
+        self.btn_convert.setFixedWidth(200)
+        self.btn_convert.setFixedHeight(40)
         self.btn_convert.setObjectName("convert-button")
         
+        self.btn_stop = QPushButton("Stop", self)
+        self.btn_stop.setFixedWidth(100)
+        self.btn_stop.setFixedHeight(40)
+        self.btn_stop.setObjectName("stop-button")
+        self.btn_stop.setVisible(False)  # Initially hidden
+        
         row_convert.addWidget(self.btn_convert)
+        row_convert.addSpacing(12)
+        row_convert.addWidget(self.btn_stop)
         row_convert.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
         root.addLayout(row_convert)
 
@@ -111,6 +119,7 @@ class CommandPanel(QWidget):
         self.btn_import.clicked.connect(self.importRequested.emit)
         self.btn_export.clicked.connect(self.exportRequested.emit)
         self.btn_convert.clicked.connect(self.convertRequested.emit)
+        self.btn_stop.clicked.connect(self.stopRequested.emit)
 
     # Public API (mimicking MdxScraper)
     def setProgress(self, value: int) -> None:
@@ -121,6 +130,12 @@ class CommandPanel(QWidget):
         if current_format == "Ready" or current_format == "%p%":
             self.progress.setFormat("%p%")
 
+    def set_progress(self, value: int, text: str = None) -> None:
+        """Set progress value and optional text (for compatibility)."""
+        self.setProgress(value)
+        if text:
+            self.setProgressText(text)
+
     def setProgressText(self, text: str) -> None:
         """Set progress bar display text."""
         self.progress.setFormat(text)
@@ -129,11 +144,22 @@ class CommandPanel(QWidget):
         """Set convert button text (for convert/stop state switching)."""
         self.btn_convert.setText(text)
 
+    def setConvertingState(self, is_converting: bool) -> None:
+        """Set converting state (show/hide convert/stop buttons)."""
+        if is_converting:
+            self.btn_convert.setVisible(False)
+            self.btn_stop.setVisible(True)
+            self.btn_stop.setEnabled(True)
+        else:
+            self.btn_convert.setVisible(True)
+            self.btn_stop.setVisible(False)
+            self.btn_convert.setEnabled(True)
+
     def setEnabled(self, enabled: bool) -> None:
         """Set enabled state."""
         super().setEnabled(enabled)
         # Keep buttons consistent when disabling panel
-        for b in (self.btn_restore, self.btn_import, self.btn_export, self.btn_convert):
+        for b in (self.btn_restore, self.btn_import, self.btn_export, self.btn_convert, self.btn_stop):
             b.setEnabled(enabled)
 
     def retranslate_ui(self):
@@ -146,6 +172,7 @@ class CommandPanel(QWidget):
         self.btn_import.setText(t("command_import_session"))
         self.btn_export.setText(t("command_export_session"))
         self.btn_convert.setText(t("command_convert"))
+        self.btn_stop.setText(t("command_stop"))
 
     def get_config(self) -> dict:
         """Get current component configuration."""
