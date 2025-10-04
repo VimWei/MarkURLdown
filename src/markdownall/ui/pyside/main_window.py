@@ -519,29 +519,55 @@ class MainWindow(QMainWindow):
                     self.log_info(f"Starting conversion of {total} URLs")
                     
             elif ev.kind == "status":
-                # Status messages - direct log
+                # Status messages - direct log with task grouping
                 if message:
                     self.log_info(message)
                 elif ev.data:
-                    # Handle structured status data
+                    # Handle structured status data with task grouping
                     if "url" in ev.data:
                         url = ev.data["url"]
                         idx = ev.data.get("idx", 0)
                         total = ev.data.get("total", 0)
-                        self.log_info(f"Processing URL {idx}/{total}: {url}")
+                        # Use task-specific logging for multi-task operations
+                        if total > 1:
+                            task_id = f"Task {idx}/{total}"
+                            self.log_panel.appendTaskLog(task_id, f"Processing: {url}")
+                        else:
+                            self.log_info(f"Processing URL: {url}")
                         
             elif ev.kind == "detail":
-                # Detail messages - handle specific keys
+                # Detail messages - handle specific keys with task grouping
                 if ev.key == "convert_detail_done" and ev.data:
                     path = ev.data.get("path", "")
-                    self.log_success(f"Conversion completed: {path}")
+                    # Check if this is part of a multi-task operation
+                    if ev.data.get("total", 1) > 1:
+                        idx = ev.data.get("idx", 0)
+                        total = ev.data.get("total", 0)
+                        task_id = f"Task {idx}/{total}"
+                        self.log_panel.appendTaskLog(task_id, f"Conversion completed: {path}")
+                    else:
+                        self.log_success(f"Conversion completed: {path}")
                 elif ev.key == "images_dl_progress" and ev.data:
                     percent = ev.data.get("percent", 0)
                     total = ev.data.get("total", 0)
-                    self.log_info(f"Downloading images: {percent}% ({total} images)")
+                    # Use task-specific logging if part of multi-task
+                    if ev.data.get("task_total", 1) > 1:
+                        task_idx = ev.data.get("task_idx", 0)
+                        task_total = ev.data.get("task_total", 0)
+                        task_id = f"Task {task_idx}/{task_total}"
+                        self.log_panel.appendTaskLog(task_id, f"Downloading images: {percent}% ({total} images)")
+                    else:
+                        self.log_info(f"Downloading images: {percent}% ({total} images)")
                 elif ev.key == "images_dl_done" and ev.data:
                     total = ev.data.get("total", 0)
-                    self.log_success(f"Images downloaded: {total} images")
+                    # Use task-specific logging if part of multi-task
+                    if ev.data.get("task_total", 1) > 1:
+                        task_idx = ev.data.get("task_idx", 0)
+                        task_total = ev.data.get("task_total", 0)
+                        task_id = f"Task {task_idx}/{task_total}"
+                        self.log_panel.appendTaskLog(task_id, f"Images downloaded: {total} images")
+                    else:
+                        self.log_success(f"Images downloaded: {total} images")
                 elif ev.key == "convert_shared_browser_started":
                     self.log_info("Shared browser started")
                 elif message:
@@ -562,7 +588,19 @@ class MainWindow(QMainWindow):
                     
             elif ev.kind == "progress_done":
                 self.command_panel.set_progress(100, "Conversion completed")
-                self.log_success(message or "Conversion completed")
+                # Use multi-task summary if available
+                if ev.data and "completed" in ev.data and "total" in ev.data:
+                    completed = ev.data["completed"]
+                    total = ev.data["total"]
+                    if total > 1:
+                        # Calculate successful and failed counts
+                        successful = ev.data.get("successful", completed)
+                        failed = ev.data.get("failed", total - completed)
+                        self.log_panel.appendMultiTaskSummary(successful, failed, total)
+                    else:
+                        self.log_success(message or "Conversion completed")
+                else:
+                    self.log_success(message or "Conversion completed")
                 self.is_running = False
                 self.command_panel.setConvertingState(False)
                 
