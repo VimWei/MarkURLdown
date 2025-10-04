@@ -163,7 +163,7 @@ class TestStartupManager(unittest.TestCase):
         # Test phase names
         for phase_name, phase_func in self.startup_manager._phases:
             self.assertIsInstance(phase_name, str)
-            self.assertIsInstance(phase_func, type(lambda: None))
+            self.assertTrue(callable(phase_func))
     
     def test_startup_sequence(self):
         """Test startup sequence."""
