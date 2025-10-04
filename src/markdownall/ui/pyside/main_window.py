@@ -502,20 +502,54 @@ class MainWindow(QMainWindow):
         }
 
     def _on_event_thread_safe(self, ev: ProgressEvent):
-        """Simplified event handler - only handles progress events."""
+        """Enhanced event handler - converts ProgressEvent to direct log calls (MdxScraper style)."""
         if not self.ui_ready:
             return
             
         try:
             message = ev.text or ""
             
-            # Only handle progress-related events
+            # Handle all event types with direct log calls (learning from MdxScraper)
             if ev.kind == "progress_init":
                 self.command_panel.set_progress(0, "Starting conversion...")
                 if message:
                     self.log_info(f"Starting conversion: {message}")
+                elif ev.data and "total" in ev.data:
+                    total = ev.data["total"]
+                    self.log_info(f"Starting conversion of {total} URLs")
+                    
+            elif ev.kind == "status":
+                # Status messages - direct log
+                if message:
+                    self.log_info(message)
+                elif ev.data:
+                    # Handle structured status data
+                    if "url" in ev.data:
+                        url = ev.data["url"]
+                        idx = ev.data.get("idx", 0)
+                        total = ev.data.get("total", 0)
+                        self.log_info(f"Processing URL {idx}/{total}: {url}")
+                        
+            elif ev.kind == "detail":
+                # Detail messages - handle specific keys
+                if ev.key == "convert_detail_done" and ev.data:
+                    path = ev.data.get("path", "")
+                    self.log_success(f"Conversion completed: {path}")
+                elif ev.key == "images_dl_progress" and ev.data:
+                    percent = ev.data.get("percent", 0)
+                    total = ev.data.get("total", 0)
+                    self.log_info(f"Downloading images: {percent}% ({total} images)")
+                elif ev.key == "images_dl_done" and ev.data:
+                    total = ev.data.get("total", 0)
+                    self.log_success(f"Images downloaded: {total} images")
+                elif ev.key == "convert_shared_browser_started":
+                    self.log_info("Shared browser started")
+                elif message:
+                    # Default detail message
+                    self.log_info(message)
+                    
             elif ev.kind == "progress_step":
-                # Update progress
+                # Update progress bar
                 if ev.data and "completed" in ev.data:
                     completed = ev.data["completed"]
                     total = ev.data.get("total", 0)
@@ -525,19 +559,22 @@ class MainWindow(QMainWindow):
                 else:
                     current = self.command_panel.progress.value()
                     self.command_panel.set_progress(current + 1)
+                    
             elif ev.kind == "progress_done":
                 self.command_panel.set_progress(100, "Conversion completed")
                 self.log_success(message or "Conversion completed")
                 self.is_running = False
-                self.command_panel.setConvertingState(False)  # Show convert button, hide stop button
+                self.command_panel.setConvertingState(False)
+                
             elif ev.kind == "stopped":
                 self.log_warning(message or "Conversion stopped")
                 self.is_running = False
-                self.command_panel.setConvertingState(False)  # Show convert button, hide stop button
+                self.command_panel.setConvertingState(False)
+                
             elif ev.kind == "error":
                 self.log_error(message or "Unknown error")
                 self.is_running = False
-                self.command_panel.setConvertingState(False)  # Show convert button, hide stop button
+                self.command_panel.setConvertingState(False)
             
         except Exception as e:
             self.log_error(f"Event handler error: {e}")
