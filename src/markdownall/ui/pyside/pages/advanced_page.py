@@ -235,9 +235,24 @@ class AdvancedPage(QWidget):
             return
             
         t = self.translator.t
-        # Note: These translations may need to be added to the locale files
-        # For now, using English labels
-        pass
+        # Update labels - check if parent has tabs attribute
+        try:
+            parent = self.parent()
+            if hasattr(parent, 'tabs') and parent.tabs:
+                for i in range(parent.tabs.count()):
+                    if parent.tabs.widget(i) == self:
+                        if i == 0:
+                            parent.tabs.setTabText(i, t("tab_basic"))
+                        elif i == 1:
+                            parent.tabs.setTabText(i, t("tab_webpage"))
+                        elif i == 2:
+                            parent.tabs.setTabText(i, t("tab_advanced"))
+                        elif i == 3:
+                            parent.tabs.setTabText(i, t("tab_about"))
+                        break
+        except (AttributeError, TypeError):
+            # Parent doesn't have tabs or is not the expected type
+            pass
 
     def get_config(self) -> dict:
         """Get current page configuration."""

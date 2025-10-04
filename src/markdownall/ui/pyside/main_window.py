@@ -37,7 +37,12 @@ from markdownall.version import get_app_title
 
 # Import pages and components
 from .pages import BasicPage, WebpagePage, AdvancedPage, AboutPage
-from .components import CommandPanel, ProgressPanel, LogPanel
+from .components import CommandPanel, LogPanel
+
+# Import managers for enhanced functionality
+from .config_manager import ConfigManager
+from .startup_manager import StartupManager, BackgroundInitializer, MemoryOptimizer
+from .error_handler import ErrorHandler, ErrorRecovery
 
 
 class Translator:
@@ -115,6 +120,18 @@ class MainWindow(QMainWindow):
         self.vm = ViewModel()
         self.signals = ProgressSignals()
         
+        # Initialize enhanced managers
+        self.config_manager = ConfigManager(root_dir)
+        self.startup_manager = StartupManager(root_dir)
+        self.error_handler = ErrorHandler(self.config_manager)
+        self.memory_optimizer = MemoryOptimizer()
+        
+        # Connect manager signals
+        self.startup_manager.startup_complete.connect(self._on_startup_complete)
+        self.startup_manager.startup_error.connect(self._on_startup_error)
+        self.error_handler.error_occurred.connect(self._on_error_occurred)
+        self.error_handler.performance_warning.connect(self._on_performance_warning)
+        
         # Default configuration (preserve existing defaults)
         self.output_dir_var = os.path.abspath(os.path.join(root_dir, "data", "output"))
         self.use_proxy_var = False
@@ -127,6 +144,12 @@ class MainWindow(QMainWindow):
         self._setup_ui()
         self._retranslate_ui()
         self._connect_signals()
+        
+        # Apply modern styling (模仿MdxScraper)
+        self._apply_modern_styling()
+        
+        # Override showEvent to force splitter behavior after window is shown (模仿MdxScraper)
+        self.showEvent = self._on_show_event
         
         # Connect progress signals for thread-safe UI updates
         self.signals.progress_event.connect(self._on_event_thread_safe)
@@ -151,25 +174,41 @@ class MainWindow(QMainWindow):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
-        self.resize(920, 600)
+        # 基于布局计算设置窗口大小
+        # 布局计算: Tab(320) + Command(120) + Log(160) + 边距(50) = 650px
+        self.resize(950, 650)  # 初始大小: 800x650 (基于精确布局计算)
         qr = self.frameGeometry()
         cp = QApplication.primaryScreen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
-        self.setMinimumSize(800, 520)
+        # 最小尺寸将在_configure_splitter中统一设置
         
-        # Create central widget with splitter layout
+        # Create central widget with vertical layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Create main splitter (vertical)
-        self.splitter = QSplitter(Qt.Vertical, central_widget)
+        # Create main vertical layout (模仿MdxScraper)
+        from PySide6.QtWidgets import QVBoxLayout
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(16, 16, 16, 16)  # 16px margins like MdxScraper
+        main_layout.setSpacing(12)  # 12px spacing like MdxScraper
+        
+        # Create splitter for all areas (tabs, command, log) - like MdxScraper
+        self.splitter = QSplitter(Qt.Vertical, self)
         
         # Setup tabbed interface
         self._setup_tabbed_interface()
         
-        # Setup components (will be implemented in phase 2)
+        # Setup components
         self._setup_components()
+        
+        # Add all widgets to splitter (like MdxScraper)
+        self.splitter.addWidget(self.tabs)           # Tab area (index 0)
+        self.splitter.addWidget(self.command_panel)  # Command panel (index 1)
+        self.splitter.addWidget(self.log_panel)      # Log area (index 2)
+        
+        # Add splitter to main layout
+        main_layout.addWidget(self.splitter)
         
         # Configure splitter
         self._configure_splitter()
@@ -178,12 +217,10 @@ class MainWindow(QMainWindow):
         """Setup the tabbed interface with pages."""
         # Create tab widget
         self.tabs = QTabWidget()
+        self.tabs.setMinimumHeight(350)  # 进一步增加最小高度，确保内容不堆叠
         
         # Create real pages
         self._create_pages()
-        
-        # Add tabs to splitter
-        self.splitter.addWidget(self.tabs)
 
     def _create_pages(self):
         """Create real pages with functionality."""
@@ -204,29 +241,102 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.about_page, "About")
 
     def _setup_components(self):
-        """Setup components (CommandPanel, ProgressPanel, LogPanel)."""
-        # Create CommandPanel - Session management and conversion control
+        """Setup components (CommandPanel + LogPanel)."""
+        # Create CommandPanel - Session management, conversion control + progress bar
         self.command_panel = CommandPanel(self, self.translator)
-        self.splitter.addWidget(self.command_panel)
         
-        # Create ProgressPanel - Multi-task progress display
-        self.progress_panel = ProgressPanel(self, self.translator)
-        self.splitter.addWidget(self.progress_panel)
-        
-        # Create LogPanel - Detailed log information display
+        # Create LogPanel - Log area (like MdxScraper)
         self.log_panel = LogPanel(self, self.translator)
-        self.splitter.addWidget(self.log_panel)
 
     def _configure_splitter(self):
-        """Configure splitter behavior and initial sizes."""
-        # Set initial sizes based on design specifications
-        # Tab area, Command panel, Progress panel, Log area
-        self.splitter.setSizes([300, 120, 100, 200])
-        self.splitter.setStretchFactor(0, 0)  # Tab area: not stretchable
-        self.splitter.setStretchFactor(1, 0)  # Command panel: fixed
-        self.splitter.setStretchFactor(2, 0)  # Progress panel: fixed
-        self.splitter.setStretchFactor(3, 1)  # Log area: stretchable
+        """Configure splitter behavior and initial sizes (适配MarkdownAll需求)."""
+        # Configure splitter for all three areas: tabs, command panel, log panel
+        # 基于布局计算设置初始尺寸
+        self.splitter.setSizes([320, 120, 160])  # Tab(320) + Command(120) + Log(160) = 600px
+        self.splitter.setStretchFactor(0, 0)  # Tab area fixed height (not stretchable)
+        self.splitter.setStretchFactor(1, 0)  # Command panel fixed
+        self.splitter.setStretchFactor(2, 1)  # Log area stretchable
         self.splitter.setChildrenCollapsible(False)  # Prevent collapse
+        self.splitter.splitterMoved.connect(self._on_splitter_moved)
+        
+        # 设置整体窗口最小尺寸，基于精确布局计算
+        # 布局计算: Tab(320) + Command(120) + Log(160) + 边距(50) = 650px
+        self.setMinimumSize(800, 650)  # 最小尺寸: 800x650 (基于精确布局计算)
+        
+        # Override showEvent to force splitter behavior after window is shown
+        self.showEvent = self._on_show_event
+
+    def _on_show_event(self, event):
+        """Handle window show event to force correct splitter behavior (模仿MdxScraper)."""
+        super().showEvent(event)
+        
+        # Force splitter to behave correctly by setting sizes explicitly
+        # This ensures tab area stays fixed and only log area stretches
+        QTimer.singleShot(50, self._force_splitter_config)
+
+    def _force_splitter_config(self):
+        """Force splitter configuration after window is shown (模仿MdxScraper)."""
+        # Get current splitter sizes to capture the actual tab height
+        current_sizes = self.splitter.sizes()
+        current_tab_height = current_sizes[0]  # Capture current tab height
+        
+        # Store this as the "remembered" tab height
+        self.remembered_tab_height = current_tab_height
+        
+        # Get current window height
+        window_height = self.height()
+        
+        # Calculate desired sizes: use current tab height, command fixed, log gets the rest
+        tab_height = current_tab_height  # Use current tab height as the "remembered" height
+        command_height = 120  # Fixed command height (matches CommandPanel.setFixedHeight(120))
+        log_height = window_height - tab_height - command_height - 32  # 32 for margins
+        
+        # Ensure minimum log height
+        if log_height < 150:
+            log_height = 150
+        
+        # Force set the sizes - this "teaches" the splitter to remember the current tab height
+        self.splitter.setSizes([tab_height, command_height, log_height])
+        
+        # Reconfigure stretch factors to ensure they stick
+        self.splitter.setStretchFactor(0, 0)  # Tab area fixed
+        self.splitter.setStretchFactor(1, 0)  # Command panel fixed
+        self.splitter.setStretchFactor(2, 1)  # Log area stretchable
+        
+        # Force the splitter to "remember" these sizes by triggering a resize
+        # This ensures the splitter's internal memory is set correctly
+        QTimer.singleShot(10, self._reinforce_splitter_memory)
+
+    def _reinforce_splitter_memory(self):
+        """Reinforce the splitter's memory of correct sizes (模仿MdxScraper)."""
+        # Get current sizes
+        current_sizes = self.splitter.sizes()
+        
+        # If tab area is not at the remembered height, force it back
+        if (hasattr(self, "remembered_tab_height") and 
+            current_sizes[0] != self.remembered_tab_height):
+            
+            # Recalculate with remembered tab height
+            window_height = self.height()
+            tab_height = self.remembered_tab_height
+            command_height = 120  # Fixed command height (matches CommandPanel.setFixedHeight(120))
+            log_height = window_height - tab_height - command_height - 32
+            
+            if log_height < 150:
+                log_height = 150
+            
+            # Force set the sizes again to reinforce the memory
+            self.splitter.setSizes([tab_height, command_height, log_height])
+            
+            # Reapply stretch factors
+            self.splitter.setStretchFactor(0, 0)  # Tab area fixed
+            self.splitter.setStretchFactor(1, 0)  # Command panel fixed
+            self.splitter.setStretchFactor(2, 1)  # Log area stretchable
+
+    def _on_splitter_moved(self, pos, index):
+        """Handle splitter movement (模仿MdxScraper)."""
+        # MdxScraper 中这个方法主要是空的，主要依靠 showEvent 和记忆强化机制
+        pass
 
     def _retranslate_ui(self):
         """Retranslate UI elements."""
@@ -241,20 +351,17 @@ class MainWindow(QMainWindow):
         
         # Retranslate components
         self.command_panel.retranslate_ui()
-        self.progress_panel.retranslate_ui()
         self.log_panel.retranslate_ui()
         
         # Set tab titles
-        self.tabs.setTabText(0, "Basic")
-        self.tabs.setTabText(1, "Webpage")
-        self.tabs.setTabText(2, "Advanced")
-        self.tabs.setTabText(3, "About")
+        t = self.translator.t
+        self.tabs.setTabText(0, t("tab_basic"))
+        self.tabs.setTabText(1, t("tab_webpage"))
+        self.tabs.setTabText(2, t("tab_advanced"))
+        self.tabs.setTabText(3, t("tab_about"))
 
     def _connect_signals(self):
         """Connect signals and slots."""
-        # Connect splitter moved signal for responsive behavior
-        self.splitter.splitterMoved.connect(self._on_splitter_moved)
-        
         # Connect page signals
         self._connect_page_signals()
         
@@ -292,42 +399,27 @@ class MainWindow(QMainWindow):
         self.command_panel.exportRequested.connect(self._export_session)
         self.command_panel.convertRequested.connect(self._on_convert)
         
-        # Progress panel signals
-        self.progress_panel.progressUpdated.connect(self._update_progress)
+        # Progress panel signals (now in command_panel)
+        # self.command_panel already has progress bar, no separate signals needed
         
         # Log panel signals
         self.log_panel.logCleared.connect(self._clear_log)
         self.log_panel.logCopied.connect(self._copy_log)
 
-    def _on_splitter_moved(self, pos: int, index: int):
-        """Handle splitter movement to enforce minimum sizes."""
-        sizes = self.splitter.sizes()
-        min_sizes = [300, 120, 100, 150]  # Tab, Command, Progress, Log minimum heights
-        
-        # Check if any area needs adjustment
-        if any(sizes[i] < min_sizes[i] for i in range(len(sizes))):
-            # Temporarily disconnect to avoid recursion
-            self.splitter.splitterMoved.disconnect(self._on_splitter_moved)
-            
-            # Apply minimum sizes
-            adjusted_sizes = [max(sizes[i], min_sizes[i]) for i in range(len(sizes))]
-            self.splitter.setSizes(adjusted_sizes)
-            
-            # Reconnect signal
-            self.splitter.splitterMoved.connect(self._on_splitter_moved)
-
     def _on_show_event(self, event):
-        """Handle window show event to force correct splitter behavior."""
+        """Handle window show event to force correct splitter behavior (模仿MdxScraper)."""
         super().showEvent(event)
         
         # Force splitter to behave correctly by setting sizes explicitly
+        # This ensures tab area stays fixed and only log area stretches
+        from PySide6.QtCore import QTimer
         QTimer.singleShot(50, self._force_splitter_config)
 
     def _force_splitter_config(self):
-        """Force splitter configuration after window is shown."""
-        # Get current splitter sizes
+        """Force splitter configuration after window is shown (模仿MdxScraper)."""
+        # Get current splitter sizes to capture the actual tab height
         current_sizes = self.splitter.sizes()
-        current_tab_height = current_sizes[0]
+        current_tab_height = current_sizes[0]  # Capture current tab height
         
         # Store this as the "remembered" tab height
         self.remembered_tab_height = current_tab_height
@@ -335,24 +427,62 @@ class MainWindow(QMainWindow):
         # Get current window height
         window_height = self.height()
         
-        # Calculate desired sizes
-        tab_height = current_tab_height
-        command_height = 120
-        progress_height = 100
-        log_height = window_height - tab_height - command_height - progress_height - 32
+        # Calculate desired sizes: use current tab height, command fixed, log gets the rest
+        tab_height = current_tab_height  # Use current tab height as the "remembered" height
+        command_height = 120  # Fixed command height (matches CommandPanel.setFixedHeight(120))
+        log_height = window_height - tab_height - command_height - 32  # 32 for margins
         
         # Ensure minimum log height
         if log_height < 150:
             log_height = 150
         
-        # Force set the sizes
-        self.splitter.setSizes([tab_height, command_height, progress_height, log_height])
+        # Force set the sizes - this "teaches" the splitter to remember the current tab height
+        self.splitter.setSizes([tab_height, command_height, log_height])
         
-        # Reconfigure stretch factors
+        # Reconfigure stretch factors to ensure they stick
         self.splitter.setStretchFactor(0, 0)  # Tab area fixed
         self.splitter.setStretchFactor(1, 0)  # Command panel fixed
-        self.splitter.setStretchFactor(2, 0)  # Progress panel fixed
-        self.splitter.setStretchFactor(3, 1)  # Log area stretchable
+        self.splitter.setStretchFactor(2, 1)  # Log area stretchable
+        
+        # Force the splitter to "remember" these sizes by triggering a resize
+        # This ensures the splitter's internal memory is set correctly
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(10, self._reinforce_splitter_memory)
+
+    def _reinforce_splitter_memory(self):
+        """Reinforce the splitter's memory of correct sizes (模仿MdxScraper)."""
+        # Get current sizes
+        current_sizes = self.splitter.sizes()
+        
+        # If tab area is not at the remembered height, force it back
+        if (hasattr(self, "remembered_tab_height") 
+            and current_sizes[0] != self.remembered_tab_height):
+            
+            # Recalculate with remembered tab height
+            window_height = self.height()
+            tab_height = self.remembered_tab_height
+            command_height = 120  # Fixed command height (matches CommandPanel.setFixedHeight(120))
+            log_height = window_height - tab_height - command_height - 32
+            
+            if log_height < 150:
+                log_height = 150
+            
+            # Force set the sizes again to reinforce the memory
+            self.splitter.setSizes([tab_height, command_height, log_height])
+            
+            # Reapply stretch factors
+            self.splitter.setStretchFactor(0, 0)  # Tab area fixed
+            self.splitter.setStretchFactor(1, 0)  # Command panel fixed
+            self.splitter.setStretchFactor(2, 1)  # Log area stretchable
+
+    def _apply_modern_styling(self):
+        """Apply modern styling to the application (模仿MdxScraper)."""
+        try:
+            from .styles.theme_loader import ThemeLoader
+            theme_loader = ThemeLoader("default")
+            theme_loader.apply_theme_to_widget(self)
+        except Exception as e:
+            print(f"Warning: Could not apply theme: {e}")
 
     def _get_current_state(self) -> dict:
         """Get current application state for session saving."""
@@ -601,6 +731,26 @@ class MainWindow(QMainWindow):
             "use_shared_browser": state.get("use_shared_browser", True),
         }
         self.webpage_page.set_config(webpage_config)
+    
+    def _on_startup_complete(self):
+        """Handle startup completion."""
+        print("Startup sequence completed successfully")
+        # Any post-startup initialization can go here
+        
+    def _on_startup_error(self, error_message: str):
+        """Handle startup error."""
+        print(f"Startup error: {error_message}")
+        # Show error to user or attempt recovery
+        
+    def _on_error_occurred(self, error_type: str, error_message: str):
+        """Handle error occurrence."""
+        print(f"Error occurred: {error_type} - {error_message}")
+        # Update UI to show error status
+        
+    def _on_performance_warning(self, warning_message: str):
+        """Handle performance warning."""
+        print(f"Performance warning: {warning_message}")
+        # Show warning to user or take corrective action
 
 
 # Alias for backward compatibility

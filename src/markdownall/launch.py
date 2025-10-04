@@ -40,10 +40,10 @@ def main() -> None:
         msg_start = "正在启动应用…" if is_zh else "Starting application…"
 
         _emit_startup_progress(app, splash, msg_init)
-        # Delay heavy GUI import until after settings are read
-        from markdownall.ui.pyside.gui import PySideApp  # noqa: WPS433
+        # Import the new refactored GUI
+        from markdownall.ui.pyside.main_window import MainWindow  # noqa: WPS433
 
-        window = PySideApp(root_dir=root_dir, settings=settings)
+        window = MainWindow(root_dir=root_dir, settings=settings)
         _emit_startup_progress(app, splash, msg_start)
         window.show()
         splash.finish(window)

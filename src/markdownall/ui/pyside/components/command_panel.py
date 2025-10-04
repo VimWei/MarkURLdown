@@ -96,13 +96,13 @@ class CommandPanel(QWidget):
         row_convert.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
         root.addLayout(row_convert)
 
-        # Progress
+        # Progress (simplified, detailed progress in ProgressPanel)
         self.progress = QProgressBar(self)
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self.progress.setFixedHeight(20)
-        self.progress.setTextVisible(True)
-        self.progress.setFormat("Ready")
+        self.progress.setTextVisible(True)  # Show text like MdxScraper
+        self.progress.setFormat("Ready")    # Initial status
         root.addWidget(self.progress)
 
     def _connect_signals(self):
@@ -142,10 +142,10 @@ class CommandPanel(QWidget):
             return
             
         t = self.translator.t
-        self.btn_restore.setText(t("restore_button"))
-        self.btn_import.setText(t("import_button"))
-        self.btn_export.setText(t("export_button"))
-        self.btn_convert.setText(t("convert_button"))
+        self.btn_restore.setText(t("command_restore_session"))
+        self.btn_import.setText(t("command_import_session"))
+        self.btn_export.setText(t("command_export_session"))
+        self.btn_convert.setText(t("command_convert"))
 
     def get_config(self) -> dict:
         """Get current component configuration."""

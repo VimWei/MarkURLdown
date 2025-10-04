@@ -8,11 +8,9 @@ This module contains reusable UI components:
 """
 
 from .command_panel import CommandPanel
-from .progress_panel import ProgressPanel
 from .log_panel import LogPanel
 
 __all__ = [
     "CommandPanel",
-    "ProgressPanel",
     "LogPanel",
 ]

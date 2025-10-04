@@ -55,16 +55,8 @@ class LogPanel(QWidget):
         # Log text area
         self.log_text = QTextEdit(self)
         self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet("""
-            QTextEdit {
-                background-color: #f8f9fa;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                font-size: 9pt;
-                color: #333;
-            }
-        """)
+        self.log_text.setPlaceholderText("log message")  # 添加占位符文本
+        # Style will be applied by theme
         layout.addWidget(self.log_text)
 
         # Log operation buttons
@@ -73,10 +65,12 @@ class LogPanel(QWidget):
         button_layout.setSpacing(8)
         
         self.clear_btn = QPushButton("Clear", self)
-        self.clear_btn.setFixedSize(80, 24)
+        self.clear_btn.setObjectName("log-clear-button")
+        self.clear_btn.setFixedSize(70, 22)  # 更小的尺寸
         
         self.copy_btn = QPushButton("Copy", self)
-        self.copy_btn.setFixedSize(80, 24)
+        self.copy_btn.setObjectName("log-copy-button")
+        self.copy_btn.setFixedSize(70, 22)  # 更小的尺寸
         
         button_layout.addWidget(self.clear_btn)
         button_layout.addWidget(self.copy_btn)
@@ -149,9 +143,8 @@ class LogPanel(QWidget):
             return
             
         t = self.translator.t
-        # Note: These translations may need to be added to the locale files
-        # For now, using English labels
-        pass
+        self.clear_btn.setText(t("log_clear"))
+        self.copy_btn.setText(t("log_copy"))
 
     def get_config(self) -> dict:
         """Get current component configuration."""
