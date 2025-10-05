@@ -39,7 +39,7 @@ class StartupManager(QObject):
     def __init__(self, root_dir: str):
         super().__init__()
         self.root_dir = root_dir
-        self.config_manager = ConfigManager(root_dir)
+        self.config_service = ConfigService(root_dir)
         
         # Startup phases
         self._phases = [
@@ -80,12 +80,12 @@ class StartupManager(QObject):
     def _init_config(self):
         """Initialize configuration system."""
         # Load basic configuration
-        self.config_manager.load_session()
-        self.config_manager.load_settings()
+        self.config_service.load_session()
+        self.config_service.load_settings()
         
     def _load_settings(self):
         """Load application settings."""
-        # This is handled by config_manager.load_settings()
+        # This is handled by config_service.load_settings()
         pass
         
     def _prepare_ui(self):

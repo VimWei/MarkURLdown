@@ -161,12 +161,10 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """Handle window close event with session state saving."""
         try:
-            # Save current session state
-            state_data = self._get_current_state()
-            state_path = os.path.join(self.root_dir, "data", "sessions", "last_state.json")
-            save_config(state_path, state_data)
+            # Save current configuration using ConfigService
+            self._save_config()
         except Exception as e:
-            print(f"Error saving session state on exit: {e}")
+            print(f"Error saving configuration on exit: {e}")
         finally:
             event.accept()
 
@@ -902,46 +900,75 @@ class MainWindow(QMainWindow):
         # Show warning to user or take corrective action
 
     def _save_config(self):
-        """Save current configuration to file."""
+        """Save current configuration using ConfigService."""
         try:
             # Get current state from all pages
             state = self._get_current_state()
             
+            # Update config service with current state
+            self.config_service.set_basic_config({
+                "urls": state.get("urls", []),
+                "output_dir": state.get("output_dir", "")
+            })
+            
+            self.config_service.set_webpage_config({
+                "use_proxy": state.get("use_proxy", False),
+                "ignore_ssl": state.get("ignore_ssl", False),
+                "download_images": state.get("download_images", True),
+                "filter_site_chrome": state.get("filter_site_chrome", True),
+                "use_shared_browser": state.get("use_shared_browser", True)
+            })
+            
             # Add advanced page settings
             advanced_config = self.advanced_page.get_config()
-            state.update({
+            self.config_service.set_advanced_config({
                 "language": advanced_config.get("language", "auto"),
                 "log_level": advanced_config.get("log_level", "INFO"),
                 "debug_mode": advanced_config.get("debug_mode", False)
             })
             
-            # Save to config file
-            config_file = os.path.join(self.root_dir, "data", "config.json")
-            save_config(config_file, state)
+            # Save session and settings
+            self.config_service.save_session()
+            self.config_service.save_settings()
             
         except Exception as e:
             self.log_error(f"Failed to save config: {e}")
 
     def _load_config(self):
-        """Load configuration from file."""
+        """Load configuration using ConfigService."""
         try:
-            config_file = os.path.join(self.root_dir, "data", "config.json")
-            if os.path.exists(config_file):
-                config = load_config(config_file)
-                
-                # Apply advanced page settings
-                if "language" in config:
-                    self.advanced_page.set_language(config["language"])
-                if "log_level" in config:
-                    self.advanced_page.set_log_level(config["log_level"])
-                if "debug_mode" in config:
-                    self.advanced_page.set_debug_mode(config["debug_mode"])
-                
-                # Apply other settings
-                self._apply_state(config)
+            # Load session and settings using config service
+            session_loaded = self.config_service.load_session()
+            settings_loaded = self.config_service.load_settings()
+            
+            if session_loaded or settings_loaded:
+                # Sync UI from loaded configuration
+                self._sync_ui_from_config()
+            else:
+                # No saved config, use defaults
+                self.log_info("No saved configuration found, using defaults")
                 
         except Exception as e:
             self.log_error(f"Failed to load config: {e}")
+
+    def _sync_ui_from_config(self):
+        """Sync UI display from configuration."""
+        try:
+            config = self.config_service.get_all_config()
+            
+            # Update basic page
+            basic_config = config["basic"]
+            basic_config["output_dir"] = self.output_dir_var  # Preserve existing default
+            self.basic_page.set_config(basic_config)
+            
+            # Update webpage page
+            self.webpage_page.set_config(config["webpage"])
+            
+            # Update advanced page
+            self.advanced_page.set_config(config["advanced"])
+            
+        except Exception as e:
+            self.log_error(f"Failed to sync UI from config: {e}")
 
 
 # Alias for backward compatibility
