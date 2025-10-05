@@ -1,34 +1,31 @@
 """
 Startup Manager for MarkdownAll GUI.
 
-This module provides optimized startup management, including:
-- Lazy loading of components
-- Memory optimization
-- Fast startup sequence
-- Background initialization
+This module provides UI-focused startup management, including:
+- UI startup sequence coordination
+- Lazy loading of UI components
+- Startup progress feedback
+- UI initialization flow
 """
 
 from __future__ import annotations
 
-import os
-import sys
-import time
 from typing import Optional, Callable, Any
 from PySide6.QtCore import QObject, QThread, Signal, QTimer
-from PySide6.QtWidgets import QApplication
 
-from markdownall.services.config_service import ConfigService
+from markdownall.services.startup_service import StartupService, BackgroundTaskManager
+from markdownall.utils.memory_optimizer import MemoryOptimizer
 
 
 class StartupManager(QObject):
     """
-    Optimized startup manager for MarkdownAll GUI.
+    UI-focused startup manager for MarkdownAll GUI.
     
-    Features:
-    - Lazy loading of heavy components
-    - Background initialization
-    - Memory optimization
-    - Fast startup sequence
+    Responsibilities:
+    - UI startup sequence coordination
+    - Lazy loading of UI components
+    - Startup progress feedback
+    - UI initialization flow management
     """
     
     # Signals
@@ -36,38 +33,61 @@ class StartupManager(QObject):
     startup_complete = Signal()
     startup_error = Signal(str)
     
-    def __init__(self, root_dir: str):
+    def __init__(self, startup_service: StartupService):
         super().__init__()
-        self.root_dir = root_dir
-        self.config_service = ConfigService(root_dir)
+        self.startup_service = startup_service
+        self.memory_optimizer = MemoryOptimizer()
+        self.background_manager = BackgroundTaskManager()
         
-        # Startup phases
-        self._phases = [
-            ("Initializing configuration", self._init_config),
-            ("Loading settings", self._load_settings),
-            ("Preparing UI components", self._prepare_ui),
-            ("Optimizing memory", self._optimize_memory),
-            ("Finalizing startup", self._finalize_startup),
+        # UI startup phases
+        self._ui_phases = [
+            ("Initializing UI components", self._init_ui_components),
+            ("Preparing UI layout", self._prepare_ui_layout),
+            ("Loading UI resources", self._load_ui_resources),
+            ("Optimizing UI performance", self._optimize_ui_performance),
+            ("Finalizing UI startup", self._finalize_ui_startup),
         ]
         
         self._current_phase = 0
         self._startup_timer = QTimer()
-        self._startup_timer.timeout.connect(self._process_startup_phase)
+        self._startup_timer.timeout.connect(self._process_ui_startup_phase)
         
     def start_startup(self):
-        """Start the optimized startup sequence."""
+        """Start the UI startup sequence."""
+        # First, initialize business logic through service layer
+        if not self._initialize_business_logic():
+            self.startup_error.emit("Failed to initialize business logic")
+            return
+            
+        # Then start UI startup phases
         self._current_phase = 0
         self._startup_timer.start(50)  # Process phases with 50ms intervals
         
-    def _process_startup_phase(self):
-        """Process the current startup phase."""
-        if self._current_phase >= len(self._phases):
+    def _initialize_business_logic(self) -> bool:
+        """Initialize business logic through service layer."""
+        try:
+            # Initialize configuration through service
+            if not self.startup_service.initialize_configuration():
+                return False
+                
+            # Load settings through service
+            if not self.startup_service.load_application_settings():
+                return False
+                
+            return True
+        except Exception as e:
+            print(f"Business logic initialization failed: {e}")
+            return False
+        
+    def _process_ui_startup_phase(self):
+        """Process the current UI startup phase."""
+        if self._current_phase >= len(self._ui_phases):
             self._startup_timer.stop()
             self.startup_complete.emit()
             return
             
-        phase_name, phase_func = self._phases[self._current_phase]
-        progress = int((self._current_phase / len(self._phases)) * 100)
+        phase_name, phase_func = self._ui_phases[self._current_phase]
+        progress = int((self._current_phase / len(self._ui_phases)) * 100)
         
         try:
             self.startup_progress.emit(phase_name, progress)
@@ -75,57 +95,56 @@ class StartupManager(QObject):
             self._current_phase += 1
         except Exception as e:
             self._startup_timer.stop()
-            self.startup_error.emit(f"Startup failed at {phase_name}: {e}")
+            self.startup_error.emit(f"UI startup failed at {phase_name}: {e}")
     
-    def _init_config(self):
-        """Initialize configuration system."""
-        # Load basic configuration
-        self.config_service.load_session()
-        self.config_service.load_settings()
-        
-    def _load_settings(self):
-        """Load application settings."""
-        # This is handled by config_service.load_settings()
-        pass
-        
-    def _prepare_ui(self):
-        """Prepare UI components (lazy loading)."""
+    def _init_ui_components(self):
+        """Initialize UI components (lazy loading)."""
         # UI components will be loaded on demand
+        # This is where you would initialize main window, dialogs, etc.
         pass
         
-    def _optimize_memory(self):
-        """Optimize memory usage."""
-        # Force garbage collection
-        import gc
-        gc.collect()
+    def _prepare_ui_layout(self):
+        """Prepare UI layout and structure."""
+        # Prepare UI layout, set up splitter, tabs, etc.
+        pass
         
-        # Optimize Python memory
-        if hasattr(sys, 'set_int_max_str_digits'):
-            sys.set_int_max_str_digits(0)  # Disable integer string conversion limits
-            
-    def _finalize_startup(self):
-        """Finalize startup sequence."""
-        # Any final optimizations
+    def _load_ui_resources(self):
+        """Load UI resources (icons, styles, etc.)."""
+        # Load UI resources like icons, stylesheets, etc.
+        pass
+        
+    def _optimize_ui_performance(self):
+        """Optimize UI performance."""
+        # Optimize UI-specific performance settings
+        self.memory_optimizer.optimize_python_settings()
+        
+    def _finalize_ui_startup(self):
+        """Finalize UI startup sequence."""
+        # Any final UI optimizations
         pass
     
-    def get_config_manager(self) -> ConfigManager:
-        """Get the configuration manager."""
-        return self.config_manager
+    def get_startup_service(self) -> StartupService:
+        """Get the startup service."""
+        return self.startup_service
+    
+    def get_memory_optimizer(self) -> MemoryOptimizer:
+        """Get the memory optimizer."""
+        return self.memory_optimizer
     
     def is_startup_complete(self) -> bool:
         """Check if startup is complete."""
-        return self._current_phase >= len(self._phases)
+        return self._current_phase >= len(self._ui_phases)
 
 
 class BackgroundInitializer(QThread):
     """
-    Background thread for heavy initialization tasks.
+    Background thread for UI-related heavy initialization tasks.
     
     This thread handles:
-    - Heavy component loading
-    - File system operations
-    - Network operations
-    - Other time-consuming tasks
+    - Heavy UI component loading
+    - UI resource loading
+    - UI-related file operations
+    - Other UI time-consuming tasks
     """
     
     # Signals
@@ -133,103 +152,32 @@ class BackgroundInitializer(QThread):
     initialization_complete = Signal()
     initialization_error = Signal(str)
     
-    def __init__(self, root_dir: str):
+    def __init__(self, background_manager: BackgroundTaskManager):
         super().__init__()
-        self.root_dir = root_dir
-        self._tasks = []
+        self.background_manager = background_manager
         
-    def add_task(self, name: str, func: Callable, *args, **kwargs):
-        """Add a background initialization task."""
-        self._tasks.append((name, func, args, kwargs))
+    def add_ui_task(self, name: str, func: Callable, *args, **kwargs):
+        """Add a UI-related background task."""
+        self.background_manager.add_task(name, func, *args, **kwargs)
         
     def run(self):
-        """Run background initialization tasks."""
+        """Run background UI initialization tasks."""
         try:
-            total_tasks = len(self._tasks)
+            # Execute tasks through the background manager
+            success = self.background_manager.execute_tasks(
+                progress_callback=self._on_progress_update
+            )
             
-            for i, (name, func, args, kwargs) in enumerate(self._tasks):
-                progress = int((i / total_tasks) * 100)
-                self.progress_updated.emit(f"Background: {name}", progress)
+            if success:
+                self.initialization_complete.emit()
+            else:
+                self.initialization_error.emit("Background UI initialization failed")
                 
-                # Execute task
-                func(*args, **kwargs)
-                
-                # Small delay to prevent UI blocking
-                self.msleep(10)
-                
-            self.initialization_complete.emit()
-            
         except Exception as e:
-            self.initialization_error.emit(f"Background initialization failed: {e}")
+            self.initialization_error.emit(f"Background UI initialization failed: {e}")
+    
+    def _on_progress_update(self, message: str, percentage: int):
+        """Handle progress updates from background manager."""
+        self.progress_updated.emit(message, percentage)
 
 
-class MemoryOptimizer:
-    """
-    Memory optimization utilities for MarkdownAll GUI.
-    
-    Features:
-    - Memory usage monitoring
-    - Automatic garbage collection
-    - Memory leak detection
-    - Performance optimization
-    """
-    
-    def __init__(self):
-        self._memory_threshold = 100 * 1024 * 1024  # 100MB
-        self._last_gc_time = time.time()
-        self._gc_interval = 30  # 30 seconds
-        
-    def check_memory_usage(self) -> float:
-        """Check current memory usage in MB."""
-        try:
-            import psutil
-            process = psutil.Process()
-            return process.memory_info().rss / 1024 / 1024
-        except ImportError:
-            # Fallback to basic memory check
-            import gc
-            return len(gc.get_objects()) * 0.001  # Rough estimate
-    
-    def optimize_memory(self):
-        """Optimize memory usage."""
-        import gc
-        
-        # Force garbage collection
-        collected = gc.collect()
-        
-        # Check if we need more aggressive cleanup
-        current_time = time.time()
-        if current_time - self._last_gc_time > self._gc_interval:
-            # More aggressive cleanup
-            gc.set_threshold(100, 10, 10)  # More frequent collection
-            gc.collect()
-            gc.set_threshold(700, 10, 10)  # Reset to default
-            self._last_gc_time = current_time
-            
-        return collected
-    
-    def should_optimize(self) -> bool:
-        """Check if memory optimization is needed."""
-        memory_usage = self.check_memory_usage()
-        return memory_usage > self._memory_threshold / 1024 / 1024
-    
-    def get_memory_info(self) -> dict:
-        """Get detailed memory information."""
-        try:
-            import psutil
-            process = psutil.Process()
-            memory_info = process.memory_info()
-            
-            return {
-                "rss": memory_info.rss / 1024 / 1024,  # MB
-                "vms": memory_info.vms / 1024 / 1024,  # MB
-                "percent": process.memory_percent(),
-                "available": psutil.virtual_memory().available / 1024 / 1024,  # MB
-            }
-        except ImportError:
-            return {
-                "rss": self.check_memory_usage(),
-                "vms": 0,
-                "percent": 0,
-                "available": 0,
-            }

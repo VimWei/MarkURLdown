@@ -41,7 +41,9 @@ from .components import CommandPanel, LogPanel
 
 # Import managers for enhanced functionality
 from markdownall.services.config_service import ConfigService
-from .startup_manager import StartupManager, BackgroundInitializer, MemoryOptimizer
+from markdownall.services.startup_service import StartupService
+from markdownall.utils.memory_optimizer import MemoryOptimizer
+from .startup_manager import StartupManager, BackgroundInitializer
 from .error_handler import ErrorHandler, ErrorRecovery
 
 
@@ -122,7 +124,8 @@ class MainWindow(QMainWindow):
         
         # Initialize enhanced managers
         self.config_service = ConfigService(root_dir)
-        self.startup_manager = StartupManager(root_dir)
+        self.startup_service = StartupService(root_dir)
+        self.startup_manager = StartupManager(self.startup_service)
         self.error_handler = ErrorHandler(self.config_service)
         self.memory_optimizer = MemoryOptimizer()
         
