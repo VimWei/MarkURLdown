@@ -40,7 +40,7 @@ from .pages import BasicPage, WebpagePage, AdvancedPage, AboutPage
 from .components import CommandPanel, LogPanel
 
 # Import managers for enhanced functionality
-from .config_manager import ConfigManager
+from markdownall.services.config_service import ConfigService
 from .startup_manager import StartupManager, BackgroundInitializer, MemoryOptimizer
 from .error_handler import ErrorHandler, ErrorRecovery
 
@@ -121,9 +121,9 @@ class MainWindow(QMainWindow):
         self.signals = ProgressSignals()
         
         # Initialize enhanced managers
-        self.config_manager = ConfigManager(root_dir)
+        self.config_service = ConfigService(root_dir)
         self.startup_manager = StartupManager(root_dir)
-        self.error_handler = ErrorHandler(self.config_manager)
+        self.error_handler = ErrorHandler(self.config_service)
         self.memory_optimizer = MemoryOptimizer()
         
         # Connect manager signals
@@ -652,20 +652,11 @@ class MainWindow(QMainWindow):
     def _restore_default_config(self):
         """Restore default configuration."""
         try:
-            # Reset to default values
-            self.basic_page.set_config({"urls": [], "output_dir": self.output_dir_var})
-            self.webpage_page.set_config({
-                "use_proxy": False,
-                "ignore_ssl": False,
-                "download_images": True,
-                "filter_site_chrome": True,
-                "use_shared_browser": True,
-            })
-            self.advanced_page.set_config({
-                "language": "auto",
-                "log_level": "INFO",
-                "debug_mode": False
-            })
+            # Use config service to reset to defaults
+            self.config_service.reset_to_defaults()
+            
+            # Sync UI from the reset configuration
+            self._sync_ui_from_config()
             
             # Save the restored config
             self._save_config()
@@ -673,6 +664,25 @@ class MainWindow(QMainWindow):
             self.log_success("Default configuration restored successfully")
         except Exception as e:
             self.log_error(f"Failed to restore default config: {e}")
+
+    def _sync_ui_from_config(self):
+        """Sync UI display from configuration."""
+        try:
+            config = self.config_service.get_all_config()
+            
+            # Update basic page
+            basic_config = config["basic"]
+            basic_config["output_dir"] = self.output_dir_var  # Preserve existing default
+            self.basic_page.set_config(basic_config)
+            
+            # Update webpage page
+            self.webpage_page.set_config(config["webpage"])
+            
+            # Update advanced page
+            self.advanced_page.set_config(config["advanced"])
+            
+        except Exception as e:
+            self.log_error(f"Failed to sync UI from config: {e}")
 
     def _on_language_changed(self, lang_code: str):
         """Handle language changes."""

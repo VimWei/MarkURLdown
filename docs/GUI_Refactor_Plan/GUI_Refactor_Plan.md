@@ -135,14 +135,20 @@ src/markdownall/
 │   ├── handlers/                # 处理器
 │   ├── html_to_md.py           # 转换算法
 │   └── ...
+├── config/                      # 配置层 (新增)
+│   ├── __init__.py
+│   ├── config_manager.py        # 配置管理器 (从ui/pyside/移动)
+│   ├── config_models.py        # 配置数据模型
+│   └── default_config.json     # 默认配置文件
 ├── io/                          # IO层 (保持不变)
 │   ├── __init__.py
-│   ├── config.py               # 配置管理
+│   ├── config.py               # 基础IO操作
 │   ├── session.py              # 会话管理
 │   └── ...
-├── services/                    # 服务层 (保持不变)
+├── services/                    # 服务层 (增强)
 │   ├── __init__.py
 │   ├── convert_service.py       # 转换服务
+│   ├── config_service.py        # 配置服务 (新增)
 │   └── ...
 ├── ui/                          # UI层 (重构)
 │   ├── __init__.py
@@ -165,6 +171,141 @@ src/markdownall/
 │   └── assets/                 # UI资源 (保持不变)
 ```
 
+### 配置管理架构改进
+
+#### 问题分析
+当前 MarkdownAll 的配置管理存在严重的架构问题：
+- **违反分层原则**：`config_manager.py` 位于 `ui/pyside/` 目录下，配置管理属于业务逻辑层，不应该放在UI层
+- **职责混乱**：UI层不应该负责配置的持久化和业务逻辑
+- **可测试性差**：配置逻辑与UI耦合，难以进行单元测试
+- **可复用性差**：其他模块无法独立使用配置管理功能
+
+#### 解决方案
+参考 MdxScraper 的成功架构，将配置管理重构为独立的分层架构：
+
+##### 1. 新增配置层 (`config/`)
+```python
+# config/config_manager.py - 核心配置管理
+class ConfigManager:
+    """配置管理器 - 负责配置的加载、保存、验证等核心功能"""
+    
+    def __init__(self, root_dir: str):
+        self.root_dir = root_dir
+        self.sessions_dir = os.path.join(root_dir, "data", "sessions")
+        
+        # 初始化配置对象
+        self.basic = BasicConfig()
+        self.webpage = WebpageConfig()
+        self.advanced = AdvancedConfig()
+        self.about = AboutConfig()
+    
+    def load_session(self, session_name: str = "last_state") -> bool:
+        """加载会话配置"""
+        # 实现配置加载逻辑
+        
+    def save_session(self, session_name: str = "last_state") -> bool:
+        """保存会话配置"""
+        # 实现配置保存逻辑
+        
+    def reset_to_defaults(self):
+        """重置为默认配置"""
+        # 重新实例化配置类，恢复到默认值
+        self.basic = BasicConfig()
+        self.webpage = WebpageConfig()
+        self.advanced = AdvancedConfig()
+        self.about = AboutConfig()
+```
+
+##### 2. 新增配置服务 (`services/config_service.py`)
+```python
+# services/config_service.py - 配置服务封装
+class ConfigService:
+    """配置服务 - 为UI层提供高级配置API"""
+    
+    def __init__(self, root_dir: str):
+        self.config_manager = ConfigManager(root_dir)
+    
+    def load_session(self, session_name: str = "last_state") -> bool:
+        """加载会话配置"""
+        return self.config_manager.load_session(session_name)
+    
+    def save_session(self, session_name: str = "last_state") -> bool:
+        """保存会话配置"""
+        return self.config_manager.save_session(session_name)
+    
+    def reset_to_defaults(self) -> None:
+        """重置为默认配置"""
+        self.config_manager.reset_to_defaults()
+    
+    def get_all_config(self) -> Dict[str, Any]:
+        """获取所有配置"""
+        return self.config_manager.get_all_config()
+    
+    def set_all_config(self, config: Dict[str, Any]) -> None:
+        """设置所有配置"""
+        self.config_manager.set_all_config(config)
+```
+
+##### 3. 修改UI层 (`ui/pyside/main_window.py`)
+```python
+# ui/pyside/main_window.py - 纯UI层
+class MainWindow(QMainWindow):
+    def __init__(self, root_dir: str, settings: dict | None = None):
+        super().__init__()
+        
+        self.root_dir = root_dir
+        self.settings = settings or {}
+        
+        # 通过服务层访问配置，而不是直接管理
+        self.config_service = ConfigService(root_dir)
+        
+        # 其他初始化...
+        
+    def _restore_default_config(self):
+        """恢复默认配置 - UI层只负责调用服务"""
+        try:
+            # UI层只负责调用服务，不直接管理配置
+            self.config_service.reset_to_defaults()
+            
+            # 同步UI显示
+            self._sync_ui_from_config()
+            
+            self.log_success("Default configuration restored successfully")
+        except Exception as e:
+            self.log_error(f"Failed to restore default config: {e}")
+    
+    def _sync_ui_from_config(self):
+        """从配置同步UI显示"""
+        config = self.config_service.get_all_config()
+        
+        # 更新各个页面的显示
+        self.basic_page.set_config(config["basic"])
+        self.webpage_page.set_config(config["webpage"])
+        self.advanced_page.set_config(config["advanced"])
+```
+
+#### 架构优势
+1. **清晰的分层**：配置管理在独立的 `config/` 目录
+2. **职责分离**：UI层只负责展示，业务逻辑在服务层
+3. **易于测试**：配置逻辑可以独立测试
+4. **易于扩展**：可以轻松添加新的配置源或格式
+5. **可复用性**：任何模块都可以使用配置管理功能
+
+#### 迁移步骤
+1. **创建配置层**：
+   - 创建 `config/` 目录
+   - 将 `ui/pyside/config_manager.py` 移动到 `config/config_manager.py`
+   - 创建 `config/config_models.py` 定义配置数据结构
+   - 创建 `config/default_config.json` 存储默认配置
+
+2. **创建服务层**：
+   - 创建 `services/config_service.py` 封装配置管理
+   - 提供高级API给UI层使用
+
+3. **修改UI层**：
+   - 修改 `main_window.py` 通过服务层访问配置
+   - 移除UI层中的配置管理逻辑
+
 ### 主窗口重构 (main_window.py)
 
 #### 继承现有架构
@@ -182,10 +323,16 @@ class MainWindow(QMainWindow):
         self.vm = ViewModel()
         self.signals = ProgressSignals()
         
+        # 新的配置管理架构
+        self.config_service = ConfigService(root_dir)
+        
         # 新的页面化设计
         self._setup_tabbed_interface()
         self._setup_splitter_layout()
         self._connect_signals()
+        
+        # 加载配置
+        self._load_initial_config()
 ```
 
 #### 页面化设计
@@ -776,6 +923,27 @@ class AdvancedConfig:
 
 本重构计划基于 MdxScraper 的成功经验，为 MarkdownAll 提供了清晰的模组化路径。通过分阶段实施，可以确保重构过程的稳定性和可控性。重构完成后，MarkdownAll 将具备更强的扩展性和可维护性，为未来的功能发展奠定坚实基础。
 
+### 配置管理架构改进的重要性
+
+本次重构中最重要的改进之一是**配置管理架构的重构**：
+
+#### 当前问题
+- `config_manager.py` 错误地放置在 `ui/pyside/` 目录下
+- 违反了分层设计原则，UI层承担了业务逻辑职责
+- 配置管理与UI耦合，难以测试和维护
+
+#### 解决方案
+- 创建独立的 `config/` 层，专门负责配置管理
+- 通过 `services/config_service.py` 为UI层提供高级API
+- UI层只负责展示和用户交互，不直接管理配置
+
+#### 长期价值
+1. **代码质量**：遵循分层设计原则，提高代码质量
+2. **可测试性**：配置逻辑可以独立测试
+3. **可维护性**：配置变更不影响UI层
+4. **可扩展性**：易于添加新的配置源或格式
+5. **可复用性**：其他模块可以独立使用配置管理功能
+
 **关键设计原则**：
 1. **保持架构优势**：不破坏现有的 ViewModel 模式和国际化系统
 2. **渐进式迁移**：分阶段重构，降低风险
@@ -783,15 +951,31 @@ class AdvancedConfig:
 4. **扩展性**：为未来功能扩展留出空间
 5. **简化设计**：采用直接连接，减少信号复杂度
 6. **职责清晰**：组件职责明确，便于维护
+7. **分层设计**：配置管理独立于UI层，遵循分层原则
 
 **主要改进**：
-1. **日志系统简化**：采用 MdxScraper 的简洁设计，直接调用日志方法
-2. **信号槽优化**：从25个信号减少到15个，采用直接连接
-3. **组件职责分离**：CommandPanel 和 ProgressPanel 独立设计
-4. **风险控制完善**：增加测试策略和回滚机制
-5. **技术细节补充**：错误处理、国际化迁移等
+1. **配置管理架构重构**：将配置管理从UI层移动到独立的config层
+2. **日志系统简化**：采用 MdxScraper 的简洁设计，直接调用日志方法
+3. **信号槽优化**：从25个信号减少到15个，采用直接连接
+4. **组件职责分离**：CommandPanel 和 ProgressPanel 独立设计
+5. **风险控制完善**：增加测试策略和回滚机制
+6. **技术细节补充**：错误处理、国际化迁移等
 
 这样的重构计划既保持了 MarkdownAll 的独特优势，又引入了 MdxScraper 的成功经验，实现了最佳的设计平衡。通过简化设计、明确职责、完善测试，确保了重构过程的稳定性和最终结果的高质量。
+
+### 实施建议
+
+#### 优先级
+1. **高优先级**：配置管理架构重构（影响整个项目架构）
+2. **中优先级**：页面化界面重构（提升用户体验）
+3. **低优先级**：组件优化和细节改进
+
+#### 实施顺序
+1. 首先完成配置管理架构重构
+2. 然后进行页面化界面重构
+3. 最后进行组件优化和细节改进
+
+这样的重构顺序确保了架构基础的稳固，为后续的功能开发奠定了良好的基础。
 
 ## 附录
 

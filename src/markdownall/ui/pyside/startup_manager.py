@@ -17,7 +17,7 @@ from typing import Optional, Callable, Any
 from PySide6.QtCore import QObject, QThread, Signal, QTimer
 from PySide6.QtWidgets import QApplication
 
-from .config_manager import ConfigManager
+from markdownall.services.config_service import ConfigService
 
 
 class StartupManager(QObject):

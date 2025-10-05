@@ -20,7 +20,7 @@ from typing import Optional, Callable, Any, Dict
 from PySide6.QtCore import QObject, Signal, QTimer
 from PySide6.QtWidgets import QMessageBox, QApplication
 
-from .config_manager import ConfigManager
+from markdownall.services.config_service import ConfigService
 
 
 class ErrorHandler(QObject):
@@ -39,9 +39,9 @@ class ErrorHandler(QObject):
     error_recovered = Signal(str)  # recovery_message
     performance_warning = Signal(str)  # warning_message
     
-    def __init__(self, config_manager: ConfigManager):
+    def __init__(self, config_service: ConfigService):
         super().__init__()
-        self.config_manager = config_manager
+        self.config_service = config_service
         self._error_count = 0
         self._error_history = []
         self._recovery_attempts = {}
@@ -61,7 +61,7 @@ class ErrorHandler(QObject):
         self.error_logger.setLevel(logging.ERROR)
         
         # Create file handler
-        log_dir = os.path.join(self.config_manager.root_dir, "data", "logs")
+        log_dir = os.path.join(self.config_service.config_manager.root_dir, "data", "logs")
         os.makedirs(log_dir, exist_ok=True)
         
         log_file = os.path.join(log_dir, "errors.log")

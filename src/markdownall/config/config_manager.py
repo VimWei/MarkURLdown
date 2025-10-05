@@ -1,60 +1,24 @@
 """
-Configuration Manager for MarkdownAll GUI.
+Configuration Manager for MarkdownAll.
 
-This module provides centralized configuration management for the GUI,
-optimizing state management and reducing memory usage.
+This module provides centralized configuration management,
+following proper layered architecture principles.
 """
 
 from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, Optional
+from dataclasses import asdict
+from typing import Any, Dict
 
 from markdownall.io.config import load_config, save_config, resolve_project_path, to_project_relative_path
-
-
-@dataclass
-class BasicConfig:
-    """Basic page configuration."""
-    urls: list[str] = None
-    output_dir: str = ""
-    
-    def __post_init__(self):
-        if self.urls is None:
-            self.urls = []
-
-
-@dataclass
-class WebpageConfig:
-    """Webpage page configuration."""
-    use_proxy: bool = False
-    ignore_ssl: bool = False
-    download_images: bool = True
-    filter_site_chrome: bool = True
-    use_shared_browser: bool = True
-
-
-@dataclass
-class AdvancedConfig:
-    """Advanced page configuration."""
-    user_data_path: str = ""
-    language: str = "auto"
-    log_level: str = "INFO"
-    debug_mode: bool = False
-
-
-@dataclass
-class AboutConfig:
-    """About page configuration."""
-    homepage_clicked: bool = False
-    last_update_check: Optional[str] = None
+from .config_models import BasicConfig, WebpageConfig, AdvancedConfig, AboutConfig
 
 
 class ConfigManager:
     """
-    Centralized configuration manager for MarkdownAll GUI.
+    Centralized configuration manager for MarkdownAll.
     
     This class provides:
     - Centralized configuration storage
