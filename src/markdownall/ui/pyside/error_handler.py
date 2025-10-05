@@ -61,7 +61,7 @@ class ErrorHandler(QObject):
         self.error_logger.setLevel(logging.ERROR)
         
         # Create file handler
-        log_dir = os.path.join(self.config_service.config_manager.root_dir, "data", "logs")
+        log_dir = os.path.join(self.config_service.config_manager.root_dir, "data", "log")
         os.makedirs(log_dir, exist_ok=True)
         
         log_file = os.path.join(log_dir, "errors.log")
@@ -185,7 +185,7 @@ class ErrorHandler(QObject):
                 os.makedirs(self.config_manager.sessions_dir, exist_ok=True)
                 return True
             elif "log" in context.lower():
-                log_dir = os.path.join(self.config_manager.root_dir, "data", "logs")
+                log_dir = os.path.join(self.config_manager.root_dir, "data", "log")
                 os.makedirs(log_dir, exist_ok=True)
                 return True
             return False

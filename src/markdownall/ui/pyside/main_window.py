@@ -161,6 +161,9 @@ class MainWindow(QMainWindow):
         self.signals.progress_event.connect(self._on_event_thread_safe)
         self.ui_ready = True
 
+        # Internal flag to suppress noisy logs during session import/apply
+        self._suppress_change_logs = False
+
     def closeEvent(self, event):
         """Handle window close event with session state saving."""
         try:
@@ -624,14 +627,20 @@ class MainWindow(QMainWindow):
     # Signal handler methods
     def _on_url_list_changed(self, urls: list):
         """Handle URL list changes."""
+        if self._suppress_change_logs:
+            return
         self.log_panel.appendLog(f"URL list updated: {len(urls)} URLs")
 
     def _on_output_dir_changed(self, path: str):
         """Handle output directory changes."""
+        if self._suppress_change_logs:
+            return
         self.log_panel.appendLog(f"Output directory changed: {path}")
 
     def _on_options_changed(self, options: dict):
         """Handle conversion options changes."""
+        if self._suppress_change_logs:
+            return
         self.log_panel.appendLog("Conversion options updated")
 
     def _open_user_data(self):
@@ -767,7 +776,16 @@ class MainWindow(QMainWindow):
         if filename:
             try:
                 config = load_config(filename)
+                # Suppress noisy change logs during bulk apply
+                self._suppress_change_logs = True
                 self._apply_state(config)
+                # Stop any pending debounced optionsChanged emission
+                try:
+                    if hasattr(self.webpage_page, "_options_changed_timer"):
+                        self.webpage_page._options_changed_timer.stop()
+                except Exception:
+                    pass
+                self._suppress_change_logs = False
                 self.log_panel.appendLog(f"Session imported from: {os.path.basename(filename)}")
             except Exception as e:
                 self.log_panel.appendLog(f"Failed to import session: {e}")

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -51,6 +51,13 @@ class WebpagePage(QWidget):
         # Setup UI
         self._setup_ui()
         self._connect_signals()
+
+        # Debounce timer for coalescing rapid option changes
+        self._options_changed_timer = QTimer(self)
+        self._options_changed_timer.setSingleShot(True)
+        # Short delay to allow multiple checkbox updates to coalesce
+        self._options_changed_timer.setInterval(50)
+        self._options_changed_timer.timeout.connect(self._emit_options_changed)
 
     def _setup_ui(self):
         """Setup the UI layout for webpage page."""
@@ -106,6 +113,13 @@ class WebpagePage(QWidget):
 
     def _on_option_changed(self):
         """Handle option changes and emit signal."""
+        # Start/restart debounce timer to merge multiple changes
+        if self._options_changed_timer.isActive():
+            self._options_changed_timer.stop()
+        self._options_changed_timer.start()
+
+    def _emit_options_changed(self) -> None:
+        """Emit optionsChanged once after debounced changes."""
         options = self.get_options()
         self.optionsChanged.emit(options)
 
