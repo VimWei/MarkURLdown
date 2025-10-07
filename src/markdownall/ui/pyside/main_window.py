@@ -25,10 +25,7 @@ from PySide6.QtWidgets import (
 
 from markdownall.app_types import ConversionOptions, ProgressEvent, SourceRequest
 from markdownall.io.config import (
-    load_config,
-    load_json_from_root,
     resolve_project_path,
-    save_config,
     to_project_relative_path,
 )
 from markdownall.ui.pyside.splash import show_immediate_splash
@@ -906,20 +903,19 @@ class MainWindow(QMainWindow):
         self.log_panel.appendLog("Opened project homepage")
 
     def _restore_session(self):
-        """Restore last session."""
+        """Restore last session via ConfigService."""
         try:
-            sessions_dir = os.path.join(self.root_dir, "data", "sessions")
-            state = load_json_from_root(sessions_dir, "last_state.json")
-            if not state:
+            if not self.config_service.load_session():
                 self.log_panel.appendLog("No session found to restore")
                 return
-            self._apply_state(state)
+            config = self.config_service.get_all_config()
+            self._apply_state(config.get("basic", {}) | config.get("webpage", {}) | {"output_dir": config.get("basic", {}).get("output_dir", "")})
             self.log_panel.appendLog("Session restored successfully")
         except Exception as e:
             self.log_panel.appendLog(f"Failed to restore session: {e}")
 
     def _import_session(self):
-        """Import session from file."""
+        """Import session from file via ConfigService."""
         from PySide6.QtWidgets import QFileDialog
         sessions_dir = os.path.join(self.root_dir, "data", "sessions")
         filename, _ = QFileDialog.getOpenFileName(
@@ -927,11 +923,11 @@ class MainWindow(QMainWindow):
         )
         if filename:
             try:
-                config = load_config(filename)
-                # Suppress noisy change logs during bulk apply
+                if not self.config_service.import_config(filename):
+                    raise RuntimeError("Import returned False")
+                config = self.config_service.get_all_config()
                 self._suppress_change_logs = True
-                self._apply_state(config)
-                # Stop any pending debounced optionsChanged emission
+                self._apply_state(config.get("basic", {}) | config.get("webpage", {}) | {"output_dir": config.get("basic", {}).get("output_dir", "")})
                 try:
                     if hasattr(self.webpage_page, "_options_changed_timer"):
                         self.webpage_page._options_changed_timer.stop()
@@ -943,7 +939,7 @@ class MainWindow(QMainWindow):
                 self.log_panel.appendLog(f"Failed to import session: {e}")
 
     def _export_session(self):
-        """Export session to file."""
+        """Export session to file via ConfigService."""
         from PySide6.QtWidgets import QFileDialog
         sessions_dir = os.path.join(self.root_dir, "data", "sessions")
         filename, _ = QFileDialog.getSaveFileName(
@@ -951,8 +947,10 @@ class MainWindow(QMainWindow):
         )
         if filename:
             try:
-                data = self._get_current_state()
-                save_config(filename, data)
+                # Ensure service reflects current UI state before export
+                self._save_config()
+                if not self.config_service.export_config(filename):
+                    raise RuntimeError("Export returned False")
                 self.log_panel.appendLog(f"Session exported to: {os.path.basename(filename)}")
             except Exception as e:
                 self.log_panel.appendLog(f"Failed to export session: {e}")
