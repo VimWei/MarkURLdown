@@ -177,7 +177,8 @@ class LoggerAdapter:
         self._emit_progress(kind="error", text=f"❌ URL处理失败: {url} - {error}")
 
     def batch_start(self, total: int) -> None:
-        self._emit_progress(kind="status", text=f"🚀 开始批量处理 {total} 个URL...")
+        # Structured event for i18n at UI layer
+        self._emit_progress(kind="status", key="batch_start", data={"total": total}, text=f"🚀 开始批量处理 {total} 个URL...")
 
     def batch_summary(self, success: int, failed: int, total: int) -> None:
         # 静默处理，统计信息将合并到 Multi-task completed 消息中
@@ -423,7 +424,11 @@ class ConvertService:
                             pass
 
                         if shared_browser is not None:
-                            logger.info(f"[浏览器] {handler_name}需要独立浏览器，关闭共享浏览器")
+                            # Structured event for i18n at UI layer
+                            self._emit_event_safe(
+                                ProgressEvent(kind="detail", key="shared_browser_disabled_for_handler", data={"handler": handler_name}, text=f"[浏览器] {handler_name}需要独立浏览器，关闭共享浏览器"),
+                                on_event,
+                            )
                             try:
                                 shared_browser.close()
                             except Exception:
@@ -565,11 +570,12 @@ class ConvertService:
             if self._start_time is not None:
                 total_duration = time.time() - self._start_time
                 duration_str = human_readable_duration(total_duration)
-                # 直接发送时间统计事件
+                # 直接发送时间统计事件（包含结构化数据以便本地化）
                 self._emit_event_safe(
                     ProgressEvent(
                         kind="detail",
                         key="conversion_timing",
+                        data={"duration": duration_str},
                         text=f"⏱️ The entire process took a total of {duration_str}.",
                     ),
                     on_event,

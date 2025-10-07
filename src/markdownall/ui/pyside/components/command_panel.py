@@ -47,6 +47,7 @@ class CommandPanel(QWidget):
         super().__init__(parent)
         self.translator = translator
         self._is_converting = False
+        self._ready_text = "Ready"
         
         # Set fixed height for command panel (mimicking MdxScraper)
         self.setFixedHeight(120)
@@ -105,7 +106,10 @@ class CommandPanel(QWidget):
         self.progress.setValue(0)
         self.progress.setFixedHeight(20)
         self.progress.setTextVisible(True)  # Show text like MdxScraper
-        self.progress.setFormat("Ready")    # Initial status
+        # Initial status text (localized if possible)
+        if self.translator:
+            self._ready_text = self.translator.t("progress_ready")
+        self.progress.setFormat(self._ready_text)
         root.addWidget(self.progress)
 
     def _connect_signals(self):
@@ -128,7 +132,7 @@ class CommandPanel(QWidget):
         self.progress.setValue(max(0, min(100, int(value))))
         # Only show percentage if no custom status text is set
         current_format = self.progress.format()
-        if current_format == "Ready" or current_format == "%p%":
+        if current_format in (self._ready_text, "%p%"):
             self.progress.setFormat("%p%")
 
     def set_progress(self, value: int, text: str = None) -> None:
@@ -178,6 +182,11 @@ class CommandPanel(QWidget):
         self.btn_restore.setText(t("command_restore_session"))
         self.btn_import.setText(t("command_import_session"))
         self.btn_export.setText(t("command_export_session"))
+        # Update ready text and apply when idle at 0
+        old_ready = self._ready_text
+        self._ready_text = t("progress_ready")
+        if not self._is_converting and self.progress.value() == 0:
+            self.progress.setFormat(self._ready_text)
         # Keep current state text
         if self._is_converting:
             self.btn_convert.setText(t("command_stop"))

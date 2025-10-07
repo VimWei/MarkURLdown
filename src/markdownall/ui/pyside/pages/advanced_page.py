@@ -52,6 +52,8 @@ class AdvancedPage(QWidget):
         self.user_data_path = ""
         self.language = "auto"
         self.debug_mode = False
+        # Track whether data path field shows the localized hint text
+        self._is_data_path_hint = True
         
         # Setup UI
         self._setup_ui()
@@ -65,10 +67,10 @@ class AdvancedPage(QWidget):
 
         # User Data Path section (mirror MdxScraper style)
         data_section = QHBoxLayout()
-        _lbl_data = QLabel("User Data Path:", self)
-        _lbl_data.setProperty("class", "field-label")
-        _lbl_data.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        data_section.addWidget(_lbl_data)
+        self._lbl_data = QLabel("", self)
+        self._lbl_data.setProperty("class", "field-label")
+        self._lbl_data.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        data_section.addWidget(self._lbl_data)
         data_section.addSpacing(8)
 
         self.edit_data_path = QLineEdit(self)
@@ -76,7 +78,7 @@ class AdvancedPage(QWidget):
         self.edit_data_path.setProperty("class", "readonly-input")
         data_section.addWidget(self.edit_data_path, 1)
 
-        self.btn_open_data = QPushButton("Open", self)
+        self.btn_open_data = QPushButton("", self)
         self.btn_open_data.setFixedWidth(90)
         self.btn_open_data.setObjectName("open-data-button")
         data_section.addWidget(self.btn_open_data)
@@ -84,13 +86,13 @@ class AdvancedPage(QWidget):
 
         # Config Actions section
         config_section = QHBoxLayout()
-        _lbl_config = QLabel("Config Actions:", self)
-        _lbl_config.setProperty("class", "field-label")
-        _lbl_config.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        config_section.addWidget(_lbl_config)
+        self._lbl_config = QLabel("", self)
+        self._lbl_config.setProperty("class", "field-label")
+        self._lbl_config.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        config_section.addWidget(self._lbl_config)
         config_section.addSpacing(8)
 
-        self.btn_restore_default = QPushButton("Restore default config", self)
+        self.btn_restore_default = QPushButton("", self)
         self.btn_restore_default.setFixedWidth(150)
         self.btn_restore_default.setObjectName("restore-default-button")
         config_section.addWidget(self.btn_restore_default)
@@ -99,10 +101,10 @@ class AdvancedPage(QWidget):
 
         # Language section
         system_section = QHBoxLayout()
-        _lbl_language_left = QLabel("Language:", self)
-        _lbl_language_left.setProperty("class", "field-label")
-        _lbl_language_left.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        system_section.addWidget(_lbl_language_left)
+        self._lbl_language_left = QLabel("", self)
+        self._lbl_language_left.setProperty("class", "field-label")
+        self._lbl_language_left.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        system_section.addWidget(self._lbl_language_left)
         system_section.addSpacing(8)
 
         self.language_combo = QComboBox(self)
@@ -117,16 +119,22 @@ class AdvancedPage(QWidget):
 
         # Align section labels to the longest label width (with padding)
         _section_w = max(
-            _lbl_data.sizeHint().width(),
-            _lbl_config.sizeHint().width(),
-            _lbl_language_left.sizeHint().width(),
+            self._lbl_data.sizeHint().width(),
+            self._lbl_config.sizeHint().width(),
+            self._lbl_language_left.sizeHint().width(),
         ) + 16
-        _lbl_data.setFixedWidth(_section_w)
-        _lbl_config.setFixedWidth(_section_w)
-        _lbl_language_left.setFixedWidth(_section_w)
+        self._lbl_data.setFixedWidth(_section_w)
+        self._lbl_config.setFixedWidth(_section_w)
+        self._lbl_language_left.setFixedWidth(_section_w)
 
         # Bottom spacer
         layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        # Initial translate for created widgets
+        try:
+            self.retranslate_ui()
+        except Exception:
+            pass
 
     def _connect_signals(self):
         """Connect internal widget signals to page signals."""
@@ -147,7 +155,15 @@ class AdvancedPage(QWidget):
         else:
             self.user_data_path = "data/"
         # Display default: show the relative hint. After Open, the field shows the absolute path.
-        self.edit_data_path.setText("data/ (relative to project root)")
+        try:
+            if self.translator:
+                self.edit_data_path.setText(self.translator.t("advanced_data_path_hint"))
+            else:
+                self.edit_data_path.setText("data/ (relative to project root)")
+        except Exception:
+            self.edit_data_path.setText("data/ (relative to project root)")
+        # Mark as hint since we show the template text at startup
+        self._is_data_path_hint = True
 
     def _get_project_root(self) -> str | None:
         """Walk up the parent chain to find project root."""
@@ -178,6 +194,8 @@ class AdvancedPage(QWidget):
         try:
             if hasattr(self, 'edit_data_path') and self.edit_data_path is not None:
                 self.edit_data_path.setText(path)
+                # Now the field displays a concrete absolute path, not the hint
+                self._is_data_path_hint = False
         except Exception:
             # Fallback silently if widget not ready
             pass
@@ -200,23 +218,31 @@ class AdvancedPage(QWidget):
             return
             
         t = self.translator.t
-        # Update labels - check if parent has tabs attribute
+        # Update internal labels and buttons
         try:
-            parent = self.parent()
-            if hasattr(parent, 'tabs') and parent.tabs:
-                for i in range(parent.tabs.count()):
-                    if parent.tabs.widget(i) == self:
-                        if i == 0:
-                            parent.tabs.setTabText(i, t("tab_basic"))
-                        elif i == 1:
-                            parent.tabs.setTabText(i, t("tab_webpage"))
-                        elif i == 2:
-                            parent.tabs.setTabText(i, t("tab_advanced"))
-                        elif i == 3:
-                            parent.tabs.setTabText(i, t("tab_about"))
-                        break
-        except (AttributeError, TypeError):
-            # Parent doesn't have tabs or is not the expected type
+            self._lbl_data.setText(t("advanced_user_data_path"))
+            self._lbl_config.setText(t("advanced_config_actions"))
+            self._lbl_language_left.setText(t("advanced_language"))
+            self.btn_open_data.setText(t("advanced_open_data"))
+            self.btn_restore_default.setText(t("advanced_restore_default"))
+            # If currently showing the hint, refresh it in the new language
+            if getattr(self, "_is_data_path_hint", True):
+                self.edit_data_path.setText(t("advanced_data_path_hint"))
+        except Exception:
+            pass
+
+        # Recompute and apply deterministic label widths based on translated texts
+        try:
+            metrics = self.fontMetrics()
+            left_w = max(
+                metrics.horizontalAdvance(self._lbl_data.text()),
+                metrics.horizontalAdvance(self._lbl_config.text()),
+                metrics.horizontalAdvance(self._lbl_language_left.text()),
+            ) + 16
+            self._lbl_data.setFixedWidth(left_w)
+            self._lbl_config.setFixedWidth(left_w)
+            self._lbl_language_left.setFixedWidth(left_w)
+        except Exception:
             pass
 
         # No dynamic realignment; label width set once during setup
@@ -237,7 +263,15 @@ class AdvancedPage(QWidget):
             if isinstance(val, str) and val.strip():
                 self.user_data_path = val.strip()
         # Always display the relative hint for consistency with MdxScraper
-        self.edit_data_path.setText("data/ (relative to project root)")
+        try:
+            if self.translator:
+                self.edit_data_path.setText(self.translator.t("advanced_data_path_hint"))
+            else:
+                self.edit_data_path.setText("data/ (relative to project root)")
+        except Exception:
+            self.edit_data_path.setText("data/ (relative to project root)")
+        # Mark as hint since we deliberately display the template text here
+        self._is_data_path_hint = True
         if "language" in config:
             self.set_language(config["language"])
         # debug_mode removed

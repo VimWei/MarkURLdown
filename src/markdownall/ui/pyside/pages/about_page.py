@@ -71,11 +71,11 @@ class AboutPage(QWidget):
 
         # Row: Homepage (mirror MdxScraper)
         home_row = QHBoxLayout()
-        _lbl_home = QLabel("Homepage:", self)
-        _lbl_home.setProperty("class", "field-label")
-        _lbl_home.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        _lbl_home.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        home_row.addWidget(_lbl_home)
+        self._lbl_home = QLabel("", self)
+        self._lbl_home.setProperty("class", "field-label")
+        self._lbl_home.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self._lbl_home.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        home_row.addWidget(self._lbl_home)
         home_row.addSpacing(8)
 
         _val_home = QLabel(
@@ -90,19 +90,19 @@ class AboutPage(QWidget):
 
         # Row: Updates (mirror MdxScraper)
         update_row = QHBoxLayout()
-        _lbl_update = QLabel("Updates:", self)
-        _lbl_update.setProperty("class", "field-label")
-        _lbl_update.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        _lbl_update.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        update_row.addWidget(_lbl_update)
+        self._lbl_update = QLabel("", self)
+        self._lbl_update.setProperty("class", "field-label")
+        self._lbl_update.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self._lbl_update.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        update_row.addWidget(self._lbl_update)
         update_row.addSpacing(8)
 
-        self.update_status_label = QLabel("Click 'Check for Updates' to check", self)
+        self.update_status_label = QLabel("", self)
         self.update_status_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.update_status_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         update_row.addWidget(self.update_status_label, 1)
 
-        self.check_updates_btn = QPushButton("Check for Updates", self)
+        self.check_updates_btn = QPushButton("", self)
         self.check_updates_btn.clicked.connect(self.check_for_updates)
         self.check_updates_btn.setFixedWidth(120)
         self.check_updates_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -111,11 +111,17 @@ class AboutPage(QWidget):
         layout.addLayout(update_row)
 
         # Align left labels to longest width with padding
-        _section_w = max(_lbl_home.sizeHint().width(), _lbl_update.sizeHint().width()) + 16
-        _lbl_home.setFixedWidth(_section_w)
-        _lbl_update.setFixedWidth(_section_w)
+        _section_w = max(self._lbl_home.sizeHint().width(), self._lbl_update.sizeHint().width()) + 16
+        self._lbl_home.setFixedWidth(_section_w)
+        self._lbl_update.setFixedWidth(_section_w)
 
         layout.addStretch(1)
+
+        # Initial translate
+        try:
+            self.retranslate_ui()
+        except Exception:
+            pass
 
     def _connect_signals(self):
         """Connect internal signals."""
@@ -128,9 +134,15 @@ class AboutPage(QWidget):
             return  # Already checking
 
         # Update UI to show checking status
-        self.update_status_label.setText("Checking for updates...")
+        if self.translator:
+            self.update_status_label.setText(self.translator.t("about_checking"))
+        else:
+            self.update_status_label.setText("Checking for updates...")
         self.check_updates_btn.setEnabled(False)
-        self.check_updates_btn.setText("Checking...")
+        if self.translator:
+            self.check_updates_btn.setText(self.translator.t("about_checking"))
+        else:
+            self.check_updates_btn.setText("Checking...")
 
         # Create and start version check thread
         self.version_thread = VersionCheckThread()
@@ -140,18 +152,34 @@ class AboutPage(QWidget):
 
     def on_update_check_complete(self, is_latest: bool, message: str, latest_version: str):
         """Handle update check completion."""
-        self.update_status_label.setText(message)
+        # Prefer localized canned messages if recognized, else show raw message
+        try:
+            if self.translator and (message == "Current version is up to date" or not message):
+                self.update_status_label.setText(self.translator.t("about_up_to_date"))
+            else:
+                self.update_status_label.setText(message)
+        except Exception:
+            self.update_status_label.setText(message)
 
         # Update button text based on result
         if is_latest:
-            self.check_updates_btn.setText("Check Again")
+            if self.translator:
+                self.check_updates_btn.setText(self.translator.t("about_check_again"))
+            else:
+                self.check_updates_btn.setText("Check Again")
         else:
-            self.check_updates_btn.setText("Check Again")
+            if self.translator:
+                self.check_updates_btn.setText(self.translator.t("about_check_again"))
+            else:
+                self.check_updates_btn.setText("Check Again")
 
     def on_version_thread_finished(self):
         """Handle version check thread completion."""
         self.check_updates_btn.setEnabled(True)
-        self.check_updates_btn.setText("Check Again")
+        if self.translator:
+            self.check_updates_btn.setText(self.translator.t("about_check_again"))
+        else:
+            self.check_updates_btn.setText("Check Again")
         if self.version_thread:
             self.version_thread.deleteLater()
             self.version_thread = None
@@ -163,12 +191,24 @@ class AboutPage(QWidget):
             
         t = self.translator.t
         try:
-            # Apply translated texts where available
-            # In compact form layout, widths are fixed; only text needs update
-            # Keys: about_homepage, about_updates
-            # These keys exist in locales and will be used for labels
-            # Note: We don't change fixed width on translate to keep layout stable
+            self._lbl_home.setText(t("about_homepage"))
+            self._lbl_update.setText(t("about_updates"))
+            # Only text values; widths fixed at setup
+            # Set default message text to hint user
+            self.update_status_label.setText(t("about_check_updates"))
+            self.check_updates_btn.setText(t("about_check_updates"))
+        except Exception:
             pass
+
+        # Recompute and apply deterministic label widths after translation
+        try:
+            metrics = self.fontMetrics()
+            left_w = max(
+                metrics.horizontalAdvance(self._lbl_home.text()),
+                metrics.horizontalAdvance(self._lbl_update.text()),
+            ) + 16
+            self._lbl_home.setFixedWidth(left_w)
+            self._lbl_update.setFixedWidth(left_w)
         except Exception:
             pass
 

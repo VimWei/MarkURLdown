@@ -533,7 +533,7 @@ class MainWindow(QMainWindow):
             
             # Handle all event types with direct log calls (learning from MdxScraper)
             if ev.kind == "progress_init":
-                self.command_panel.set_progress(0, "Starting conversion (0%)")
+                self.command_panel.set_progress(0, self.translator.t("convert_init", total=ev.data.get("total", 0) if isinstance(ev.data, dict) else 0))
                 # Reset per-run image download log trackers
                 self._images_dl_logged = False
                 self._images_dl_logged_tasks.clear()
@@ -551,6 +551,16 @@ class MainWindow(QMainWindow):
                     
             elif ev.kind == "status":
                 # Prefer structured status data for task grouping when available
+                # Handle localized batch start early to avoid logging raw text
+                if ev.key == "batch_start" and ev.data:
+                    try:
+                        _total_val = ev.data.get("total") if isinstance(ev.data, dict) else None
+                        total = int(_total_val) if isinstance(_total_val, int) else 0
+                        self.log_info(self.translator.t("batch_start", total=total))
+                    except Exception:
+                        pass
+                    # Do not fall through to generic message logging for this event
+                    return
                 if isinstance(ev.data, dict) and "url" in ev.data:
                     url = ev.data["url"]
                     idx = ev.data.get("idx", 0)
@@ -562,9 +572,10 @@ class MainWindow(QMainWindow):
                         self._current_task_idx = 0
                     if total and total > 1:
                         task_id = f"Task {idx}/{total}"
-                        self.log_panel.appendTaskLog(task_id, f"Processing: {url}", "🔄")
+                        # Use a plain message without duplicate [idx/total] since task_id already has it
+                        self.log_panel.appendTaskLog(task_id, self.translator.t("convert_status_message", url=url), "🔄")
                     else:
-                        self.log_info(f"Processing URL: {url}")
+                        self.log_info(self.translator.t("convert_status_running", idx=1, total=1, url=url))
                 elif message:
                     # Fallback to plain message
                     self.log_info(message)
@@ -578,18 +589,25 @@ class MainWindow(QMainWindow):
                     completed = max(0, self._progress_completed_urls)
                     percent = self.command_panel.progress.value()
                     phase_map = {
-                        "phase_fetch_start": "Fetching",
-                        "phase_parse_start": "Parsing",
-                        "phase_clean_start": "Cleaning",
-                        "phase_convert_start": "Converting",
-                        "phase_write_start": "Writing",
+                        "phase_fetch_start": self.translator.t("progress_phase_fetch"),
+                        "phase_parse_start": self.translator.t("progress_phase_parse"),
+                        "phase_clean_start": self.translator.t("progress_phase_clean"),
+                        "phase_convert_start": self.translator.t("progress_phase_convert"),
+                        "phase_write_start": self.translator.t("progress_phase_write"),
                     }
-                    phase_text = phase_map.get(ev.key, "Processing")
-                    self.command_panel.setProgressText(f"{phase_text} • Completed {completed}/{total} • {percent}%")
+                    phase_text = phase_map.get(ev.key, self.translator.t("progress_processing"))
+                    self.command_panel.setProgressText(self.translator.t("progress_text_with_counts", phase=phase_text, completed=completed, total=total, percent=percent))
                         
             elif ev.kind == "detail" or ev.kind == "status":
                 # Detail messages - handle specific keys with task grouping
-                if ev.key == "convert_detail_done" and ev.data:
+                if ev.key == "conversion_timing" and ev.data:
+                    duration = ev.data.get("duration") if isinstance(ev.data, dict) else ""
+                    self.log_info(self.translator.t("conversion_timing", duration=duration))
+                elif ev.key == "batch_start" and ev.data:
+                    _total_val = ev.data.get("total") if isinstance(ev.data, dict) else None
+                    total = int(_total_val) if isinstance(_total_val, int) else 0
+                    self.log_info(self.translator.t("batch_start", total=total))
+                elif ev.key == "convert_detail_done" and ev.data:
                     title = (ev.data.get("title") if isinstance(ev.data, dict) else "") or "无标题"
                     # Check if this is part of a multi-task operation
                     _total_val = ev.data.get("total") if isinstance(ev.data, dict) else None
@@ -598,9 +616,9 @@ class MainWindow(QMainWindow):
                         _idx_val = ev.data.get("idx") if isinstance(ev.data, dict) else None
                         idx = int(_idx_val) if isinstance(_idx_val, int) else 0
                         task_id = f"Task {idx}/{total}"
-                        self.log_panel.appendTaskLog(task_id, f"URL处理成功: {title}", "✅")
+                        self.log_panel.appendTaskLog(task_id, self.translator.t("url_success_message", title=title), "✅")
                     else:
-                        self.log_success(f"✅ URL处理成功: {title}")
+                        self.log_success(f"✅ {self.translator.t('url_success_message', title=title)}")
                 elif ev.key == "images_dl_progress" and ev.data:
                     _total_val = ev.data.get("total") if isinstance(ev.data, dict) else None
                     total = int(_total_val) if isinstance(_total_val, int) else 0
@@ -619,7 +637,7 @@ class MainWindow(QMainWindow):
                         completed_urls = max(0, self._progress_completed_urls)
                         percent = self.command_panel.progress.value()
                         self.command_panel.setProgressText(
-                            f"Downloading images {task_idx}/{task_total} • Completed {completed_urls}/{total_urls} • {percent}%"
+                            self.translator.t("images_progress_text", task_idx=task_idx, task_total=task_total, completed=completed_urls, total=total_urls, percent=percent)
                         )
                     if task_total > 1:
                         _task_idx_val = ev.data.get("task_idx") if isinstance(ev.data, dict) else None
@@ -658,7 +676,10 @@ class MainWindow(QMainWindow):
                             self.log_info(f"Downloading images: {total} images")
                         self.log_success(f"Images downloaded: {total} images")
                 elif ev.key == "convert_shared_browser_started":
-                    self.log_info("Shared browser started")
+                    self.log_info(self.translator.t("convert_shared_browser_started"))
+                elif ev.key == "shared_browser_disabled_for_handler" and ev.data:
+                    handler = ev.data.get("handler") if isinstance(ev.data, dict) else ""
+                    self.log_info(self.translator.t("shared_browser_disabled_for_handler", handler=handler))
                 elif message:
                     # Default detail message
                     self.log_info(message)
@@ -674,7 +695,7 @@ class MainWindow(QMainWindow):
                     self._progress_total_urls = max(self._progress_total_urls, total)
                     # On discrete step, show the exact overall progress without interpolation
                     progress_value = int((completed / total) * 100) if total and total > 0 else 0
-                    self.command_panel.set_progress(progress_value, f"Completed {completed}/{total} • {progress_value}%")
+                    self.command_panel.set_progress(progress_value, self.translator.t("progress_text_simple", completed=completed, total=total, percent=progress_value))
                     # Reset intra-task phase state for the next task
                     self._current_phase_key = None
                     self._current_images_progress = None
@@ -683,7 +704,7 @@ class MainWindow(QMainWindow):
                     self.command_panel.set_progress(current + 1)
                     
             elif ev.kind == "progress_done":
-                self.command_panel.set_progress(100, "Conversion completed (100%)")
+                self.command_panel.set_progress(100, self.translator.t("convert_progress_done", completed=ev.data.get("completed", 0) if isinstance(ev.data, dict) else 0, total=ev.data.get("total", 0) if isinstance(ev.data, dict) else 0))
                 # Use multi-task summary if available
                 if ev.data and "completed" in ev.data and "total" in ev.data:
                     completed = ev.data["completed"]
@@ -694,19 +715,19 @@ class MainWindow(QMainWindow):
                         failed = ev.data.get("failed", total - completed)
                         self.log_panel.appendMultiTaskSummary(successful, failed, total)
                     else:
-                        self.log_success(message or "Conversion completed")
+                        self.log_success(message or self.translator.t("progress_completed"))
                 else:
-                    self.log_success(message or "Conversion completed")
+                    self.log_success(message or self.translator.t("progress_completed"))
                 self.is_running = False
                 self.command_panel.setConvertingState(False)
                 
             elif ev.kind == "stopped":
-                self.log_warning(message or "Conversion stopped")
+                self.log_warning(message or self.translator.t("convert_stopped"))
                 self.is_running = False
                 self.command_panel.setConvertingState(False)
                 
             elif ev.kind == "error":
-                self.log_error(message or "Unknown error")
+                self.log_error(message or self.translator.t("progress_error"))
                 self.is_running = False
                 self.command_panel.setConvertingState(False)
             
@@ -747,20 +768,20 @@ class MainWindow(QMainWindow):
                 img_idx, img_total = self._current_images_progress
                 self.command_panel.set_progress(
                     value,
-                    f"Downloading images {img_idx}/{img_total} • Completed {completed}/{label_total} • {value}%",
+                    self.translator.t("images_progress_text", task_idx=img_idx, task_total=img_total, completed=completed, total=label_total, percent=value),
                 )
             else:
                 phase_map = {
-                    "phase_fetch_start": "Fetching",
-                    "phase_parse_start": "Parsing",
-                    "phase_clean_start": "Cleaning",
-                    "phase_convert_start": "Converting",
-                    "phase_write_start": "Writing",
+                    "phase_fetch_start": self.translator.t("progress_phase_fetch"),
+                    "phase_parse_start": self.translator.t("progress_phase_parse"),
+                    "phase_clean_start": self.translator.t("progress_phase_clean"),
+                    "phase_convert_start": self.translator.t("progress_phase_convert"),
+                    "phase_write_start": self.translator.t("progress_phase_write"),
                 }
-                phase_text = phase_map.get(self._current_phase_key or "", "Processing")
+                phase_text = phase_map.get(self._current_phase_key or "", self.translator.t("progress_processing"))
                 self.command_panel.set_progress(
                     value,
-                    f"{phase_text} • Completed {completed}/{label_total} • {value}%",
+                    self.translator.t("progress_text_with_counts", phase=phase_text, completed=completed, total=label_total, percent=value),
                 )
         except Exception:
             # Non-fatal

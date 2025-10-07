@@ -55,7 +55,11 @@ class LogPanel(QWidget):
         # Log text area
         self.log_text = QTextEdit(self)
         self.log_text.setReadOnly(True)
-        self.log_text.setPlaceholderText("log message")  # 添加占位符文本
+        # Localized placeholder text
+        if self.translator:
+            self.log_text.setPlaceholderText(self.translator.t("log_placeholder"))
+        else:
+            self.log_text.setPlaceholderText("log message")
         # Style will be applied by theme
         layout.addWidget(self.log_text)
 
@@ -133,7 +137,11 @@ class LogPanel(QWidget):
     def appendMultiTaskSummary(self, successful: int, failed: int, total: int) -> None:
         """Append multi-task summary."""
         success_rate = (successful / total * 100) if total > 0 else 0
-        summary = f"Multi-task completed: {successful} successful, {failed} failed, {total} total, 📈 成功率: {success_rate:.1f}%"
+        if self.translator:
+            t = self.translator.t
+            summary = t("multi_task_summary", successful=successful, failed=failed, total=total, success_rate=f"{success_rate:.1f}")
+        else:
+            summary = f"Multi-task completed: {successful} successful, {failed} failed, {total} total, 📈 成功率: {success_rate:.1f}%"
         self.appendLog(summary)
 
     def getLogContent(self) -> str:
@@ -163,6 +171,7 @@ class LogPanel(QWidget):
         t = self.translator.t
         self.clear_btn.setText(t("log_clear"))
         self.copy_btn.setText(t("log_copy"))
+        self.log_text.setPlaceholderText(t("log_placeholder"))
 
     def get_config(self) -> dict:
         """Get current component configuration."""
