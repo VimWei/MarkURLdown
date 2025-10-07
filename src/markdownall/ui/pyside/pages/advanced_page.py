@@ -171,15 +171,15 @@ class AdvancedPage(QWidget):
 
     def _update_data_path(self):
         """Show user data directory path."""
-        # Get the project root from parent
+        # Get the project root from parent and resolve absolute path for internal use
         project_root = self._get_project_root()
         if project_root:
             data_path = os.path.join(project_root, "data")
-            self.edit_data_path.setText(data_path)
             self.user_data_path = data_path
         else:
-            self.edit_data_path.setText("data/ (relative to project root)")
             self.user_data_path = "data/"
+        # Display default: show the relative hint. After Open, the field shows the absolute path.
+        self.edit_data_path.setText("data/ (relative to project root)")
 
     def _get_project_root(self) -> str | None:
         """Walk up the parent chain to find project root."""
@@ -206,9 +206,13 @@ class AdvancedPage(QWidget):
     def set_user_data_path(self, path: str) -> None:
         """Set user data directory path."""
         self.user_data_path = path
-        # Update the display if there's a label
-        if hasattr(self, 'user_data_label'):
-            self.user_data_label.setText(path)
+        # Reflect absolute path in the readonly input when explicitly set
+        try:
+            if hasattr(self, 'edit_data_path') and self.edit_data_path is not None:
+                self.edit_data_path.setText(path)
+        except Exception:
+            # Fallback silently if widget not ready
+            pass
 
     def get_language(self) -> str:
         """Get current language setting."""
@@ -273,8 +277,12 @@ class AdvancedPage(QWidget):
     def set_config(self, config: dict) -> None:
         """Set page configuration."""
         if "user_data_path" in config:
-            self.user_data_path = config["user_data_path"]
-            self.edit_data_path.setText(config["user_data_path"])
+            # Keep internal path only if provided value is non-empty; otherwise keep default
+            val = config["user_data_path"]
+            if isinstance(val, str) and val.strip():
+                self.user_data_path = val.strip()
+        # Always display the relative hint for consistency with MdxScraper
+        self.edit_data_path.setText("data/ (relative to project root)")
         if "language" in config:
             self.set_language(config["language"])
         if "log_level" in config:

@@ -666,8 +666,19 @@ class MainWindow(QMainWindow):
         """Open user data directory."""
         import subprocess
         import platform
+        import os as _os
         data_path = self.advanced_page.get_user_data_path()
         try:
+            # Resolve relative paths against project root and ensure directory exists
+            if not data_path:
+                # Default to project_root/data when field is empty
+                data_path = _os.path.join(self.root_dir, "data")
+            if not _os.path.isabs(data_path):
+                data_path = _os.path.join(self.root_dir, data_path)
+            data_path = _os.path.abspath(data_path)
+            if not _os.path.exists(data_path):
+                _os.makedirs(data_path, exist_ok=True)
+
             if platform.system() == "Windows":
                 subprocess.run(["explorer", data_path])
             elif platform.system() == "Darwin":  # macOS
@@ -675,6 +686,11 @@ class MainWindow(QMainWindow):
             else:  # Linux
                 subprocess.run(["xdg-open", data_path])
             self.log_panel.appendLog(f"Opened user data directory: {data_path}")
+            # Update Advanced page display to show the resolved absolute path
+            try:
+                self.advanced_page.set_user_data_path(data_path)
+            except Exception:
+                pass
         except Exception as e:
             self.log_panel.appendLog(f"Failed to open directory: {e}")
 
