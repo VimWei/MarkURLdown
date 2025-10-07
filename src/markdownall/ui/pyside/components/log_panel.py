@@ -86,14 +86,20 @@ class LogPanel(QWidget):
     def _clear_log(self):
         """Clear log content."""
         self.log_text.clear()
-        self.logCleared.emit()
 
     def _copy_log(self):
         """Copy log content to clipboard."""
-        from PySide6.QtWidgets import QApplication
-        clipboard = QApplication.clipboard()
-        clipboard.setText(self.log_text.toPlainText())
-        self.logCopied.emit()
+        try:
+            from PySide6.QtWidgets import QApplication
+            clipboard = QApplication.clipboard()
+            text = self.log_text.toPlainText()
+            # 防止递归：只做一次设置，不触发任何自定义 copy 操作
+            clipboard.setText(text)
+            # 成功发信号（供 UI 上层提示），但不要在信号槽里再次调用 _copy_log
+            self.logCopied.emit()
+        except Exception as e:
+            # 剪贴板占用等情况，优雅降级写入日志区域
+            self.appendLog(f"Copy to clipboard failed: {e}")
 
     # Public API (adopting MdxScraper's simple design)
     def appendLog(self, text: str) -> None:
@@ -116,14 +122,18 @@ class LogPanel(QWidget):
             formatted_text = text
         self.appendLog(formatted_text)
 
-    def appendTaskLog(self, task_id: str, message: str) -> None:
+    def appendTaskLog(self, task_id: str, message: str, icon: str = "") -> None:
         """Append task-specific log (for multi-task operations)."""
-        formatted_text = f"[{task_id}] {message}"
+        if icon:
+            formatted_text = f"{icon} [{task_id}] {message}"
+        else:
+            formatted_text = f"[{task_id}] {message}"
         self.appendLog(formatted_text)
 
     def appendMultiTaskSummary(self, successful: int, failed: int, total: int) -> None:
         """Append multi-task summary."""
-        summary = f"Multi-task completed: {successful} successful, {failed} failed, {total} total"
+        success_rate = (successful / total * 100) if total > 0 else 0
+        summary = f"Multi-task completed: {successful} successful, {failed} failed, {total} total, 📈 成功率: {success_rate:.1f}%"
         self.appendLog(summary)
 
     def getLogContent(self) -> str:
@@ -137,7 +147,6 @@ class LogPanel(QWidget):
     def clearLog(self) -> None:
         """Clear log content."""
         self.log_text.clear()
-        self.logCleared.emit()
 
     def setEnabled(self, enabled: bool) -> None:
         """Set enabled state."""

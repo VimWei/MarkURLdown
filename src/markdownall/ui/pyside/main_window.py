@@ -122,6 +122,11 @@ class MainWindow(QMainWindow):
         self.vm = ViewModel()
         self.signals = ProgressSignals()
         
+        # Initialize internal flags early to avoid AttributeError during signal connections
+        self._suppress_change_logs = False
+        self._images_dl_logged = False
+        self._images_dl_logged_tasks: set[str] = set()
+        
         # Initialize enhanced managers
         self.config_service = ConfigService(root_dir)
         self.startup_service = StartupService(root_dir)
@@ -160,9 +165,6 @@ class MainWindow(QMainWindow):
         # Connect progress signals for thread-safe UI updates
         self.signals.progress_event.connect(self._on_event_thread_safe)
         self.ui_ready = True
-
-        # Internal flag to suppress noisy logs during session import/apply
-        self._suppress_change_logs = False
 
     def closeEvent(self, event):
         """Handle window close event with session state saving."""
@@ -411,7 +413,6 @@ class MainWindow(QMainWindow):
         # self.command_panel already has progress bar, no separate signals needed
         
         # Log panel signals
-        self.log_panel.logCleared.connect(self._clear_log)
         self.log_panel.logCopied.connect(self._copy_log)
 
     def _on_show_event(self, event):
@@ -519,61 +520,78 @@ class MainWindow(QMainWindow):
             # Handle all event types with direct log calls (learning from MdxScraper)
             if ev.kind == "progress_init":
                 self.command_panel.set_progress(0, "Starting conversion...")
+                # Reset per-run image download log trackers
+                self._images_dl_logged = False
+                self._images_dl_logged_tasks.clear()
                 if message:
                     self.log_info(f"Starting conversion: {message}")
-                elif ev.data and "total" in ev.data:
-                    total = ev.data["total"]
-                    self.log_info(f"Starting conversion of {total} URLs")
                     
             elif ev.kind == "status":
-                # Status messages - direct log with task grouping
-                if message:
+                # Prefer structured status data for task grouping when available
+                if isinstance(ev.data, dict) and "url" in ev.data:
+                    url = ev.data["url"]
+                    idx = ev.data.get("idx", 0)
+                    total = ev.data.get("total", 0)
+                    if total and total > 1:
+                        task_id = f"Task {idx}/{total}"
+                        self.log_panel.appendTaskLog(task_id, f"Processing: {url}", "🔄")
+                    else:
+                        self.log_info(f"Processing URL: {url}")
+                elif message:
+                    # Fallback to plain message
                     self.log_info(message)
-                elif ev.data:
-                    # Handle structured status data with task grouping
-                    if "url" in ev.data:
-                        url = ev.data["url"]
-                        idx = ev.data.get("idx", 0)
-                        total = ev.data.get("total", 0)
-                        # Use task-specific logging for multi-task operations
-                        if total > 1:
-                            task_id = f"Task {idx}/{total}"
-                            self.log_panel.appendTaskLog(task_id, f"Processing: {url}")
-                        else:
-                            self.log_info(f"Processing URL: {url}")
                         
             elif ev.kind == "detail":
                 # Detail messages - handle specific keys with task grouping
                 if ev.key == "convert_detail_done" and ev.data:
-                    path = ev.data.get("path", "")
+                    title = (ev.data.get("title") if isinstance(ev.data, dict) else "") or "无标题"
                     # Check if this is part of a multi-task operation
-                    if ev.data.get("total", 1) > 1:
-                        idx = ev.data.get("idx", 0)
-                        total = ev.data.get("total", 0)
+                    _total_val = ev.data.get("total") if isinstance(ev.data, dict) else None
+                    total = int(_total_val) if isinstance(_total_val, int) else 1
+                    if total > 1:
+                        _idx_val = ev.data.get("idx") if isinstance(ev.data, dict) else None
+                        idx = int(_idx_val) if isinstance(_idx_val, int) else 0
                         task_id = f"Task {idx}/{total}"
-                        self.log_panel.appendTaskLog(task_id, f"Conversion completed: {path}")
+                        self.log_panel.appendTaskLog(task_id, f"URL处理成功: {title}", "✅")
                     else:
-                        self.log_success(f"Conversion completed: {path}")
+                        self.log_success(f"✅ URL处理成功: {title}")
                 elif ev.key == "images_dl_progress" and ev.data:
-                    percent = ev.data.get("percent", 0)
-                    total = ev.data.get("total", 0)
-                    # Use task-specific logging if part of multi-task
-                    if ev.data.get("task_total", 1) > 1:
-                        task_idx = ev.data.get("task_idx", 0)
-                        task_total = ev.data.get("task_total", 0)
+                    _total_val = ev.data.get("total") if isinstance(ev.data, dict) else None
+                    total = int(_total_val) if isinstance(_total_val, int) else 0
+                    # Condense progress logs: only log once per task (or once per run)
+                    _task_total_val = ev.data.get("task_total") if isinstance(ev.data, dict) else None
+                    task_total = int(_task_total_val) if isinstance(_task_total_val, int) else 1
+                    if task_total > 1:
+                        _task_idx_val = ev.data.get("task_idx") if isinstance(ev.data, dict) else None
+                        task_idx = int(_task_idx_val) if isinstance(_task_idx_val, int) else 0
                         task_id = f"Task {task_idx}/{task_total}"
-                        self.log_panel.appendTaskLog(task_id, f"Downloading images: {percent}% ({total} images)")
+                        if task_id not in self._images_dl_logged_tasks:
+                            self._images_dl_logged_tasks.add(task_id)
+                            self.log_panel.appendTaskLog(task_id, f"Downloading images: {total} images")
                     else:
-                        self.log_info(f"Downloading images: {percent}% ({total} images)")
+                        if not self._images_dl_logged:
+                            self._images_dl_logged = True
+                            self.log_info(f"Downloading images: {total} images")
                 elif ev.key == "images_dl_done" and ev.data:
-                    total = ev.data.get("total", 0)
+                    _total_val = ev.data.get("total") if isinstance(ev.data, dict) else None
+                    total = int(_total_val) if isinstance(_total_val, int) else 0
                     # Use task-specific logging if part of multi-task
-                    if ev.data.get("task_total", 1) > 1:
-                        task_idx = ev.data.get("task_idx", 0)
-                        task_total = ev.data.get("task_total", 0)
+                    _task_total_val = ev.data.get("task_total") if isinstance(ev.data, dict) else None
+                    task_total = int(_task_total_val) if isinstance(_task_total_val, int) else 1
+                    if task_total > 1:
+                        _task_idx_val = ev.data.get("task_idx") if isinstance(ev.data, dict) else None
+                        task_idx = int(_task_idx_val) if isinstance(_task_idx_val, int) else 0
                         task_id = f"Task {task_idx}/{task_total}"
+                        # Ensure the initial download line exists for this task
+                        if task_id not in self._images_dl_logged_tasks:
+                            self._images_dl_logged_tasks.add(task_id)
+                            self.log_panel.appendTaskLog(task_id, f"Downloading images: {total} images")
                         self.log_panel.appendTaskLog(task_id, f"Images downloaded: {total} images")
                     else:
+                        # Ensure the initial download line exists for single-task runs
+                        if not self._images_dl_logged:
+                            self._images_dl_logged = True
+                            self.log_info(f"Downloading images: {total} images")
                         self.log_success(f"Images downloaded: {total} images")
                 elif ev.key == "convert_shared_browser_started":
                     self.log_info("Shared browser started")
@@ -583,12 +601,13 @@ class MainWindow(QMainWindow):
                     
             elif ev.kind == "progress_step":
                 # Update progress bar
-                if ev.data and "completed" in ev.data:
-                    completed = ev.data["completed"]
-                    total = ev.data.get("total", 0)
-                    progress_value = int((completed / total) * 100) if total > 0 else 0
+                if isinstance(ev.data, dict) and "completed" in ev.data:
+                    _completed_val = ev.data.get("completed")
+                    _total_val = ev.data.get("total")
+                    completed = int(_completed_val) if isinstance(_completed_val, int) else 0
+                    total = int(_total_val) if isinstance(_total_val, int) else 0
+                    progress_value = int((completed / total) * 100) if total and total > 0 else 0
                     self.command_panel.set_progress(progress_value, f"{completed}/{total} URLs")
-                    self.log_info(f"Progress: {completed}/{total} URLs")
                 else:
                     current = self.command_panel.progress.value()
                     self.command_panel.set_progress(current + 1)
@@ -829,14 +848,14 @@ class MainWindow(QMainWindow):
         self.is_running = True
         self.command_panel.setConvertingState(True)  # Show stop button, hide convert button
         self.command_panel.set_progress(0, "Starting conversion...")
-        self.log_info(f"Starting conversion of {len(urls)} URLs")
         
         # Create conversion objects
         reqs = [SourceRequest(kind="url", value=u) for u in urls]
         options = ConversionOptions(**options_dict)
         
         # Start conversion through ViewModel
-        self.vm.start(reqs, out_dir, options, self._on_event_thread_safe, self.signals)
+        # 传入 UI 作为日志接收端（LoggerAdapter 将调用本窗口的 log_* 方法与 LogPanel 扩展方法）
+        self.vm.start(reqs, out_dir, options, self._on_event_thread_safe, self.signals, self)
 
     def _stop_conversion(self):
         """Stop conversion process."""
@@ -847,13 +866,17 @@ class MainWindow(QMainWindow):
         """Update progress display."""
         self.command_panel.set_progress(value, text)
 
-    def _clear_log(self):
-        """Clear log content."""
-        self.log_panel.clearLog()
 
     def _copy_log(self):
         """Copy log content to clipboard."""
-        self.log_panel._copy_log()
+        try:
+            # 直接访问剪贴板，避免通过 log_panel 信号链导致递归
+            from PySide6.QtWidgets import QApplication
+            clipboard = QApplication.clipboard()
+            clipboard.setText(self.log_panel.getLogContent())
+            self.log_panel.appendLog("Log copied to clipboard")
+        except Exception as e:
+            self.log_panel.appendLog(f"Copy to clipboard failed: {e}")
 
     def _apply_state(self, state: dict):
         """Apply session state to UI."""
@@ -896,19 +919,19 @@ class MainWindow(QMainWindow):
     # Direct log methods (adopting MdxScraper's simple design)
     def log_info(self, message: str) -> None:
         """Log info message directly."""
-        self.log_panel.appendLog(f"ℹ️ {message}")
+        self.log_panel.appendLog(message)
 
     def log_success(self, message: str) -> None:
         """Log success message directly."""
-        self.log_panel.appendLog(f"✅ {message}")
+        self.log_panel.appendLog(message)
 
     def log_warning(self, message: str) -> None:
         """Log warning message directly."""
-        self.log_panel.appendLog(f"⚠️ {message}")
+        self.log_panel.appendLog(message)
 
     def log_error(self, message: str) -> None:
         """Log error message directly."""
-        self.log_panel.appendLog(f"❌ {message}")
+        self.log_panel.appendLog(message)
 
     def log_debug(self, message: str) -> None:
         """Log debug message directly."""
@@ -958,16 +981,15 @@ class MainWindow(QMainWindow):
     def _load_config(self):
         """Load configuration using ConfigService."""
         try:
-            # Load session and settings using config service
-            session_loaded = self.config_service.load_session()
+            # Only load application settings on startup (no session restore)
             settings_loaded = self.config_service.load_settings()
             
-            if session_loaded or settings_loaded:
-                # Sync UI from loaded configuration
-                self._sync_ui_from_config()
-            else:
-                # No saved config, use defaults
-                self.log_info("No saved configuration found, using defaults")
+            # Always sync UI from defaults + settings
+            self._sync_ui_from_config()
+            
+            if not settings_loaded:
+                # No settings found, using defaults
+                self.log_info("No saved settings found, using defaults")
                 
         except Exception as e:
             self.log_error(f"Failed to load config: {e}")
@@ -979,7 +1001,12 @@ class MainWindow(QMainWindow):
             
             # Update basic page
             basic_config = config["basic"]
-            basic_config["output_dir"] = self.output_dir_var  # Preserve existing default
+            # Respect existing value; if missing/empty, fall back to default project output dir
+            if not basic_config.get("output_dir"):
+                basic_config["output_dir"] = self.output_dir_var
+            
+            # Suppress noisy change logs while applying config to UI widgets
+            self._suppress_change_logs = True
             self.basic_page.set_config(basic_config)
             
             # Update webpage page
@@ -987,9 +1014,12 @@ class MainWindow(QMainWindow):
             
             # Update advanced page
             self.advanced_page.set_config(config["advanced"])
-            
+        
         except Exception as e:
             self.log_error(f"Failed to sync UI from config: {e}")
+        finally:
+            # Re-enable change logs
+            self._suppress_change_logs = False
 
 
 # Alias for backward compatibility

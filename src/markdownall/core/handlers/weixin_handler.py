@@ -4,6 +4,7 @@ import random
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
+from markdownall.app_types import ConvertLogger
 
 from bs4 import BeautifulSoup
 
@@ -31,11 +32,11 @@ class FetchResult:
 
 
 def _goto_target_and_prepare_content(
-    page, url: str, on_detail: Optional[Callable[[str], None]] = None
+    page, url: str, logger: Optional[ConvertLogger] = None
 ) -> None:
     """访问目标URL并准备内容 - 微信版本"""
-    if on_detail:
-        on_detail("正在访问微信文章...")
+    if logger:
+        logger.info("正在访问微信文章...")
 
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=30000)
@@ -46,7 +47,7 @@ def _goto_target_and_prepare_content(
 
 
 def _try_playwright_crawler(
-    url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None
+    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None
 ) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理微信的poc_token验证"""
     try:
@@ -76,10 +77,10 @@ def _try_playwright_crawler(
             context, page = new_context_and_page(browser, apply_stealth=False)
 
             # 访问目标URL并准备内容
-            _goto_target_and_prepare_content(page, url, on_detail)
+            _goto_target_and_prepare_content(page, url, logger)
 
             # 使用 playwright_driver 的 read_page_content_and_title
-            html, title = read_page_content_and_title(page, on_detail)
+            html, title = read_page_content_and_title(page, logger)
 
             return CrawlerResult(success=True, title=title, text_content=html)
 
@@ -402,7 +403,7 @@ def _process_weixin_content(
 def fetch_weixin_article(
     session,
     url: str,
-    on_detail: Optional[Callable[[str], None]] = None,
+    logger: Optional[ConvertLogger] = None,
     shared_browser: Any | None = None,
 ) -> FetchResult:
     """
@@ -416,23 +417,28 @@ def fetch_weixin_article(
     for retry in range(max_retries):
         try:
             if retry > 0:
-                print(f"[抓取] 微信策略重试 {retry}/{max_retries-1}...")
+                if logger:
+                    logger.fetch_retry("微信策略", retry, max_retries)
                 time.sleep(random.uniform(3, 6))
             else:
-                print("[抓取] 微信策略...")
+                if logger:
+                    logger.fetch_start("微信策略")
 
-            result = _try_playwright_crawler(url, on_detail, shared_browser)
+            result = _try_playwright_crawler(url, logger, shared_browser)
             if result.success:
-                print("[抓取] 成功获取内容")
-                print("[解析] 提取标题和正文...")
+                if logger:
+                    logger.fetch_success()
+                    logger.parse_start()
                 processed_result = _process_weixin_content(result.text_content, result.title, url)
-                print("[清理] 移除广告和无关内容...")
+                if logger:
+                    logger.clean_start()
 
                 content = processed_result.html_markdown or ""
                 if content and (
                     "环境异常" in content or "完成验证" in content or "去验证" in content
                 ):
-                    print("[解析] 检测到验证页面，重试...")
+                    if logger:
+                        logger.warning("[解析] 检测到验证页面，重试...")
                     if retry < max_retries - 1:
                         continue
                     break
@@ -440,14 +446,17 @@ def fetch_weixin_article(
                 if processed_result.title and (
                     "环境异常" in processed_result.title or "验证" in processed_result.title
                 ):
-                    print("[解析] 标题包含验证信息，重试...")
+                    if logger:
+                        logger.warning("[解析] 标题包含验证信息，重试...")
                     if retry < max_retries - 1:
                         continue
                     break
 
-                if processed_result.title:
-                    print(f"[解析] 标题: {processed_result.title}")
-                print("[转换] 转换为Markdown完成")
+                if processed_result.title and logger:
+                    logger.parse_title(processed_result.title)
+                if logger:
+                    logger.convert_start()
+                    logger.convert_success()
                 return processed_result
             else:
                 if retry < max_retries - 1:

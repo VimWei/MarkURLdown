@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from typing import Any, Iterable, Mapping, Optional
+from markdownall.app_types import ConvertLogger
 
 # --- Lifecycle helpers ---
 
@@ -210,12 +211,12 @@ def wait_for_selector_stable(
 
 
 def read_page_content_and_title(
-    page: Any, on_detail: Optional[callable] = None
+    page: Any, logger: Optional[ConvertLogger] = None
 ) -> tuple[str, Optional[str]]:
     """Read page content and title with lightweight error handling."""
-    if on_detail:
+    if logger:
         try:
-            on_detail("正在获取页面内容...")
+            logger.info("正在获取页面内容...")
         except Exception:
             pass
     html = ""

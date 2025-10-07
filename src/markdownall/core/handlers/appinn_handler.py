@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Any, Optional
+from markdownall.app_types import ConvertLogger
 
 from bs4 import BeautifulSoup, NavigableString
 
@@ -409,7 +410,7 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
 
 
 def _try_playwright_crawler(
-    url: str, on_detail=None, shared_browser: Any | None = None
+    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None
 ) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
@@ -421,13 +422,8 @@ def _try_playwright_crawler(
             try:
                 page.goto(url, wait_until="networkidle", timeout=30000)
                 page.wait_for_timeout(2000)
-                if callable(on_detail):
-                    try:
-                        on_detail(page)
-                    except Exception:
-                        pass
                 if read_page_content_and_title is not None:
-                    html, title = read_page_content_and_title(page)
+                    html, title = read_page_content_and_title(page, logger)
                 else:
                     html, title = page.content(), page.title()
                 return FetchResult(title=title, html_markdown=html)
@@ -447,11 +443,6 @@ def _try_playwright_crawler(
             page = context.new_page()
             page.goto(url, wait_until="networkidle", timeout=30000)
             page.wait_for_timeout(2000)
-            if callable(on_detail):
-                try:
-                    on_detail(page)
-                except Exception:
-                    pass
             html, title = page.content(), page.title()
             browser.close()
             return FetchResult(title=title, html_markdown=html)
@@ -470,20 +461,20 @@ def _try_playwright_crawler(
 def fetch_appinn_article(
     session,
     url: str,
-    on_detail=None,
+    logger: Optional[ConvertLogger] = None,
     shared_browser: Any | None = None,
     min_content_length: int = 200,
 ) -> FetchResult:
     """获取 appinn.com 文章内容（多策略爬取 + 统一内容处理）。
 
     参数:
-    - on_detail: 可选 Playwright 回调，在页面稳定后调用以执行细化操作。
+    - logger: 可选的日志记录器，用于记录操作进度和状态。
     - shared_browser: 共享浏览器实例（如有）。
     - min_content_length: 内容质量阈值（字符数），过短则继续尝试其他策略。
     """
     strategies = [
         lambda: _try_httpx_crawler(session, url),
-        lambda: _try_playwright_crawler(url, on_detail, shared_browser),
+        lambda: _try_playwright_crawler(url, logger, shared_browser),
     ]
 
     max_retries = 2
@@ -494,29 +485,36 @@ def fetch_appinn_article(
                     import random
                     import time
 
-                    print(f"[抓取] Appinn策略 {i} 重试 {retry}/{max_retries-1}...")
+                    if logger:
+                        logger.fetch_retry(f"Appinn策略 {i}", retry, max_retries)
                     time.sleep(random.uniform(2, 4))
                 else:
-                    print(f"[抓取] Appinn策略 {i}...")
+                    if logger:
+                        logger.fetch_start(f"Appinn策略 {i}")
 
                 r = strat()
                 if r.success:
-                    print(f"[抓取] 成功获取内容")
+                    if logger:
+                        logger.fetch_success()
                     # 统一处理：策略层只负责获取HTML，这里统一解析/清理/转换
                     if r.html_markdown:
-                        print("[解析] 提取标题和正文...")
+                        if logger:
+                            logger.parse_start()
                         processed = _process_appinn_content(
                             r.html_markdown, url, title_hint=r.title
                         )
                         # 检查内容质量，如果内容太短，继续尝试下一个策略
                         content = processed.html_markdown or ""
                         if len(content) < max(0, int(min_content_length)):
-                            print(f"[解析] 内容太短 ({len(content)} 字符)，尝试下一个策略")
+                            if logger:
+                                logger.parse_content_short(len(content))
                             break
-                        if processed.title:
-                            print(f"[解析] 标题: {processed.title}")
-                        print("[清理] 移除广告和无关内容...")
-                        print("[转换] 转换为Markdown完成")
+                        if processed.title and logger:
+                            logger.parse_title(processed.title)
+                        if logger:
+                            logger.clean_start()
+                            logger.convert_start()
+                            logger.convert_success()
                         return processed
                     else:
                         return r
@@ -524,13 +522,15 @@ def fetch_appinn_article(
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print(f"[抓取] 策略 {i} 失败，尝试下一个策略")
+                        if logger:
+                            logger.fetch_failed(f"Appinn策略 {i}", r.error or "未知错误")
                         break
             except Exception:
                 if retry < max_retries - 1:
                     continue
                 else:
-                    print(f"[抓取] 策略 {i} 异常，尝试下一个策略")
+                    if logger:
+                        logger.fetch_failed(f"Appinn策略 {i}", "异常")
                     break
 
         # 策略间等待

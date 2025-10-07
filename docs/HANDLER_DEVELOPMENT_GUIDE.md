@@ -53,7 +53,7 @@ print(HANDLER_TYPES)
 ### 处理器在系统中的位置与数据流
 
 - 上游（请求构建与调度）：
-  - UI/服务层构建 `ConvertPayload` 与 `ConversionOptions`，并在 `payload.meta` 中传入 `on_detail`、`images_dir`、`shared_browser` 等上下文。
+  - UI/服务层构建 `ConvertPayload` 与 `ConversionOptions`，并在 `payload.meta` 中传入 `logger`、`images_dir`、`shared_browser` 等上下文。
   - `registry.get_handler_for_url(url)` → 根据 URL 选择合适的 handler；`should_use_shared_browser_for_url(url)` 决定是否透传共享浏览器。
   - 调度入口：`registry.convert(payload, session, options)` 依次尝试 `HANDLERS` 列表中的处理器（命中即返回；否则回退到 Generic）。
 
@@ -108,9 +108,9 @@ print(HANDLER_TYPES)
 - 重试与检测：策略内2次重试；抓取后进行长度/关键词/标题有效性检测。
 - 常用实现切片：
   - `_try_httpx_crawler(session, url) -> FetchResult`
-  - `_try_playwright_crawler(url, on_detail=None, shared_browser=None) -> FetchResult`
-  - `_goto_target_and_prepare_content(page, url, on_detail=None) -> None`
-  - Playwright driver：`new_context_and_page(...)`、`teardown_context_page(...)`、`read_page_content_and_title(...)`
+  - `_try_playwright_crawler(url, logger=None, shared_browser=None) -> FetchResult`
+  - `_goto_target_and_prepare_content(page, url, logger=None) -> None`
+  - Playwright driver：`new_context_and_page(...)`、`teardown_context_page(...)`、`read_page_content_and_title(page, logger=None)`
   - Generic 策略：`_try_lightweight_markitdown(url, session)`、`_try_enhanced_markitdown(url, session)`、`_try_direct_httpx(url, session)`、`_try_generic_with_filtering(url, session)`
 - 参考：共享浏览器管理机制；Generic 的 `_try_*` 策略组合。
 
@@ -165,6 +165,7 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
   - 头部构建：`_build_{site}_header_parts(soup, url, title_hint=None) -> (title, header_parts | account_name, header_parts)`
   - 正文根元素：`_build_{site}_content_element(soup, page_type=None)`
   - 页面类型识别（按需）：`_detect_zhihu_page_type(url)` 等站点特定辅助。
+  - 日志记录：通过 `logger` 参数记录关键步骤，如 `logger.parse_start()`、`logger.parse_title(title)`、`logger.parse_success(content_length)`。
 - 参考：各站点 `_build_{site}_header_parts` 与 `_build_{site}_content_element`。
 
 ### 清理 Clean（删除-规范化）
@@ -218,8 +219,9 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
 - 图片与文件名：按需下载并重写图片链接；使用 `derive_md_filename()` 生成稳定文件名。
 - 常用实现切片：
   - 一体化处理：`_process_{site}_content(html, title_hint=None, url=None) -> FetchResult`
-  - 站点入口：`fetch_{site}_article(session, url, on_detail=None, shared_browser=None) -> FetchResult`
+  - 站点入口：`fetch_{site}_article(session, url, logger=None, shared_browser=None) -> FetchResult`
   - Registry 汇总：`convert(payload, session, options)` 与各 HandlerWrapper 声明。
+  - 日志记录：通过 `logger` 参数记录处理进度，如 `logger.fetch_start("httpx")`、`logger.convert_success()`、`logger.url_success(title)`。
 - 参考：各站点 `_process_{site}_content` 与 Registry 的最终整合流程。
 
 ### 性能建议（实践）
@@ -238,15 +240,32 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
 
 ### 日志与观测建议（实践）
 
-- 关键日志点：
-  - 策略尝试与结果：当前策略序号/名称、重试计数、失败原因（网络/验证/内容短/异常）。
-  - 重要分支：是否命中页面类型、是否执行展开、是否命中正文容器、是否触发回退。
-  - 内容质量：正文长度、关键选择器命中情况、标题/关键词校验结果（通过/不通过）。
-  - 后处理摘要（在集成层）：是否下载图片、图片数、是否重写链接、最终文件名。
-- 建议格式：精简单行、结构化字段（如 `strategy=2 retry=1 reason=timeout len=1342 type=column`），便于 grep 与后续分析。
-- 故障定位：
+- **日志记录接口**：使用 `ConvertLogger` 接口进行结构化日志记录，直接显示在 `LogPanel` 中。优先使用细粒度日志方法提供更清晰的进度信息。
+- **关键日志点**：
+  - 策略尝试与结果：使用 `logger.fetch_start(strategy_name)`、`logger.fetch_failed(strategy_name, error)`、`logger.fetch_success(content_length)` 等细粒度方法。
+  - 重要分支：使用 `logger.parse_start()`、`logger.parse_title(title)`、`logger.parse_success(content_length)` 记录解析阶段。
+  - 内容质量：使用 `logger.parse_content_short(length, min_length)` 记录内容太短的情况。
+  - 后处理摘要：使用 `logger.images_progress(total)`、`logger.images_done(total)`、`logger.url_success(title)` 等。
+- **细粒度日志方法使用**：
+  - `logger.fetch_start(strategy_name)` - 记录抓取开始
+  - `logger.fetch_success(content_length)` - 记录抓取成功
+  - `logger.fetch_failed(strategy_name, error)` - 记录抓取失败
+  - `logger.fetch_retry(strategy_name, retry, max_retries)` - 记录重试
+  - `logger.parse_start()` - 记录解析开始
+  - `logger.parse_title(title)` - 记录解析到的标题
+  - `logger.parse_content_short(length, min_length)` - 记录内容太短
+  - `logger.parse_success(content_length)` - 记录解析成功
+  - `logger.clean_start()` - 记录清理开始
+  - `logger.clean_success()` - 记录清理完成
+  - `logger.convert_start()` - 记录转换开始
+  - `logger.convert_success()` - 记录转换完成
+  - `logger.url_success(title)` - 记录URL处理成功
+  - `logger.url_failed(url, error)` - 记录URL处理失败
+  - `logger.task_status(idx, total, url)` - 多任务状态
+  - `logger.images_progress/images_done()` - 图片下载进度
+- **故障定位**：
   - 抓取问题优先看网络/等待/选择器日志；验证问题看关键词与页面标题；结构问题看正文容器未命中与删除清单。
-- 最佳实践：避免在循环内打印大量 DOM 内容；必要时输出片段长度或选择器数量即可。
+- **最佳实践**：避免在循环内记录大量 DOM 内容；必要时输出片段长度或选择器数量即可。
 
 ### 测试建议（快查）
 
@@ -273,8 +292,9 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
 - 关键处理：
   - 反检测与准备：`_apply_zhihu_stealth_and_defaults`、`_goto_target_and_prepare_content`（关闭登录弹窗、展开按钮、等待稳定选择器）。
   - 头部与正文：`_build_zhihu_header_parts`、`_build_zhihu_content_element`（按回答/专栏差异）。
-  - 清理与规范化：`_clean_and_normalize_zhihu_content`（恢复外链目标、去“直答”跳转壳、标准化站内链接、零宽字符清理）。
+  - 清理与规范化：`_clean_and_normalize_zhihu_content`（恢复外链目标、去"直答"跳转壳、标准化站内链接、零宽字符清理）。
   - 转换与组装：正文用 `html_fragment_to_markdown`，与 `header_parts` 拼接。
+  - 日志记录：通过 `logger` 参数记录关键步骤，如 `logger.fetch_start("playwright")`、`logger.parse_start()`、`logger.parse_title(title)`、`logger.url_success(title)`。
 - 设计要点：最小必要操作驱动页面达到可读状态，减少破坏性；对未知/异常页面保留回退路径。
 - 相关代码：`_try_playwright_crawler`、`_detect_zhihu_page_type`、`_try_click_expand_buttons`、`fetch_zhihu_article`
 
@@ -287,6 +307,7 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
   - 头部与正文：`_build_weixin_header_parts`、`_build_weixin_content_element`。
   - 清理与规范化：`_get_account_specific_style_rules`（styles/classes/ids 规则提供器）+ `_apply_removal_rules` + `_clean_and_normalize_weixin_content`（懒加载归一、脚本样式剔除）。
   - 质量控制：长度/关键词检测与重试，避免环境异常/验证页面作为有效结果。
+  - 日志记录：通过 `logger` 参数记录处理进度，如 `logger.fetch_start("playwright")`、`logger.fetch_failed("playwright", error)`、`logger.url_success(title)`。
 - 设计要点：以“规则集中维护”应对不同公众号差异；抓取阶段尽量简化（可关闭图片/JS 以提高稳定性与速度）。
 - 相关代码：`_try_playwright_crawler`、`_get_account_specific_style_rules`、`_apply_removal_rules`、`fetch_weixin_article`
 
@@ -300,6 +321,7 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
   - 正文定位：`_build_wordpress_content_element`（优先 `.entry-content` 及常见备选）。
   - 清理与规范化：`_clean_and_normalize_wordpress_content`（清单化删除广告/社交/评论/推荐等，懒加载归一/脚本样式移除）。
   - 转换：使用 `html_fragment_to_markdown` 将正文片段转为 Markdown，`header_parts` 直接拼接。
+  - 日志记录：通过 `logger` 参数记录处理进度，如 `logger.fetch_start("httpx")`、`logger.parse_start()`、`logger.parse_success(content_length)`、`logger.url_success(title)`。
 - 设计要点：结构具有灵活性，每个模块都方便个性化定制。
 - 相关代码：`_try_httpx_crawler`、`_try_playwright_crawler`、`_process_wordpress_content`、`fetch_wordpress_article`
 
@@ -311,6 +333,7 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
 - 关键处理：
   - 正文与清理：`_build_nextjs_content_element`、`_clean_and_normalize_nextjs_content`。
   - 转换与组装：`_process_nextjs_content` 调用 `html_fragment_to_markdown`；未定位到正文容器时对全文清理后再转换。
+  - 日志记录：通过 `logger` 参数记录处理进度，如 `logger.fetch_start("httpx")`、`logger.clean_start()`、`logger.clean_success()`、`logger.url_success(title)`。
 - 设计要点：偏向轻量规范化，删除清单明确；必要时对全文兜底处理，提升成功率。
 - 相关代码：`_try_httpx_crawler`、`_try_playwright_crawler`、`_process_nextjs_content`、`fetch_nextjs_article`
 
@@ -384,6 +407,14 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
 - 步骤 5：抓取与统一处理
   - 先试 httpx 爬取原始 HTML（更快、更稳），失败再用 Playwright；均返回原始 HTML 进入统一的内容处理流程。
   - 是否共享浏览器由 `registry` 按 handler 偏好自动决定，handler 内无需关心。
+  - 通过 `logger` 参数记录关键步骤：使用细粒度日志方法如 `logger.fetch_start("httpx")`、`logger.fetch_success(content_length)`、`logger.fetch_failed("httpx", error)`、`logger.url_success(title)`。
+
+- 步骤 5.1：细粒度日志方法使用指南
+  - **抓取阶段**：使用 `logger.fetch_start(strategy_name)` 开始，`logger.fetch_success(content_length)` 成功，`logger.fetch_failed(strategy_name, error)` 失败，`logger.fetch_retry(strategy_name, retry, max_retries)` 重试。
+  - **解析阶段**：使用 `logger.parse_start()` 开始，`logger.parse_title(title)` 记录标题，`logger.parse_content_short(length, min_length)` 内容太短，`logger.parse_success(content_length)` 成功。
+  - **清理阶段**：使用 `logger.clean_start()` 开始，`logger.clean_success()` 完成。
+  - **转换阶段**：使用 `logger.convert_start()` 开始，`logger.convert_success()` 完成。
+  - **完成阶段**：使用 `logger.url_success(title)` 成功，`logger.url_failed(url, error)` 失败。
 
 - 步骤 6：集成与注册
   - 在 `registry.py` 中新增 handler 包装并声明 `prefers_shared_browser`。

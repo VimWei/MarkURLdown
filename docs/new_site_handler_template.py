@@ -15,11 +15,13 @@ try:
         read_page_content_and_title,
         teardown_context_page,
     )
+    from markdownall.app_types import ConvertLogger
 except Exception:
     # 若不依赖 Playwright，可忽略导入失败
     new_context_and_page = None  # type: ignore
     teardown_context_page = None  # type: ignore
     read_page_content_and_title = None  # type: ignore
+    ConvertLogger = None  # type: ignore
 
 
 @dataclass
@@ -319,6 +321,14 @@ def _clean_and_normalize_newsite_content(content_elem) -> None:
 # -------------------------------
 # 一体化处理：解析→清理→转换→组装
 # -------------------------------
+# 注意：在实际使用中，可以在各个处理阶段添加细粒度日志：
+# - logger.parse_start(): 解析开始
+# - logger.parse_title(title): 解析到的标题
+# - logger.parse_success(content_length): 解析成功
+# - logger.clean_start(): 清理开始
+# - logger.clean_success(): 清理完成
+# - logger.convert_start(): 转换开始
+# - logger.convert_success(): 转换完成
 
 
 def _process_newsite_content(
@@ -377,7 +387,7 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
 
 
 def _try_playwright_crawler(
-    url: str, on_detail=None, shared_browser: Any | None = None
+    url: str, logger: ConvertLogger | None = None, shared_browser: Any | None = None
 ) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
@@ -389,15 +399,14 @@ def _try_playwright_crawler(
             try:
                 page.goto(url, wait_until="networkidle", timeout=30000)
                 page.wait_for_timeout(2000)
-                if callable(on_detail):
-                    try:
-                        on_detail(page)
-                    except Exception:
-                        pass
+                if logger:
+                    logger.fetch_start("playwright")
                 if read_page_content_and_title is not None:
-                    html, title = read_page_content_and_title(page)
+                    html, title = read_page_content_and_title(page, logger)
                 else:
                     html, title = page.content(), page.title()
+                if logger:
+                    logger.fetch_success(len(html))
                 return FetchResult(title=title, html_markdown=html)
             finally:
                 if teardown_context_page is not None:
@@ -415,12 +424,11 @@ def _try_playwright_crawler(
             page = context.new_page()
             page.goto(url, wait_until="networkidle", timeout=30000)
             page.wait_for_timeout(2000)
-            if callable(on_detail):
-                try:
-                    on_detail(page)
-                except Exception:
-                    pass
+            if logger:
+                logger.fetch_start("playwright")
             html, title = page.content(), page.title()
+            if logger:
+                logger.fetch_success(len(html))
             browser.close()
             return FetchResult(title=title, html_markdown=html)
 
@@ -433,25 +441,35 @@ def _try_playwright_crawler(
 # -------------------------------
 # 主入口：新站点文章获取（含重试）
 # -------------------------------
+# 注意：本模板使用细粒度日志方法，提供更清晰的进度信息：
+# - fetch_start(strategy_name): 记录抓取开始
+# - fetch_success(content_length): 记录抓取成功
+# - fetch_failed(strategy_name, error): 记录抓取失败
+# - fetch_retry(strategy_name, retry, max_retries): 记录重试
+# - parse_content_short(length, min_length): 记录内容太短
+# - url_success(title): 记录URL处理成功
+# - url_failed(url, error): 记录URL处理失败
 
 
 def fetch_newsite_article(
     session,
     url: str,
-    on_detail=None,
+    logger: ConvertLogger | None = None,
     shared_browser: Any | None = None,
     min_content_length: int = 200,
 ) -> FetchResult:
     """获取新站点文章内容（多策略爬取 + 统一内容处理）。
 
     参数:
-    - on_detail: 可选 Playwright 回调，在页面稳定后调用以执行细化操作（如点击“展开全文”）。
+    - logger: 可选的日志记录器，使用细粒度日志方法记录操作进度和状态。
+      支持的方法包括：fetch_start(), fetch_success(), fetch_failed(), 
+      fetch_retry(), parse_content_short(), url_success(), url_failed() 等。
     - shared_browser: 共享浏览器实例（如有）。
     - min_content_length: 内容质量阈值（字符数），过短则继续尝试其他策略。
     """
     strategies = [
         lambda: _try_httpx_crawler(session, url),
-        lambda: _try_playwright_crawler(url, on_detail, shared_browser),
+        lambda: _try_playwright_crawler(url, logger, shared_browser),
     ]
 
     max_retries = 2
@@ -462,10 +480,12 @@ def fetch_newsite_article(
                     import random
                     import time
 
-                    print(f"尝试新站点策略 {i} (重试 {retry}/{max_retries-1})...")
+                    if logger:
+                        logger.fetch_retry(f"策略{i}", retry, max_retries)
                     time.sleep(random.uniform(2, 4))
                 else:
-                    print(f"尝试新站点策略 {i}...")
+                    if logger:
+                        logger.fetch_start(f"策略{i}")
 
                 r = strat()
                 if r.success:
@@ -477,26 +497,32 @@ def fetch_newsite_article(
                         # 检查内容质量，如果内容太短，继续尝试下一个策略
                         content = processed.html_markdown or ""
                         if len(content) < max(0, int(min_content_length)):
-                            print(
-                                f"新站点策略 {i} 内容太短 ({len(content)} 字符)，继续尝试下一个策略"
-                            )
+                            if logger:
+                                logger.parse_content_short(len(content), min_content_length)
                             break
+                        if logger:
+                            logger.fetch_success(len(content))
+                            logger.url_success(processed.title or "无标题")
                         return processed
                     else:
                         return r
                 else:
-                    print(f"策略 {i} 失败: {r.error}")
+                    if logger:
+                        logger.fetch_failed(f"策略{i}", r.error or "未知错误")
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print(f"策略 {i} 重试次数用尽，尝试下一个策略")
+                        if logger:
+                            logger.warning(f"策略 {i} 重试次数用尽，尝试下一个策略")
                         break
             except Exception as e:
-                print(f"策略 {i} 异常: {e}")
+                if logger:
+                    logger.fetch_failed(f"策略{i}", str(e))
                 if retry < max_retries - 1:
                     continue
                 else:
-                    print(f"策略 {i} 重试次数用尽，尝试下一个策略")
+                    if logger:
+                        logger.warning(f"策略 {i} 重试次数用尽，尝试下一个策略")
                     break
 
         # 策略间等待
@@ -506,4 +532,6 @@ def fetch_newsite_article(
 
             time.sleep(random.uniform(1, 2))
 
+    if logger:
+        logger.url_failed(url, "所有策略都失败")
     return FetchResult(title=None, html_markdown="", success=False, error="所有策略都失败")

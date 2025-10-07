@@ -38,7 +38,7 @@ class CrawlerResult:
 def _try_lightweight_markitdown(url: str, session) -> CrawlerResult:
     """策略1: 轻量级MarkItDown - 快速尝试，适合简单网站"""
     try:
-        print("尝试轻量级MarkItDown...")
+        # 尝试轻量级MarkItDown（静默处理）
         md = MarkItDown()
         # 修复 MarkItDown 的 User-Agent 问题
         md._requests_session.headers.update(
@@ -117,7 +117,7 @@ def _try_enhanced_markitdown(url: str, session) -> CrawlerResult:
 def _try_direct_httpx(url: str, session) -> CrawlerResult:
     """策略3: 直接httpx - 最后备用策略"""
     try:
-        print("尝试直接httpx...")
+        # 尝试直接httpx（静默处理）
         import httpx
 
         # 使用与session相同的User-Agent
@@ -279,23 +279,27 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
         for retry in range(max_retries):
             try:
                 if retry > 0:
-                    print(f"[抓取] 通用策略 {i} 重试 {retry}/{max_retries-1}...")
+                    if logger:
+                        logger.fetch_retry(f"通用策略 {i}", retry, max_retries)
                     time.sleep(random.uniform(2, 4))
                 else:
-                    print(f"[抓取] 通用策略 {i}...")
+                    if logger:
+                        logger.fetch_start(f"通用策略 {i}")
 
                 result = strategy()
                 if result.success:
                     # 内容质量检测 - 简单验证
                     if result.text_content and len(result.text_content.strip()) > 100:
-                        print(f"[抓取] 成功获取内容")
-                        print("[解析] 提取标题和正文...")
-                        if result.title:
-                            print(f"[解析] 标题: {result.title}")
+                        if logger:
+                            logger.fetch_success()
+                            logger.parse_start()
+                            if result.title:
+                                logger.parse_title(result.title)
 
                         # 标准化处理
-                        print("[清理] 移除广告和无关内容...")
-                        print("[转换] 标准化处理...")
+                        if logger:
+                            logger.clean_start()
+                            logger.convert_start()
                         text = normalize_markdown_headings(result.text_content, result.title)
 
                         # 生成统一时间戳，确保markdown文件名和图片文件名一致
@@ -308,41 +312,46 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
                             )
                             if images_dir:
                                 should_stop_cb = payload.meta.get("should_stop")
-                                on_detail_cb = payload.meta.get("on_detail")
+                                logger = payload.meta.get("logger")
                                 text = download_images_and_rewrite(
                                     text,
                                     url,
                                     images_dir,
                                     session,
                                     should_stop=should_stop_cb,
-                                    on_detail=on_detail_cb,
+                                    logger=logger,
                                     timestamp=conversion_timestamp,
                                 )
 
                         filename = derive_md_filename(result.title, url, conversion_timestamp)
-                        print("[组装] 文档生成完成")
+                        if logger:
+                            logger.convert_success()
                         return ConvertResult(
                             title=result.title, markdown=text, suggested_filename=filename
                         )
                     else:
-                        print(f"[解析] 策略 {i} 获取到无效内容，重试...")
+                        if logger:
+                            logger.warning(f"[解析] 策略 {i} 获取到无效内容，重试...")
                         if retry < max_retries - 1:
                             continue
                         else:
-                            print(f"[抓取] 策略 {i} 重试次数用尽，尝试下一个策略")
+                            if logger:
+                                logger.warning(f"[抓取] 策略 {i} 重试次数用尽，尝试下一个策略")
                             break
                 else:
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print(f"[抓取] 策略 {i} 失败，尝试下一个策略")
+                        if logger:
+                            logger.fetch_failed(f"通用策略 {i}", result.error or "未知错误")
                         break
 
             except Exception:
                 if retry < max_retries - 1:
                     continue
                 else:
-                    print(f"[抓取] 策略 {i} 异常，尝试下一个策略")
+                    if logger:
+                        logger.fetch_failed(f"通用策略 {i}", "异常")
                     break
 
         # 策略间等待

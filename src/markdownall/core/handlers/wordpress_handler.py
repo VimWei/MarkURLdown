@@ -6,7 +6,9 @@ WordPress网站处理器 - 专门处理WordPress站点，如skywind.me
 import random
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
+
+from markdownall.app_types import ConvertLogger
 
 from bs4 import BeautifulSoup
 from markitdown import MarkItDown
@@ -185,7 +187,7 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
         return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
 
 
-def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> FetchResult:
+def _try_playwright_crawler(url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
 
@@ -202,7 +204,7 @@ def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> Fetc
             time.sleep(2)
 
             # 获取页面内容和标题
-            html, title = read_page_content_and_title(page)
+            html, title = read_page_content_and_title(page, logger)
 
             # 清理资源
             teardown_context_page(context, page)
@@ -211,7 +213,7 @@ def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> Fetc
             return FetchResult(title=title, html_markdown=html)
 
         # 分支2：使用独立浏览器（兜底方案）
-        print("使用独立浏览器...")
+        logger.info("[浏览器] 使用独立浏览器...")
         from playwright.sync_api import sync_playwright
 
         with sync_playwright() as p:
@@ -242,7 +244,7 @@ def _try_playwright_crawler(url: str, shared_browser: Any | None = None) -> Fetc
             time.sleep(2)
 
             # 获取页面内容和标题
-            html, title = read_page_content_and_title(page)
+            html, title = read_page_content_and_title(page, logger)
 
             # 返回原始HTML，让上层处理
             return FetchResult(title=title, html_markdown=html)
@@ -458,7 +460,7 @@ def _process_wordpress_content(
 # 4. 主入口函数
 
 
-def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None) -> FetchResult:
+def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None) -> FetchResult:
     """
     获取WordPress文章内容
 
@@ -472,7 +474,7 @@ def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None
         # 策略1: 使用httpx爬取原始HTML
         lambda: _try_httpx_crawler(session, url),
         # 策略2: 使用Playwright爬取原始HTML (支持共享浏览器)
-        lambda: _try_playwright_crawler(url, shared_browser),
+        lambda: _try_playwright_crawler(url, logger, shared_browser),
     ]
 
     # 尝试各种策略，增加重试机制
@@ -482,18 +484,22 @@ def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None
         for retry in range(max_retries):
             try:
                 if retry > 0:
-                    print(f"[抓取] WordPress策略 {i} 重试 {retry}/{max_retries-1}...")
+                    if logger:
+                        logger.fetch_retry(f"WordPress策略 {i}", retry, max_retries)
                     time.sleep(random.uniform(2, 4))  # 重试时等待
                 else:
-                    print(f"[抓取] WordPress策略 {i}...")
+                    if logger:
+                        logger.fetch_start(f"WordPress策略 {i}")
 
                 result = strategy()
                 if result.success:
-                    print(f"[抓取] 成功获取内容")
+                    if logger:
+                        logger.fetch_success()
 
                     # 两阶段处理：先获取原始HTML，再处理内容
                     if result.html_markdown:
-                        print("[解析] 提取标题和正文...")
+                        if logger:
+                            logger.parse_start()
                         processed_result = _process_wordpress_content(
                             result.html_markdown, url, title_hint=result.title
                         )
@@ -501,13 +507,16 @@ def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None
                         # 检查内容质量，如果内容太短，继续尝试下一个策略
                         content = processed_result.html_markdown or ""
                         if len(content) < 200:
-                            print(f"[解析] 内容太短 ({len(content)} 字符)，尝试下一个策略")
+                            if logger:
+                                logger.parse_content_short(len(content))
                             break
 
-                        if processed_result.title:
-                            print(f"[解析] 标题: {processed_result.title}")
-                        print("[清理] 移除广告和无关内容...")
-                        print("[转换] 转换为Markdown完成")
+                        if processed_result.title and logger:
+                            logger.parse_title(processed_result.title)
+                        if logger:
+                            logger.clean_start()
+                            logger.convert_start()
+                            logger.convert_success()
                         return processed_result
                     else:
                         return result
@@ -515,14 +524,16 @@ def fetch_wordpress_article(session, url: str, shared_browser: Any | None = None
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print(f"[抓取] 策略 {i} 失败，尝试下一个策略")
+                        if logger:
+                            logger.fetch_failed(f"WordPress策略 {i}", result.error or "未知错误")
                         break
 
             except Exception as e:
                 if retry < max_retries - 1:
                     continue
                 else:
-                    print(f"[抓取] 策略 {i} 异常，尝试下一个策略")
+                    if logger:
+                        logger.fetch_failed(f"WordPress策略 {i}", str(e))
                     break
 
         # 策略间等待

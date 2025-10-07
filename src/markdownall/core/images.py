@@ -5,10 +5,12 @@ import hashlib
 import os
 import re
 from datetime import datetime
+import threading
 from typing import Callable, Dict, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
+from markdownall.app_types import ConvertLogger
 
 # =============================================================================
 # 域名配置区域 - 统一管理所有图片域名规则
@@ -248,7 +250,7 @@ async def _download_single_image(
 async def _download_images_async(
     image_tasks: list[Tuple[str, str, Optional[Dict[str, str]]]],
     session: aiohttp.ClientSession,
-    on_detail: Optional[Callable[[str], None]] = None,
+    logger: Optional[ConvertLogger] = None,
     hash_to_path: Optional[Dict[str, str]] = None,
     hash_lock: Optional[asyncio.Lock] = None,
 ) -> Dict[str, Tuple[bool, str]]:
@@ -257,8 +259,7 @@ async def _download_images_async(
         return {}
 
     total = len(image_tasks)
-    if on_detail:
-        on_detail({"key": "images_dl_init", "data": {"total": total}})
+    # 移除重复的进度日志，主函数已经调用了
 
     # 创建下载任务；每个任务返回 (url, success)
     async def _wrapped_download(url: str, local_path: str, headers: Optional[Dict[str, str]]):
@@ -287,13 +288,9 @@ async def _download_images_async(
         if url:
             results[url] = (bool(ok), final_path)
         done_count += 1
-        if on_detail:
-            # 动态更新为统一前缀+百分比（无小数点）
-            percent = int(done_count * 100 / total)
-            on_detail({"key": "images_dl_progress", "data": {"total": total, "percent": percent}})
+        # 移除重复的进度日志，只在开始时记录一次
 
-    if on_detail:
-        on_detail({"key": "images_dl_done", "data": {"total": total}})
+    # 移除重复的完成日志，主函数会处理成功率统计
 
     return results
 
@@ -304,7 +301,7 @@ def download_images_and_rewrite(
     images_dir: str,
     session,
     should_stop: Optional[Callable[[], bool]] = None,
-    on_detail: Optional[Callable[[str], None]] = None,
+    logger: Optional[ConvertLogger] = None,
     enable_compact_rename: bool = False,
     timestamp: Optional[datetime] = None,
 ) -> str:
@@ -316,7 +313,7 @@ def download_images_and_rewrite(
         images_dir: 图片保存目录
         session: HTTP会话对象
         should_stop: 可选的停止检查函数
-        on_detail: 可选的进度回调函数
+        logger: 可选的日志记录器
         enable_compact_rename: 是否启用紧凑重命名（默认False，保留原始文件名便于调试）
         timestamp: 可选的时间戳，用于统一markdown和图片文件名的时间戳
 
@@ -335,13 +332,14 @@ def download_images_and_rewrite(
     if total == 0:
         return md_text
 
-    print(f"[图片] 发现 {total} 张图片，开始下载...")
-    if on_detail:
-        on_detail({"key": "images_found_start", "data": {"count": total}})
+    if logger and total > 0:
+        logger.images_progress(total)
 
     # 收集所有需要下载的图片信息
     image_tasks = []
     url_to_planned_local: Dict[str, str] = {}  # 计划中的URL到本地文件映射
+    # 提前初始化最终映射，避免闭包里访问到未绑定变量
+    url_to_local: Dict[str, str] = {}
     counter = 1
     # 使用传入的时间戳，如果没有则使用当前时间
     run_stamp = (timestamp or datetime.now()).strftime("%Y%m%d_%H%M%S")
@@ -404,21 +402,31 @@ def download_images_and_rewrite(
                 hash_to_path: Dict[str, str] = {}
                 hash_lock = asyncio.Lock()
                 return await _download_images_async(
-                    image_tasks, aio_session, on_detail, hash_to_path, hash_lock
+                    image_tasks, aio_session, logger, hash_to_path, hash_lock
                 )
 
-        # 检查是否已有事件循环
-        try:
-            asyncio.get_running_loop()
-            # 如果已有事件循环，使用线程池执行
-            import concurrent.futures
+        # 在专用线程中使用独立事件循环运行，避免与现有事件循环/GUI线程干扰
+        def _run_in_thread(coro):
+            holder: Dict[str, Dict] = {}
 
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, download_all())
-                download_results = future.result()
-        except RuntimeError:
-            # 没有事件循环，直接运行
-            download_results = asyncio.run(download_all())
+            def _runner():
+                loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(loop)
+                    holder["result"] = loop.run_until_complete(coro)
+                finally:
+                    try:
+                        loop.run_until_complete(loop.shutdown_asyncgens())
+                    except Exception:
+                        pass
+                    loop.close()
+
+            t = threading.Thread(target=_runner, daemon=True)
+            t.start()
+            t.join()
+            return holder.get("result", {})
+
+        download_results = _run_in_thread(download_all())
 
         # 根据下载结果建立最终的URL到本地文件映射
         # 关键修复：只有下载成功的图片才建立映射，避免失败图片被其他图片占用
@@ -566,8 +574,8 @@ def download_images_and_rewrite(
     if total > 0:
         success_count = sum(1 for ok, _ in download_results.values() if ok)
         failed_count = total - success_count
-        print(f"[图片] 下载完成: {success_count}成功, {failed_count}失败")
+        if logger:
+            logger.info(f"[图片] 下载完成: {success_count}成功, {failed_count}失败")
 
-    if total > 0 and on_detail:
-        on_detail({"key": "images_dl_saving"})
+    # 可选：保存阶段提示由 UI 层汇总处理，这里不再重复输出
     return result_text

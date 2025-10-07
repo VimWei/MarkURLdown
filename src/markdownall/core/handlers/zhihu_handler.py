@@ -5,6 +5,7 @@ import re
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
+from markdownall.app_types import ConvertLogger
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup, NavigableString
@@ -481,16 +482,13 @@ def _try_click_expand_buttons(page) -> bool:
 
 
 def _goto_target_and_prepare_content(
-    page, url: str, on_detail: Optional[Callable[[str], None]] = None
+    page, url: str, logger: Optional[ConvertLogger] = None
 ) -> None:
     """访问目标URL，处理登录弹窗，等待页面稳定，并尝试展开全文。"""
     # 访问目标
     try:
-        if on_detail:
-            try:
-                on_detail("正在访问目标URL...")
-            except Exception:
-                pass
+        if logger:
+            logger.info("正在访问目标URL...")
         page.goto(url, wait_until="domcontentloaded", timeout=30000)
     except Exception:
         pass
@@ -537,7 +535,7 @@ def _goto_target_and_prepare_content(
 
 
 def _try_playwright_crawler(
-    url: str, on_detail: Optional[Callable[[str], None]] = None, shared_browser: Any | None = None
+    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None
 ) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理知乎的验证机制"""
     # 检测页面类型
@@ -551,8 +549,8 @@ def _try_playwright_crawler(
             _apply_zhihu_stealth_and_defaults(page)
 
             # 访问目标URL
-            _goto_target_and_prepare_content(page, url, on_detail)
-            html, title = read_page_content_and_title(page, on_detail)
+            _goto_target_and_prepare_content(page, url, logger)
+            html, title = read_page_content_and_title(page, logger)
             teardown_context_page(context, page)
             return CrawlerResult(success=True, title=title, text_content=html)
 
@@ -587,8 +585,8 @@ def _try_playwright_crawler(
             _apply_zhihu_stealth_and_defaults(page)
 
             # 访问目标URL
-            _goto_target_and_prepare_content(page, url, on_detail)
-            html, title = read_page_content_and_title(page, on_detail)
+            _goto_target_and_prepare_content(page, url, logger)
+            html, title = read_page_content_and_title(page, logger)
 
             return CrawlerResult(success=True, title=title, text_content=html)
 
@@ -730,7 +728,7 @@ def _process_zhihu_content(
     try:
         soup = BeautifulSoup(html, "lxml")
     except Exception as e:
-        print(f"BeautifulSoup解析失败: {e}")
+        # BeautifulSoup解析失败，静默处理
         return FetchResult(title=None, html_markdown="")
 
     # 检测页面类型
@@ -756,7 +754,7 @@ def _process_zhihu_content(
     try:
         return FetchResult(title=title, html_markdown=md)
     except Exception as e:
-        print(f"创建FetchResult失败: {e}")
+        # 创建FetchResult失败，静默处理
         return FetchResult(title=None, html_markdown="")
 
 
@@ -764,7 +762,7 @@ def _process_zhihu_content(
 def fetch_zhihu_article(
     session,
     url: str,
-    on_detail: Optional[Callable[[str], None]] = None,
+    logger: Optional[ConvertLogger] = None,
     shared_browser: Any | None = None,
 ) -> FetchResult:
     """
@@ -794,26 +792,32 @@ def fetch_zhihu_article(
     for retry in range(max_retries):
         try:
             if retry > 0:
-                print(f"[抓取] 知乎策略重试 {retry}/{max_retries-1}...")
+                if logger:
+                    logger.fetch_retry("知乎策略", retry, max_retries)
                 time.sleep(random.uniform(3, 6))  # 重试时等待更长时间
             else:
-                print("[抓取] 知乎策略...")
+                if logger:
+                    logger.fetch_start("知乎策略")
 
-            result = _try_playwright_crawler(url, on_detail, shared_browser)
+            result = _try_playwright_crawler(url, logger, shared_browser)
             if result.success:
-                print("[抓取] 成功获取内容")
-                print("[解析] 提取标题和正文...")
+                if logger:
+                    logger.fetch_success()
+                    logger.parse_start()
 
                 # 处理内容并检查质量（将 Playwright 的标题作为提示，不作为最终值）
                 processed_result = _process_zhihu_content(result.text_content, result.title, url)
-                print("[清理] 移除广告和无关内容...")
+                if logger:
+                    logger.clean_start()
 
                 # 检查是否获取到验证页面 - 更精确的检测
                 content = processed_result.html_markdown or ""
                 if content and len(content) > 1000:  # 如果内容足够长，说明不是验证页面
-                    if processed_result.title:
-                        print(f"[解析] 标题: {processed_result.title}")
-                    print("[转换] 转换为Markdown完成")
+                    if processed_result.title and logger:
+                        logger.parse_title(processed_result.title)
+                    if logger:
+                        logger.convert_start()
+                        logger.convert_success()
                     return processed_result
                 elif content and (
                     "验证" in content
@@ -822,11 +826,13 @@ def fetch_zhihu_article(
                     or "403" in content
                     or "404" in content
                 ):
-                    print("[解析] 检测到验证页面，重试...")
+                    if logger:
+                        logger.warning("[解析] 检测到验证页面，重试...")
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print("[抓取] 重试次数用尽")
+                        if logger:
+                            logger.warning("[抓取] 重试次数用尽")
                         break
 
                 # 检查标题是否包含验证信息
@@ -835,11 +841,13 @@ def fetch_zhihu_article(
                     or "登录" in processed_result.title
                     or "访问被拒绝" in processed_result.title
                 ):
-                    print("标题包含验证信息，重试...")
+                    if logger:
+                        logger.warning("标题包含验证信息，重试...")
                     if retry < max_retries - 1:
                         continue
                     else:
-                        print("[抓取] 重试次数用尽")
+                        if logger:
+                            logger.warning("[抓取] 重试次数用尽")
                         break
 
                 return processed_result

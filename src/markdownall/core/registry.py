@@ -65,12 +65,12 @@ def _weixin_handler(
     url = payload.value
     if "mp.weixin.qq.com" not in url:
         return None
-    # 透传 UI 提示回调到 weixin handler，用于状态栏显示
-    on_detail_cb = payload.meta.get("on_detail")
+    # 新日志接口
+    logger = payload.meta.get("logger")
     # 透传共享 Browser（若开启加速模式）
     shared_browser = payload.meta.get("shared_browser")
     fetched = fetch_weixin_article(
-        session, url, on_detail=on_detail_cb, shared_browser=shared_browser
+        session, url, logger=logger, shared_browser=shared_browser
     )
 
     # If blocked or empty, fallback to generic converter
@@ -100,14 +100,13 @@ def _weixin_handler(
             images_dir = os.path.join(payload.meta["out_dir"], "img")
         if images_dir:
             should_stop_cb = payload.meta.get("should_stop") or (lambda: False)
-            on_detail_cb = payload.meta.get("on_detail")
             text = download_images_and_rewrite(
                 text,
                 url,
                 images_dir,
                 session,
                 should_stop=should_stop_cb,
-                on_detail=on_detail_cb,
+                logger=logger,
                 timestamp=conversion_timestamp,
             )
 
@@ -123,10 +122,10 @@ def _zhihu_handler(
         return None
 
     try:
-        on_detail_cb = payload.meta.get("on_detail")
+        logger = payload.meta.get("logger")
         shared_browser = payload.meta.get("shared_browser")
         fetched = fetch_zhihu_article(
-            session, url, on_detail=on_detail_cb, shared_browser=shared_browser
+            session, url, logger=logger, shared_browser=shared_browser
         )
 
         # 更智能的阻塞检测：只有在内容很短且包含验证关键词时才认为是阻塞
@@ -164,14 +163,13 @@ def _zhihu_handler(
                 images_dir = os.path.join(payload.meta["out_dir"], "img")
             if images_dir:
                 should_stop_cb = payload.meta.get("should_stop") or (lambda: False)
-                on_detail_cb = payload.meta.get("on_detail")
                 text = download_images_and_rewrite(
                     text,
                     url,
                     images_dir,
                     session,
                     should_stop=should_stop_cb,
-                    on_detail=on_detail_cb,
+                    logger=logger,
                     timestamp=conversion_timestamp,
                 )
 
@@ -197,7 +195,8 @@ def _wordpress_handler(
     try:
         # 透传共享 Browser（若开启加速模式）
         shared_browser = payload.meta.get("shared_browser")
-        fetched = fetch_wordpress_article(session, url, shared_browser)
+        logger = payload.meta.get("logger")
+        fetched = fetch_wordpress_article(session, url, logger, shared_browser)
 
         # 检查内容质量
         content = fetched.html_markdown or ""
@@ -215,14 +214,14 @@ def _wordpress_handler(
                 images_dir = os.path.join(payload.meta["out_dir"], "img")
             if images_dir:
                 should_stop_cb = payload.meta.get("should_stop") or (lambda: False)
-                on_detail_cb = payload.meta.get("on_detail")
+                logger = payload.meta.get("logger")
                 text = download_images_and_rewrite(
                     text,
                     url,
                     images_dir,
                     session,
                     should_stop=should_stop_cb,
-                    on_detail=on_detail_cb,
+                    logger=logger,
                     timestamp=conversion_timestamp,
                 )
 
@@ -247,7 +246,8 @@ def _nextjs_handler(
     try:
         # 透传共享 Browser（若开启加速模式）
         shared_browser = payload.meta.get("shared_browser")
-        fetched = fetch_nextjs_article(session, url, shared_browser)
+        logger = payload.meta.get("logger")
+        fetched = fetch_nextjs_article(session, url, logger, shared_browser)
 
         content = fetched.html_markdown or ""
         if not content.strip():
@@ -264,14 +264,14 @@ def _nextjs_handler(
                 images_dir = os.path.join(payload.meta["out_dir"], "img")
             if images_dir:
                 should_stop_cb = payload.meta.get("should_stop") or (lambda: False)
-                on_detail_cb = payload.meta.get("on_detail")
+                logger = payload.meta.get("logger")
                 text = download_images_and_rewrite(
                     text,
                     url,
                     images_dir,
                     session,
                     should_stop=should_stop_cb,
-                    on_detail=on_detail_cb,
+                    logger=logger,
                     timestamp=conversion_timestamp,
                 )
 
@@ -300,12 +300,11 @@ def _sspai_handler(
         return None
 
     try:
-        # 透传 UI 提示回调到 sspai handler，用于状态栏显示
-        on_detail_cb = payload.meta.get("on_detail")
+        logger = payload.meta.get("logger")
         # 透传共享 Browser（若开启加速模式）
         shared_browser = payload.meta.get("shared_browser")
         fetched = fetch_sspai_article(
-            session, url, on_detail=on_detail_cb, shared_browser=shared_browser
+            session, url, logger=logger, shared_browser=shared_browser
         )
 
         # 检查内容质量
@@ -328,14 +327,13 @@ def _sspai_handler(
                 images_dir = os.path.join(payload.meta["out_dir"], "img")
             if images_dir:
                 should_stop_cb = payload.meta.get("should_stop") or (lambda: False)
-                on_detail_cb = payload.meta.get("on_detail")
                 text = download_images_and_rewrite(
                     text,
                     url,
                     images_dir,
                     session,
                     should_stop=should_stop_cb,
-                    on_detail=on_detail_cb,
+                    logger=logger,
                     timestamp=conversion_timestamp,
                 )
 
@@ -356,12 +354,11 @@ def _appinn_handler(
         return None
 
     try:
-        # 透传 UI 提示回调到 appinn handler，用于状态栏显示
-        on_detail_cb = payload.meta.get("on_detail")
+        logger = payload.meta.get("logger")
         # 透传共享 Browser（若开启加速模式）
         shared_browser = payload.meta.get("shared_browser")
         fetched = fetch_appinn_article(
-            session, url, on_detail=on_detail_cb, shared_browser=shared_browser
+            session, url, logger=logger, shared_browser=shared_browser
         )
 
         # 检查内容质量
@@ -384,14 +381,13 @@ def _appinn_handler(
                 images_dir = os.path.join(payload.meta["out_dir"], "img")
             if images_dir:
                 should_stop_cb = payload.meta.get("should_stop") or (lambda: False)
-                on_detail_cb = payload.meta.get("on_detail")
                 text = download_images_and_rewrite(
                     text,
                     url,
                     images_dir,
                     session,
                     should_stop=should_stop_cb,
-                    on_detail=on_detail_cb,
+                    logger=logger,
                     timestamp=conversion_timestamp,
                 )
 
