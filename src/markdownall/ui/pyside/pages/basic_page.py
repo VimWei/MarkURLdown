@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
-    QGridLayout,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -48,6 +48,9 @@ class BasicPage(QWidget):
         
         # Initialize data
         self.output_dir_var = ""
+        # Cached widths for stable layout across language/reset
+        self._left_label_w = None
+        self._btn_w = None
         
         # Setup UI
         self._setup_ui()
@@ -55,77 +58,79 @@ class BasicPage(QWidget):
 
     def _setup_ui(self):
         """Setup the UI layout for basic page."""
-        layout = QGridLayout(self)
-        # Tighter, consistent spacing/margins (match MdxScraper)
-        layout.setHorizontalSpacing(8)
-        layout.setVerticalSpacing(6)
-        layout.setContentsMargins(12, 12, 12, 12)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(8, 8, 8, 8)
+        root.setSpacing(8)
 
-        # Row 0: URL Input
+        # ---- Row 0: URL Input ----
+        row_input = QHBoxLayout()
+        row_input.setContentsMargins(0, 0, 0, 0)
+        row_input.setSpacing(8)
         self.url_label = QLabel()
         self.url_label.setProperty("class", "field-label")
-        layout.addWidget(self.url_label, 0, 0)
-        
+        self.url_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        row_input.addWidget(self.url_label)
+
         self.url_entry = QLineEdit()
         self.url_entry.setStyleSheet("QLineEdit { padding: 4px; }")
-        layout.addWidget(self.url_entry, 0, 1, 1, 2)
-        
+        row_input.addWidget(self.url_entry, 1)
+
         button_height = self.url_entry.sizeHint().height()
         self.add_btn = QPushButton()
         self.add_btn.setFixedHeight(button_height)
-        layout.addWidget(self.add_btn, 0, 3)
+        row_input.addWidget(self.add_btn)
 
-        # Row 1: URL List
+        # ---- Row 1: URL List + Buttons ----
+        row_list = QHBoxLayout()
+        row_list.setContentsMargins(0, 0, 0, 0)
+        row_list.setSpacing(8)
         self.url_list_label = QLabel()
         self.url_list_label.setProperty("class", "field-label")
-        layout.addWidget(self.url_list_label, 1, 0)
-        
+        self.url_list_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        row_list.addWidget(self.url_list_label)
+
         self.url_listbox = QListWidget()
-        layout.addWidget(self.url_listbox, 1, 1, 1, 2)
-        
-        # URL management buttons
+        row_list.addWidget(self.url_listbox, 1)
+
         url_btn_frame = QFrame()
         url_btn_layout = QVBoxLayout(url_btn_frame)
         url_btn_layout.setSpacing(2)
         url_btn_layout.setContentsMargins(0, 0, 0, 0)
-        
         self.move_up_btn = QPushButton()
         self.move_down_btn = QPushButton()
         self.copy_btn = QPushButton()
         self.delete_btn = QPushButton()
         self.clear_btn = QPushButton()
-        
-        for btn in [
-            self.move_up_btn,
-            self.move_down_btn,
-            self.copy_btn,
-            self.delete_btn,
-            self.clear_btn,
-        ]:
+        for btn in [self.move_up_btn, self.move_down_btn, self.copy_btn, self.delete_btn, self.clear_btn]:
             btn.setFixedHeight(button_height)
             url_btn_layout.addWidget(btn)
-        
-        layout.addWidget(url_btn_frame, 1, 3)
+        row_list.addWidget(url_btn_frame)
 
-        # Row 2: Output Directory
+        # ---- Row 2: Output Directory ----
+        row_out = QHBoxLayout()
+        row_out.setContentsMargins(0, 0, 0, 0)
+        row_out.setSpacing(8)
         self.output_dir_label = QLabel()
         self.output_dir_label.setProperty("class", "field-label")
-        layout.addWidget(self.output_dir_label, 2, 0)
-        
+        self.output_dir_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        row_out.addWidget(self.output_dir_label)
+
         self.output_entry = QLineEdit(self.output_dir_var)
         self.output_entry.setStyleSheet("QLineEdit { padding: 4px; }")
-        layout.addWidget(self.output_entry, 2, 1, 1, 2)
-        
+        row_out.addWidget(self.output_entry, 1)
+
         self.choose_dir_btn = QPushButton()
         self.choose_dir_btn.setFixedHeight(button_height)
-        layout.addWidget(self.choose_dir_btn, 2, 3)
+        row_out.addWidget(self.choose_dir_btn)
 
-        # Layout stretching
-        layout.setColumnStretch(1, 1)
-        layout.setColumnStretch(2, 1)
-        layout.setRowStretch(1, 1)
-        
-        # Set focus to URL entry
+        # Left label width and right button widths will be aligned in retranslate_ui
+
+        # Assemble
+        root.addLayout(row_input)
+        root.addLayout(row_list, 1)
+        root.addLayout(row_out)
+
+        # Focus
         self.url_entry.setFocus()
 
     def _connect_signals(self):
@@ -265,6 +270,9 @@ class BasicPage(QWidget):
             return
             
         t = self.translator.t
+        # Reset cached widths so language switch behaves like a fresh start
+        self._left_label_w = None
+        self._btn_w = None
         self.url_label.setText(t("url_label"))
         self.add_btn.setText(t("add_button"))
         self.url_list_label.setText(t("url_list_label"))
@@ -280,6 +288,46 @@ class BasicPage(QWidget):
         self.copy_btn.setToolTip(t("tooltip_copy"))
         self.output_dir_label.setText(t("output_dir_label"))
         self.choose_dir_btn.setText(t("choose_dir_button"))
+
+        # Align widths deterministically by measuring translated texts (no accumulation)
+        try:
+            metrics = self.fontMetrics()
+            # Left labels width = max text width + padding
+            left_w = max(
+                metrics.horizontalAdvance(self.url_label.text()),
+                metrics.horizontalAdvance(self.url_list_label.text()),
+                metrics.horizontalAdvance(self.output_dir_label.text()),
+            ) + 16
+            self.url_label.setFixedWidth(left_w)
+            self.url_list_label.setFixedWidth(left_w)
+            self.output_dir_label.setFixedWidth(left_w)
+        except Exception:
+            pass
+
+        try:
+            metrics = self.fontMetrics()
+            # Button width = max translated text width + padding for button chrome
+            btn_w = max(
+                metrics.horizontalAdvance(self.add_btn.text()),
+                metrics.horizontalAdvance(self.move_up_btn.text()),
+                metrics.horizontalAdvance(self.move_down_btn.text()),
+                metrics.horizontalAdvance(self.copy_btn.text()),
+                metrics.horizontalAdvance(self.delete_btn.text()),
+                metrics.horizontalAdvance(self.clear_btn.text()),
+                metrics.horizontalAdvance(self.choose_dir_btn.text()),
+            ) + 28
+            for b in [
+                self.add_btn,
+                self.choose_dir_btn,
+                self.move_up_btn,
+                self.move_down_btn,
+                self.copy_btn,
+                self.delete_btn,
+                self.clear_btn,
+            ]:
+                b.setFixedWidth(btn_w)
+        except Exception:
+            pass
 
     def get_config(self) -> dict:
         """Get current page configuration."""
