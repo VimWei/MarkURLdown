@@ -8,6 +8,8 @@ offering high-level APIs for UI components to interact with configuration.
 from __future__ import annotations
 
 from typing import Any, Dict
+import json
+from markdownall.io.config import resolve_project_path
 
 from markdownall.config.config_manager import ConfigManager
 
@@ -104,8 +106,47 @@ class ConfigService:
         return self.config_manager.export_config(file_path)
     
     def import_config(self, file_path: str) -> bool:
-        """Import configuration from file."""
-        return self.config_manager.import_config(file_path)
+        """Import configuration from file.
+        
+        Supports two schemas:
+        1) Full config schema with top-level sections: basic/webpage/advanced/about
+        2) Legacy session schema with flat keys: urls, output_dir, use_proxy, etc.
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception:
+            return False
+
+        try:
+            if isinstance(data, dict) and (
+                'basic' in data or 'webpage' in data or 'advanced' in data or 'about' in data
+            ):
+                self.set_all_config(data)
+                return True
+
+            # Legacy flat session schema
+            if not isinstance(data, dict):
+                return False
+
+            # Basic
+            if 'urls' in data:
+                self.config_manager.basic.urls = list(data.get('urls') or [])
+            if 'output_dir' in data:
+                self.config_manager.basic.output_dir = resolve_project_path(
+                    data.get('output_dir') or '', self.config_manager.root_dir
+                )
+
+            # Webpage
+            for key in (
+                'use_proxy', 'ignore_ssl', 'download_images', 'filter_site_chrome', 'use_shared_browser'
+            ):
+                if key in data:
+                    setattr(self.config_manager.webpage, key, bool(data.get(key)))
+
+            return True
+        except Exception:
+            return False
     
     # Convenience methods for direct access to config objects
     @property

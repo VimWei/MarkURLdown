@@ -222,13 +222,31 @@ class BasicPage(QWidget):
         if not self.translator:
             return
             
+        # Determine initial directory for the dialog (common convention)
+        # 1) If the field has a valid existing directory, use it.
+        # 2) Otherwise, fall back to the app's default output directory.
+        # 3) Ensure the chosen initial directory exists so native dialogs don't fall back.
+        field_value = (self.output_entry.text() or "").strip()
+        if field_value and os.path.isdir(field_value):
+            initial_dir = field_value
+        else:
+            initial_dir = self.output_dir_var or os.path.abspath(os.path.join(os.getcwd(), "data", "output"))
+        try:
+            if not os.path.isdir(initial_dir):
+                os.makedirs(initial_dir, exist_ok=True)
+        except Exception:
+            # Silently continue; dialog will fall back if creation fails
+            pass
+
         chosen = QFileDialog.getExistingDirectory(
             self,
             self.translator.t("dialog_choose_output_dir"),
-            self.output_entry.text() or os.getcwd(),
+            initial_dir,
         )
         if chosen:
             self.output_entry.setText(os.path.abspath(chosen))
+            # Emit change so MainWindow logs and state sync stay consistent
+            self._on_output_dir_changed()
 
     def _on_output_dir_changed(self):
         """Handle output directory text change."""
@@ -257,6 +275,7 @@ class BasicPage(QWidget):
 
     def set_output_dir(self, path: str) -> None:
         """Set output directory."""
+        self.output_dir_var = path
         self.output_entry.setText(path)
 
     def clear_urls(self) -> None:

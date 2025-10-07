@@ -20,7 +20,7 @@
 - `src/markdownall/ui/pyside/main_window.py`
 - `src/markdownall/ui/pyside/startup_manager.py`
 - `src/markdownall/ui/pyside/error_handler.py`
-- `src/markdownall/ui/pyside/gui.py`（保留旧名，但已演化/重构用途）
+// gui.py 已删除；统一入口在 `ui/pyside/main_window.py`，旧符号不再保留
 
 #### 2.1 入口 `launch.py`
 职责：
@@ -119,8 +119,8 @@
 - UI 层：
   - `ui/pyside/main_window.py`：主窗口 + 分页 + 组件 + 主题 + 事件
   - `ui/pyside/splash.py`：Splash 纯 UI
-  - `ui/pyside/__init__.py`：导出 `MainWindow`、`show_immediate_splash`
-  - `ui/pyside/gui.py`：若必须保留旧符号，保持为 `PySideApp = MainWindow`
+- `ui/pyside/__init__.py`：导出 `MainWindow`、`show_immediate_splash`
+// 旧 `gui.py` 已移除，无需再保留 `PySideApp`
 - 业务与服务：
   - `config/`：配置模型与持久化
   - `services/`：封装业务流程，供 UI 调用

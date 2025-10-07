@@ -1089,9 +1089,8 @@ class MainWindow(QMainWindow):
                 "language": advanced_config.get("language", "auto"),
             })
             
-            # Save session and settings
+            # Save unified session (new-format only)
             self.config_service.save_session()
-            self.config_service.save_settings()
             
         except Exception as e:
             self.log_error(f"Failed to save config: {e}")
@@ -1099,15 +1098,11 @@ class MainWindow(QMainWindow):
     def _load_config(self):
         """Load configuration using ConfigService."""
         try:
-            # Only load application settings on startup (no session restore)
-            settings_loaded = self.config_service.load_settings()
+            # Load unified session (new-format). It's OK if missing.
+            self.config_service.load_session()
             
-            # Always sync UI from defaults + settings
+            # Always sync UI from defaults + session
             self._sync_ui_from_config()
-            
-            if not settings_loaded:
-                # No settings found, using defaults
-                self.log_info("No saved settings found, using defaults")
                 
         except Exception as e:
             self.log_error(f"Failed to load config: {e}")
@@ -1119,9 +1114,18 @@ class MainWindow(QMainWindow):
             
             # Update basic page
             basic_config = config["basic"]
-            # Respect existing value; if missing/empty, fall back to default project output dir
-            if not basic_config.get("output_dir"):
-                basic_config["output_dir"] = self.output_dir_var
+            # Resolve project-relative paths so UI holds absolute paths for correctness on Windows
+            try:
+                from markdownall.io.config import resolve_project_path as _resolve
+                od = basic_config.get("output_dir", "")
+                if od:
+                    basic_config["output_dir"] = _resolve(od, self.root_dir)
+                else:
+                    basic_config["output_dir"] = self.output_dir_var
+            except Exception:
+                # Fallback to default if resolution fails
+                if not basic_config.get("output_dir"):
+                    basic_config["output_dir"] = self.output_dir_var
             
             # Suppress noisy change logs while applying config to UI widgets
             self._suppress_change_logs = True

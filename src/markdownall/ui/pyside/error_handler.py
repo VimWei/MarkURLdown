@@ -130,6 +130,10 @@ class ErrorHandler(QObject):
     def _show_user_error(self, error_type: str, error_message: str, context: str):
         """Show user-friendly error message."""
         try:
+            # If no QApplication or headless, skip UI dialog
+            app = QApplication.instance()
+            if app is None:
+                return
             # Create user-friendly message
             if "FileNotFoundError" in error_type:
                 user_message = f"File not found: {error_message}"

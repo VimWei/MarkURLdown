@@ -51,25 +51,20 @@ class ConfigManager:
             data = load_config(session_path)
             if not data:
                 return False
-                
-            # Load basic config
+            
+            # Support full new-format or legacy flat format
+            if any(k in data for k in ("basic", "webpage", "advanced", "about")):
+                self.set_all_config(data)
+                return True
+            
+            # Legacy flat
             if "urls" in data:
-                self.basic.urls = data["urls"]
+                self.basic.urls = data.get("urls", [])
             if "output_dir" in data:
-                self.basic.output_dir = resolve_project_path(data["output_dir"], self.root_dir)
-                
-            # Load webpage config
-            if "use_proxy" in data:
-                self.webpage.use_proxy = bool(data["use_proxy"])
-            if "ignore_ssl" in data:
-                self.webpage.ignore_ssl = bool(data["ignore_ssl"])
-            if "download_images" in data:
-                self.webpage.download_images = bool(data["download_images"])
-            if "filter_site_chrome" in data:
-                self.webpage.filter_site_chrome = bool(data["filter_site_chrome"])
-            if "use_shared_browser" in data:
-                self.webpage.use_shared_browser = bool(data["use_shared_browser"])
-                
+                self.basic.output_dir = resolve_project_path(data.get("output_dir", ""), self.root_dir)
+            for key in ("use_proxy", "ignore_ssl", "download_images", "filter_site_chrome", "use_shared_browser"):
+                if key in data:
+                    setattr(self.webpage, key, bool(data.get(key)))
             return True
             
         except Exception as e:
@@ -77,21 +72,13 @@ class ConfigManager:
             return False
     
     def save_session(self, session_name: str = "last_state") -> bool:
-        """Save current session configuration."""
+        """Save current session configuration (now writes full new-format)."""
         try:
             os.makedirs(self.sessions_dir, exist_ok=True)
             session_path = os.path.join(self.sessions_dir, f"{session_name}.json")
-            
-            data = {
-                "urls": self.basic.urls,
-                "output_dir": to_project_relative_path(self.basic.output_dir, self.root_dir),
-                "use_proxy": self.webpage.use_proxy,
-                "ignore_ssl": self.webpage.ignore_ssl,
-                "download_images": self.webpage.download_images,
-                "filter_site_chrome": self.webpage.filter_site_chrome,
-                "use_shared_browser": self.webpage.use_shared_browser,
-            }
-            
+            data = self.get_all_config()
+            # Normalize output_dir to project-relative for persistence
+            data["basic"]["output_dir"] = to_project_relative_path(self.basic.output_dir, self.root_dir)
             save_config(session_path, data)
             self._changed.clear()
             return True
@@ -101,43 +88,12 @@ class ConfigManager:
             return False
     
     def load_settings(self) -> bool:
-        """Load application settings."""
-        try:
-            settings_path = os.path.join(self.sessions_dir, "settings.json")
-            if not os.path.exists(settings_path):
-                return False
-                
-            data = load_config(settings_path)
-            if not data:
-                return False
-                
-            # Load advanced settings
-            if "language" in data:
-                self.advanced.language = data["language"]
-            # debug_mode removed
-                
-            return True
-            
-        except Exception as e:
-            print(f"Failed to load settings: {e}")
-            return False
+        """Backward-compatible: load settings from unified session file."""
+        return self.load_session()
     
     def save_settings(self) -> bool:
-        """Save application settings."""
-        try:
-            os.makedirs(self.sessions_dir, exist_ok=True)
-            settings_path = os.path.join(self.sessions_dir, "settings.json")
-            
-            data = {
-                "language": self.advanced.language,
-            }
-            
-            save_config(settings_path, data)
-            return True
-            
-        except Exception as e:
-            print(f"Failed to save settings: {e}")
-            return False
+        """Backward-compatible: persist settings into unified session file."""
+        return self.save_session()
     
     def mark_changed(self, config_type: str):
         """Mark configuration as changed."""
@@ -151,12 +107,22 @@ class ConfigManager:
         return len(self._changed) > 0
     
     def get_all_config(self) -> Dict[str, Any]:
-        """Get all configuration as dictionary."""
+        """Get all configuration as dictionary (clean schema)."""
         return {
-            "basic": asdict(self.basic),
-            "webpage": asdict(self.webpage),
-            "advanced": asdict(self.advanced),
-            "about": asdict(self.about),
+            "basic": {
+                "urls": list(self.basic.urls or []),
+                "output_dir": self.basic.output_dir,
+            },
+            "webpage": {
+                "use_proxy": bool(self.webpage.use_proxy),
+                "ignore_ssl": bool(self.webpage.ignore_ssl),
+                "download_images": bool(self.webpage.download_images),
+                "filter_site_chrome": bool(self.webpage.filter_site_chrome),
+                "use_shared_browser": bool(self.webpage.use_shared_browser),
+            },
+            "advanced": {
+                "language": self.advanced.language,
+            },
         }
     
     def set_all_config(self, config: Dict[str, Any]):

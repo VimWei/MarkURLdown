@@ -24,16 +24,16 @@ def main() -> None:
     app, splash = show_immediate_splash()
     try:
         _emit_startup_progress(app, splash, "Loading settings…")
-        # Import lightweight config helper first
-        from markdownall.io.config import load_json_from_root  # noqa: WPS433
 
         root_dir = os.getcwd()
         sessions_dir = os.path.join(root_dir, "data", "sessions")
         os.makedirs(sessions_dir, exist_ok=True)
-        settings = load_json_from_root(sessions_dir, "settings.json") or {}
 
-        # Minimal i18n for splash messages based on saved language
-        lang = str(settings.get("language", "en"))
+        # Read language via ConfigService from unified session file
+        from markdownall.services.config_service import ConfigService  # noqa: WPS433
+        cfg = ConfigService(root_dir)
+        cfg.load_session("last_state")  # best-effort; ok if missing
+        lang = str(cfg.get_advanced_config().get("language", "en"))
         is_zh = lang.startswith("zh")
         msg_loading = "正在加载配置…" if is_zh else "Loading settings…"
         msg_init = "正在初始化界面…" if is_zh else "Initializing UI…"
@@ -43,7 +43,7 @@ def main() -> None:
         # Import the new refactored GUI
         from markdownall.ui.pyside.main_window import MainWindow  # noqa: WPS433
 
-        window = MainWindow(root_dir=root_dir, settings=settings)
+        window = MainWindow(root_dir=root_dir, settings={"language": lang})
         _emit_startup_progress(app, splash, msg_start)
         window.show()
         splash.finish(window)
