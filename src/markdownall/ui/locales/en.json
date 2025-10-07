@@ -8,7 +8,7 @@
   "clear_button": "Clear All",
   "copy_button": "Copy Selected",
   "output_dir_label": "Output Directory",
-  "choose_dir_button": "Choose…",
+  "choose_dir_button": "Browse…",
   "use_proxy_checkbox": "Use System Proxy",
   "ignore_ssl_checkbox": "Ignore SSL Verification",
   "download_images_checkbox": "Download Images",

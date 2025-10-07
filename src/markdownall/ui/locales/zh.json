@@ -8,7 +8,7 @@
   "clear_button": "清空全部",
   "copy_button": "复制选中",
   "output_dir_label": "输出目录",
-  "choose_dir_button": "选择…",
+  "choose_dir_button": "浏览…",
   "use_proxy_checkbox": "使用系统代理",
   "ignore_ssl_checkbox": "忽略 SSL 验证",
   "download_images_checkbox": "下载图片",
