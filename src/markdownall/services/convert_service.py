@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import threading
+import time
 from typing import Callable
 
 from markdownall.app_types import (
@@ -14,6 +15,7 @@ from markdownall.core.registry import convert as registry_convert
 from markdownall.io.logger import log_urls
 from markdownall.io.session import build_requests_session
 from markdownall.io.writer import write_markdown
+from markdownall.utils.time_utils import human_readable_duration
 
 EventCallback = Callable[[ProgressEvent], None]
 
@@ -186,6 +188,7 @@ class ConvertService:
         self._thread: threading.Thread | None = None
         self._should_stop = False
         self._signals = None  # 用于存储UI信号对象
+        self._start_time: float | None = None  # 用于记录转换开始时间
 
     def run(
         self,
@@ -200,6 +203,7 @@ class ConvertService:
             return
         self._should_stop = False
         self._signals = signals  # 存储信号对象
+        self._start_time = time.time()  # 记录转换开始时间
         # Log all URLs for this run into today's log file
         try:
             urls = [
@@ -434,7 +438,6 @@ class ConvertService:
 
                         # 使用同步等待，确保资源完全释放
                         try:
-                            import time
                             time.sleep(0.1)  # 等待100ms
                         except Exception:
                             pass
@@ -549,6 +552,20 @@ class ConvertService:
                 on_event,
             )
         finally:
+            # 计算并记录总耗时
+            if self._start_time is not None:
+                total_duration = time.time() - self._start_time
+                duration_str = human_readable_duration(total_duration)
+                # 直接发送时间统计事件
+                self._emit_event_safe(
+                    ProgressEvent(
+                        kind="detail",
+                        key="conversion_timing",
+                        text=f"⏱️ The entire process took a total of {duration_str}.",
+                    ),
+                    on_event,
+                )
+            
             # 关闭共享 Browser（静默处理）
             try:
                 if shared_browser is not None:
