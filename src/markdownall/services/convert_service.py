@@ -129,7 +129,7 @@ class LoggerAdapter:
             msg = f"[抓取] {strategy_name}重试 {retry}/{max_retries-1}..."
         else:
             msg = f"[抓取] {strategy_name}..."
-        self._emit_progress(kind="status", text=msg)
+        self._emit_progress(kind="status", key="phase_fetch_start", text=msg)
 
     def fetch_success(self, content_length: int = 0) -> None:
         msg = "[抓取] 成功获取内容"
@@ -146,7 +146,7 @@ class LoggerAdapter:
         self._emit_progress(kind="status", text=msg)
 
     def parse_start(self) -> None:
-        self._emit_progress(kind="status", text="[解析] 提取标题和正文...")
+        self._emit_progress(kind="status", key="phase_parse_start", text="[解析] 提取标题和正文...")
 
     def parse_title(self, title: str) -> None:
         self._emit_progress(kind="status", text=f"[解析] 标题: {title}")
@@ -158,13 +158,13 @@ class LoggerAdapter:
         self._emit_progress(kind="status", text=f"[解析] 解析成功，内容长度: {content_length} 字符")
 
     def clean_start(self) -> None:
-        self._emit_progress(kind="status", text="[清理] 移除广告和无关内容...")
+        self._emit_progress(kind="status", key="phase_clean_start", text="[清理] 移除广告和无关内容...")
 
     def clean_success(self) -> None:
         self._emit_progress(kind="status", text="[清理] 内容清理完成")
 
     def convert_start(self) -> None:
-        self._emit_progress(kind="status", text="[转换] 转换为Markdown...")
+        self._emit_progress(kind="status", key="phase_convert_start", text="[转换] 转换为Markdown...")
 
     def convert_success(self) -> None:
         # 移除冗余的转换完成日志，转换开始已经足够
@@ -458,6 +458,8 @@ class ConvertService:
                 )
                 try:
                     result = registry_convert(payload, session, options)
+                    # Emit a write phase start before writing the file to reflect IO stage
+                    logger._emit_progress(kind="status", key="phase_write_start", text="[写入] 保存到文件...")
                     out_path = write_markdown(out_dir, result.suggested_filename, result.markdown)
                     completed += 1
                     # 发出带任务上下文的完成事件，便于UI进行多组归档

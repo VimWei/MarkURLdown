@@ -126,6 +126,21 @@ class MainWindow(QMainWindow):
         self._suppress_change_logs = False
         self._images_dl_logged = False
         self._images_dl_logged_tasks: set[str] = set()
+        # Progress interpolation state
+        self._progress_total_urls: int = 0
+        self._progress_completed_urls: int = 0
+        self._current_task_idx: int = 0
+        # Define intra-task phases (equal weight). Images handled specially.
+        self._phase_order: list[str] = [
+            "phase_fetch_start",
+            "phase_parse_start",
+            "phase_clean_start",
+            "phase_convert_start",
+            "phase_images",  # virtual phase key for images progress
+            "phase_write_start",
+        ]
+        self._current_phase_key: str | None = None
+        self._current_images_progress: tuple[int, int] | None = None  # (idx, total)
         
         # Initialize enhanced managers
         self.config_service = ConfigService(root_dir)
@@ -518,10 +533,19 @@ class MainWindow(QMainWindow):
             
             # Handle all event types with direct log calls (learning from MdxScraper)
             if ev.kind == "progress_init":
-                self.command_panel.set_progress(0, "Starting conversion...")
+                self.command_panel.set_progress(0, "Starting conversion (0%)")
                 # Reset per-run image download log trackers
                 self._images_dl_logged = False
                 self._images_dl_logged_tasks.clear()
+                # Reset progress interpolation state
+                try:
+                    self._progress_total_urls = int(ev.data.get("total", 0)) if isinstance(ev.data, dict) else 0
+                except Exception:
+                    self._progress_total_urls = 0
+                self._progress_completed_urls = 0
+                self._current_task_idx = 0
+                self._current_phase_key = None
+                self._current_images_progress = None
                 if message:
                     self.log_info(f"Starting conversion: {message}")
                     
@@ -531,6 +555,11 @@ class MainWindow(QMainWindow):
                     url = ev.data["url"]
                     idx = ev.data.get("idx", 0)
                     total = ev.data.get("total", 0)
+                    # Track current task index for interpolation
+                    try:
+                        self._current_task_idx = int(idx) if isinstance(idx, int) else 0
+                    except Exception:
+                        self._current_task_idx = 0
                     if total and total > 1:
                         task_id = f"Task {idx}/{total}"
                         self.log_panel.appendTaskLog(task_id, f"Processing: {url}", "🔄")
@@ -539,8 +568,26 @@ class MainWindow(QMainWindow):
                 elif message:
                     # Fallback to plain message
                     self.log_info(message)
+                # Handle phase-bound status keys for interpolation and friendly text
+                if ev.key in ("phase_fetch_start", "phase_parse_start", "phase_clean_start", "phase_convert_start", "phase_write_start"):
+                    self._current_phase_key = ev.key
+                    self._current_images_progress = None
+                    self._update_interpolated_progress()
+                    # Update friendly status text with current completed/total and percent
+                    total = max(self._progress_total_urls, 1)
+                    completed = max(0, self._progress_completed_urls)
+                    percent = self.command_panel.progress.value()
+                    phase_map = {
+                        "phase_fetch_start": "Fetching",
+                        "phase_parse_start": "Parsing",
+                        "phase_clean_start": "Cleaning",
+                        "phase_convert_start": "Converting",
+                        "phase_write_start": "Writing",
+                    }
+                    phase_text = phase_map.get(ev.key, "Processing")
+                    self.command_panel.setProgressText(f"{phase_text} • Completed {completed}/{total} • {percent}%")
                         
-            elif ev.kind == "detail":
+            elif ev.kind == "detail" or ev.kind == "status":
                 # Detail messages - handle specific keys with task grouping
                 if ev.key == "convert_detail_done" and ev.data:
                     title = (ev.data.get("title") if isinstance(ev.data, dict) else "") or "无标题"
@@ -560,6 +607,20 @@ class MainWindow(QMainWindow):
                     # Condense progress logs: only log once per task (or once per run)
                     _task_total_val = ev.data.get("task_total") if isinstance(ev.data, dict) else None
                     task_total = int(_task_total_val) if isinstance(_task_total_val, int) else 1
+                    # Track images progress for interpolation if available
+                    if task_total > 1:
+                        _task_idx_val = ev.data.get("task_idx") if isinstance(ev.data, dict) else None
+                        task_idx = int(_task_idx_val) if isinstance(_task_idx_val, int) else 0
+                        self._current_phase_key = "phase_images"
+                        self._current_images_progress = (max(0, task_idx), max(1, task_total))
+                        self._update_interpolated_progress()
+                        # Friendly progress text during images
+                        total_urls = max(self._progress_total_urls, 1)
+                        completed_urls = max(0, self._progress_completed_urls)
+                        percent = self.command_panel.progress.value()
+                        self.command_panel.setProgressText(
+                            f"Downloading images {task_idx}/{task_total} • Completed {completed_urls}/{total_urls} • {percent}%"
+                        )
                     if task_total > 1:
                         _task_idx_val = ev.data.get("task_idx") if isinstance(ev.data, dict) else None
                         task_idx = int(_task_idx_val) if isinstance(_task_idx_val, int) else 0
@@ -577,6 +638,10 @@ class MainWindow(QMainWindow):
                     # Use task-specific logging if part of multi-task
                     _task_total_val = ev.data.get("task_total") if isinstance(ev.data, dict) else None
                     task_total = int(_task_total_val) if isinstance(_task_total_val, int) else 1
+                    # Mark images phase as complete for interpolation
+                    self._current_phase_key = "phase_write_start"  # advance to next phase after images
+                    self._current_images_progress = None
+                    self._update_interpolated_progress()
                     if task_total > 1:
                         _task_idx_val = ev.data.get("task_idx") if isinstance(ev.data, dict) else None
                         task_idx = int(_task_idx_val) if isinstance(_task_idx_val, int) else 0
@@ -605,14 +670,20 @@ class MainWindow(QMainWindow):
                     _total_val = ev.data.get("total")
                     completed = int(_completed_val) if isinstance(_completed_val, int) else 0
                     total = int(_total_val) if isinstance(_total_val, int) else 0
+                    self._progress_completed_urls = max(0, completed)
+                    self._progress_total_urls = max(self._progress_total_urls, total)
+                    # On discrete step, show the exact overall progress without interpolation
                     progress_value = int((completed / total) * 100) if total and total > 0 else 0
-                    self.command_panel.set_progress(progress_value, f"{completed}/{total} URLs")
+                    self.command_panel.set_progress(progress_value, f"Completed {completed}/{total} • {progress_value}%")
+                    # Reset intra-task phase state for the next task
+                    self._current_phase_key = None
+                    self._current_images_progress = None
                 else:
                     current = self.command_panel.progress.value()
                     self.command_panel.set_progress(current + 1)
                     
             elif ev.kind == "progress_done":
-                self.command_panel.set_progress(100, "Conversion completed")
+                self.command_panel.set_progress(100, "Conversion completed (100%)")
                 # Use multi-task summary if available
                 if ev.data and "completed" in ev.data and "total" in ev.data:
                     completed = ev.data["completed"]
@@ -641,6 +712,59 @@ class MainWindow(QMainWindow):
             
         except Exception as e:
             self.log_error(f"Event handler error: {e}")
+
+    def _update_interpolated_progress(self) -> None:
+        """Compute and update interpolated overall progress using intra-task phase state."""
+        try:
+            total = self._progress_total_urls or 0
+            if total <= 0:
+                return
+            completed = max(0, self._progress_completed_urls)
+            # Compute base fraction from completed tasks
+            base_fraction = completed / total
+            # Compute intra-task fraction contribution
+            phase_fraction = 0.0
+            if self._current_phase_key:
+                phases = self._phase_order
+                num_phases = len(phases)
+                # Resolve phase index and within-phase progress
+                if self._current_phase_key == "phase_images" and self._current_images_progress:
+                    phase_index = phases.index("phase_images") if "phase_images" in phases else num_phases - 2
+                    img_idx, img_total = self._current_images_progress
+                    within = (img_idx / img_total) if img_total > 0 else 0.0
+                else:
+                    # For start events, count as reaching the beginning of that phase
+                    phase_index = phases.index(self._current_phase_key) if self._current_phase_key in phases else 0
+                    within = 0.0
+                # Each phase contributes equally within the next 1/total slice
+                phase_fraction = ((phase_index + within) / num_phases) / max(1, total)
+            # Combine and clamp
+            overall_fraction = min(1.0, base_fraction + phase_fraction)
+            value = int(overall_fraction * 100)
+            label_total = max(total, 1)
+            # Friendly interpolated text while in-flight
+            if self._current_phase_key == "phase_images" and self._current_images_progress:
+                img_idx, img_total = self._current_images_progress
+                self.command_panel.set_progress(
+                    value,
+                    f"Downloading images {img_idx}/{img_total} • Completed {completed}/{label_total} • {value}%",
+                )
+            else:
+                phase_map = {
+                    "phase_fetch_start": "Fetching",
+                    "phase_parse_start": "Parsing",
+                    "phase_clean_start": "Cleaning",
+                    "phase_convert_start": "Converting",
+                    "phase_write_start": "Writing",
+                }
+                phase_text = phase_map.get(self._current_phase_key or "", "Processing")
+                self.command_panel.set_progress(
+                    value,
+                    f"{phase_text} • Completed {completed}/{label_total} • {value}%",
+                )
+        except Exception:
+            # Non-fatal
+            pass
 
     # Signal handler methods
     def _on_url_list_changed(self, urls: list):
