@@ -16,6 +16,7 @@ from markdownall.io.logger import log_urls
 from markdownall.io.session import build_requests_session
 from markdownall.io.writer import write_markdown
 from markdownall.utils.time_utils import human_readable_duration
+from markdownall.core.exceptions import StopRequested
 
 EventCallback = Callable[[ProgressEvent], None]
 
@@ -534,6 +535,12 @@ class ConvertService:
                                 shared_browser = None
                                 playwright_runtime = None
 
+                except StopRequested:
+                    # User requested stop mid-task: emit stopped and return immediately
+                    self._emit_event_safe(
+                        ProgressEvent(kind="stopped", key="convert_stopped"), on_event
+                    )
+                    return
                 except Exception as e:
                     logger.url_failed(req.value, str(e))
                     # Continue processing remaining URLs instead of stopping

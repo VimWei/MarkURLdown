@@ -70,7 +70,11 @@ def _weixin_handler(
     # 透传共享 Browser（若开启加速模式）
     shared_browser = payload.meta.get("shared_browser")
     fetched = fetch_weixin_article(
-        session, url, logger=logger, shared_browser=shared_browser
+        session,
+        url,
+        logger=logger,
+        shared_browser=shared_browser,
+        should_stop=payload.meta.get("should_stop"),
     )
 
     # If blocked or empty, fallback to generic converter
@@ -125,7 +129,11 @@ def _zhihu_handler(
         logger = payload.meta.get("logger")
         shared_browser = payload.meta.get("shared_browser")
         fetched = fetch_zhihu_article(
-            session, url, logger=logger, shared_browser=shared_browser
+            session,
+            url,
+            logger=logger,
+            shared_browser=shared_browser,
+            should_stop=payload.meta.get("should_stop"),
         )
 
         # 更智能的阻塞检测：只有在内容很短且包含验证关键词时才认为是阻塞
@@ -196,7 +204,13 @@ def _wordpress_handler(
         # 透传共享 Browser（若开启加速模式）
         shared_browser = payload.meta.get("shared_browser")
         logger = payload.meta.get("logger")
-        fetched = fetch_wordpress_article(session, url, logger, shared_browser)
+        fetched = fetch_wordpress_article(
+            session,
+            url,
+            logger=logger,
+            shared_browser=shared_browser,
+            should_stop=payload.meta.get("should_stop"),
+        )
 
         # 检查内容质量
         content = fetched.html_markdown or ""
@@ -247,7 +261,13 @@ def _nextjs_handler(
         # 透传共享 Browser（若开启加速模式）
         shared_browser = payload.meta.get("shared_browser")
         logger = payload.meta.get("logger")
-        fetched = fetch_nextjs_article(session, url, logger, shared_browser)
+        fetched = fetch_nextjs_article(
+            session,
+            url,
+            logger=logger,
+            shared_browser=shared_browser,
+            should_stop=payload.meta.get("should_stop"),
+        )
 
         content = fetched.html_markdown or ""
         if not content.strip():
@@ -304,7 +324,11 @@ def _sspai_handler(
         # 透传共享 Browser（若开启加速模式）
         shared_browser = payload.meta.get("shared_browser")
         fetched = fetch_sspai_article(
-            session, url, logger=logger, shared_browser=shared_browser
+            session,
+            url,
+            logger=logger,
+            shared_browser=shared_browser,
+            should_stop=payload.meta.get("should_stop"),
         )
 
         # 检查内容质量
@@ -358,7 +382,11 @@ def _appinn_handler(
         # 透传共享 Browser（若开启加速模式）
         shared_browser = payload.meta.get("shared_browser")
         fetched = fetch_appinn_article(
-            session, url, logger=logger, shared_browser=shared_browser
+            session,
+            url,
+            logger=logger,
+            shared_browser=shared_browser,
+            should_stop=payload.meta.get("should_stop"),
         )
 
         # 检查内容质量

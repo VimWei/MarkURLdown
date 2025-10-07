@@ -6,7 +6,7 @@ WordPress网站处理器 - 专门处理WordPress站点，如skywind.me
 import random
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 
 from markdownall.app_types import ConvertLogger
 
@@ -18,6 +18,7 @@ from markdownall.services.playwright_driver import (
     read_page_content_and_title,
     teardown_context_page,
 )
+from markdownall.core.exceptions import StopRequested
 
 # 1. 数据类
 
@@ -187,7 +188,7 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
         return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
 
 
-def _try_playwright_crawler(url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None) -> FetchResult:
+def _try_playwright_crawler(url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None, should_stop: Optional[Callable[[], bool]] = None) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
 
@@ -196,14 +197,24 @@ def _try_playwright_crawler(url: str, logger: Optional[ConvertLogger] = None, sh
             context, page = new_context_and_page(shared_browser, apply_stealth=False)
 
             # 导航到页面
+            if should_stop and should_stop():
+                raise StopRequested()
             page.goto(url, wait_until="networkidle", timeout=30000)
 
-            # 等待页面稳定
+            # 等待页面稳定（可被停止打断）
             import time
-
-            time.sleep(2)
+            total_sleep = 2.0
+            slept = 0.0
+            while slept < total_sleep:
+                if should_stop and should_stop():
+                    raise StopRequested()
+                step = min(0.2, total_sleep - slept)
+                time.sleep(step)
+                slept += step
 
             # 获取页面内容和标题
+            if should_stop and should_stop():
+                raise StopRequested()
             html, title = read_page_content_and_title(page, logger)
 
             # 清理资源
@@ -236,14 +247,24 @@ def _try_playwright_crawler(url: str, logger: Optional[ConvertLogger] = None, sh
             context, page = new_context_and_page(browser, apply_stealth=False)
 
             # 导航到页面
+            if should_stop and should_stop():
+                raise StopRequested()
             page.goto(url, wait_until="networkidle", timeout=30000)
 
-            # 等待页面稳定
+            # 等待页面稳定（可被停止打断）
             import time
-
-            time.sleep(2)
+            total_sleep = 2.0
+            slept = 0.0
+            while slept < total_sleep:
+                if should_stop and should_stop():
+                    raise StopRequested()
+                step = min(0.2, total_sleep - slept)
+                time.sleep(step)
+                slept += step
 
             # 获取页面内容和标题
+            if should_stop and should_stop():
+                raise StopRequested()
             html, title = read_page_content_and_title(page, logger)
 
             # 返回原始HTML，让上层处理
@@ -460,7 +481,7 @@ def _process_wordpress_content(
 # 4. 主入口函数
 
 
-def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None) -> FetchResult:
+def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None, should_stop: Optional[Callable[[], bool]] = None) -> FetchResult:
     """
     获取WordPress文章内容
 
@@ -474,7 +495,7 @@ def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] =
         # 策略1: 使用httpx爬取原始HTML
         lambda: _try_httpx_crawler(session, url),
         # 策略2: 使用Playwright爬取原始HTML (支持共享浏览器)
-        lambda: _try_playwright_crawler(url, logger, shared_browser),
+        lambda: _try_playwright_crawler(url, logger, shared_browser, should_stop),
     ]
 
     # 尝试各种策略，增加重试机制
@@ -486,11 +507,21 @@ def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] =
                 if retry > 0:
                     if logger:
                         logger.fetch_retry(f"WordPress策略 {i}", retry, max_retries)
-                    time.sleep(random.uniform(2, 4))  # 重试时等待
+                    import time, random
+                    total_sleep = random.uniform(2, 4)
+                    slept = 0.0
+                    while slept < total_sleep:
+                        if should_stop and should_stop():
+                            raise StopRequested()
+                        step = min(0.2, total_sleep - slept)
+                        time.sleep(step)
+                        slept += step
                 else:
                     if logger:
                         logger.fetch_start(f"WordPress策略 {i}")
 
+                if should_stop and should_stop():
+                    raise StopRequested()
                 result = strategy()
                 if result.success:
                     if logger:
@@ -500,6 +531,8 @@ def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] =
                     if result.html_markdown:
                         if logger:
                             logger.parse_start()
+                        if should_stop and should_stop():
+                            raise StopRequested()
                         processed_result = _process_wordpress_content(
                             result.html_markdown, url, title_hint=result.title
                         )
@@ -528,6 +561,8 @@ def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] =
                             logger.fetch_failed(f"WordPress策略 {i}", result.error or "未知错误")
                         break
 
+            except StopRequested:
+                raise
             except Exception as e:
                 if retry < max_retries - 1:
                     continue
@@ -538,7 +573,15 @@ def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] =
 
         # 策略间等待
         if i < len(crawler_strategies):
-            time.sleep(random.uniform(1, 2))
+            import time, random
+            total_sleep = random.uniform(1, 2)
+            slept = 0.0
+            while slept < total_sleep:
+                if should_stop and should_stop():
+                    raise StopRequested()
+                step = min(0.2, total_sleep - slept)
+                time.sleep(step)
+                slept += step
 
     # 所有策略都失败，返回空结果
     return FetchResult(title=None, html_markdown="", success=False, error="所有策略都失败")

@@ -13,6 +13,7 @@ from markdownall.services.playwright_driver import (
     new_context_and_page,
     read_page_content_and_title,
 )
+from markdownall.core.exceptions import StopRequested
 
 
 @dataclass
@@ -32,7 +33,10 @@ class FetchResult:
 
 
 def _goto_target_and_prepare_content(
-    page, url: str, logger: Optional[ConvertLogger] = None
+    page,
+    url: str,
+    logger: Optional[ConvertLogger] = None,
+    should_stop: Optional[Callable[[], bool]] = None,
 ) -> None:
     """访问目标URL并准备内容 - 微信版本"""
     if logger:
@@ -43,11 +47,22 @@ def _goto_target_and_prepare_content(
     except Exception:
         pass  # 微信机制：即使URL错误也会返回错误页面，真正的异常检测在内容层面
 
-    page.wait_for_timeout(random.uniform(3000, 6000))
+    # sleep with stop checks (break into slices)
+    total_wait = random.uniform(3000, 6000) / 1000.0
+    slept = 0.0
+    while slept < total_wait:
+        if should_stop and should_stop():
+            raise StopRequested()
+        step = min(0.2, total_wait - slept)
+        page.wait_for_timeout(int(step * 1000))
+        slept += step
 
 
 def _try_playwright_crawler(
-    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None
+    url: str,
+    logger: Optional[ConvertLogger] = None,
+    shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
 ) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理微信的poc_token验证"""
     try:
@@ -77,9 +92,13 @@ def _try_playwright_crawler(
             context, page = new_context_and_page(browser, apply_stealth=False)
 
             # 访问目标URL并准备内容
-            _goto_target_and_prepare_content(page, url, logger)
+            if should_stop and should_stop():
+                raise StopRequested()
+            _goto_target_and_prepare_content(page, url, logger, should_stop)
 
             # 使用 playwright_driver 的 read_page_content_and_title
+            if should_stop and should_stop():
+                raise StopRequested()
             html, title = read_page_content_and_title(page, logger)
 
             return CrawlerResult(success=True, title=title, text_content=html)
@@ -405,6 +424,7 @@ def fetch_weixin_article(
     url: str,
     logger: Optional[ConvertLogger] = None,
     shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
 ) -> FetchResult:
     """
     获取微信公众号文章内容 - 仅使用 Playwright
@@ -416,19 +436,33 @@ def fetch_weixin_article(
 
     for retry in range(max_retries):
         try:
+            if should_stop and should_stop():
+                raise StopRequested()
             if retry > 0:
                 if logger:
                     logger.fetch_retry("微信策略", retry, max_retries)
-                time.sleep(random.uniform(3, 6))
+                # stop-aware sleep
+                total_sleep = random.uniform(3, 6)
+                slept = 0.0
+                while slept < total_sleep:
+                    if should_stop and should_stop():
+                        raise StopRequested()
+                    step = min(0.2, total_sleep - slept)
+                    time.sleep(step)
+                    slept += step
             else:
                 if logger:
                     logger.fetch_start("微信策略")
 
-            result = _try_playwright_crawler(url, logger, shared_browser)
+            if should_stop and should_stop():
+                raise StopRequested()
+            result = _try_playwright_crawler(url, logger, shared_browser, should_stop)
             if result.success:
                 if logger:
                     logger.fetch_success()
                     logger.parse_start()
+                if should_stop and should_stop():
+                    raise StopRequested()
                 processed_result = _process_weixin_content(result.text_content, result.title, url)
                 if logger:
                     logger.clean_start()
@@ -462,6 +496,9 @@ def fetch_weixin_article(
                 if retry < max_retries - 1:
                     continue
                 break
+        except StopRequested:
+            # Short-circuit to service layer; it will emit a 'stopped' event
+            raise
         except Exception as e:
             if retry < max_retries - 1:
                 continue

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 from markdownall.app_types import ConvertLogger
 
 from bs4 import BeautifulSoup, NavigableString
@@ -342,7 +342,7 @@ def _clean_and_normalize_appinn_content(content_elem) -> None:
 
 def _process_appinn_content(
     html: str, url: Optional[str] = None, title_hint: Optional[str] = None
-) -> FetchResult:
+    ) -> FetchResult:
     """处理 appinn.com 内容，提取标题、元数据和过滤后的正文"""
     try:
         soup = BeautifulSoup(html, "lxml")
@@ -410,7 +410,7 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
 
 
 def _try_playwright_crawler(
-    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None
+    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None, should_stop: Optional[Callable[[], bool]] = None
 ) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
@@ -420,11 +420,26 @@ def _try_playwright_crawler(
         if shared_browser is not None and new_context_and_page is not None:
             context, page = new_context_and_page(shared_browser, apply_stealth=False)
             try:
+                if should_stop and should_stop():
+                    raise StopRequested()
                 page.goto(url, wait_until="networkidle", timeout=30000)
-                page.wait_for_timeout(2000)
+                # 等待稳定（可停止）
+                import time
+                total_sleep = 2.0
+                slept = 0.0
+                while slept < total_sleep:
+                    if should_stop and should_stop():
+                        raise StopRequested()
+                    step = min(0.2, total_sleep - slept)
+                    time.sleep(step)
+                    slept += step
                 if read_page_content_and_title is not None:
+                    if should_stop and should_stop():
+                        raise StopRequested()
                     html, title = read_page_content_and_title(page, logger)
                 else:
+                    if should_stop and should_stop():
+                        raise StopRequested()
                     html, title = page.content(), page.title()
                 return FetchResult(title=title, html_markdown=html)
             finally:
@@ -441,8 +456,21 @@ def _try_playwright_crawler(
             browser = p.chromium.launch(headless=True)
             context = browser.new_context()
             page = context.new_page()
+            if should_stop and should_stop():
+                raise StopRequested()
             page.goto(url, wait_until="networkidle", timeout=30000)
-            page.wait_for_timeout(2000)
+            # 等待稳定（可停止）
+            import time
+            total_sleep = 2.0
+            slept = 0.0
+            while slept < total_sleep:
+                if should_stop and should_stop():
+                    raise StopRequested()
+                step = min(0.2, total_sleep - slept)
+                time.sleep(step)
+                slept += step
+            if should_stop and should_stop():
+                raise StopRequested()
             html, title = page.content(), page.title()
             browser.close()
             return FetchResult(title=title, html_markdown=html)
@@ -463,6 +491,7 @@ def fetch_appinn_article(
     url: str,
     logger: Optional[ConvertLogger] = None,
     shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
     min_content_length: int = 200,
 ) -> FetchResult:
     """获取 appinn.com 文章内容（多策略爬取 + 统一内容处理）。
@@ -474,7 +503,7 @@ def fetch_appinn_article(
     """
     strategies = [
         lambda: _try_httpx_crawler(session, url),
-        lambda: _try_playwright_crawler(url, logger, shared_browser),
+        lambda: _try_playwright_crawler(url, logger, shared_browser, should_stop),
     ]
 
     max_retries = 2
@@ -484,14 +513,22 @@ def fetch_appinn_article(
                 if retry > 0:
                     import random
                     import time
-
                     if logger:
                         logger.fetch_retry(f"Appinn策略 {i}", retry, max_retries)
-                    time.sleep(random.uniform(2, 4))
+                    total_sleep = random.uniform(2, 4)
+                    slept = 0.0
+                    while slept < total_sleep:
+                        if should_stop and should_stop():
+                            raise StopRequested()
+                        step = min(0.2, total_sleep - slept)
+                        time.sleep(step)
+                        slept += step
                 else:
                     if logger:
                         logger.fetch_start(f"Appinn策略 {i}")
 
+                if should_stop and should_stop():
+                    raise StopRequested()
                 r = strat()
                 if r.success:
                     if logger:
@@ -500,6 +537,8 @@ def fetch_appinn_article(
                     if r.html_markdown:
                         if logger:
                             logger.parse_start()
+                        if should_stop and should_stop():
+                            raise StopRequested()
                         processed = _process_appinn_content(
                             r.html_markdown, url, title_hint=r.title
                         )
@@ -525,6 +564,8 @@ def fetch_appinn_article(
                         if logger:
                             logger.fetch_failed(f"Appinn策略 {i}", r.error or "未知错误")
                         break
+            except StopRequested:
+                raise
             except Exception:
                 if retry < max_retries - 1:
                     continue
@@ -537,7 +578,13 @@ def fetch_appinn_article(
         if i < len(strategies):
             import random
             import time
-
-            time.sleep(random.uniform(1, 2))
+            total_sleep = random.uniform(1, 2)
+            slept = 0.0
+            while slept < total_sleep:
+                if should_stop and should_stop():
+                    raise StopRequested()
+                step = min(0.2, total_sleep - slept)
+                time.sleep(step)
+                slept += step
 
     return FetchResult(title=None, html_markdown="", success=False, error="所有策略都失败")

@@ -37,6 +37,7 @@ Qt（PySide6）要求 UI 组件只能在主线程更新。直接从后台线程�
   - 无 `signals` 场景降级为直接回调或简单 `print`。
 - `LoggerAdapter` 不再直接调用 UI；优先将日志包装为 `ProgressEvent` 发信号；若无信号，则仅在主线程直接调用 UI，后台线程降级 `print`。
 - `MainWindow._on_event_thread_safe` 作为信号槽函数，在主线程内把事件映射为细颗粒度日志与进度。
+- 停止事件：当处理器抛出 `StopRequested` 时，服务层会发出 `ProgressEvent(kind="stopped")`，UI 记录“Conversion stopped”，不计为失败。
 
 ### LoggerAdapter 行为摘要
 
@@ -257,7 +258,7 @@ def fetch_with_retry(session, url: str, logger: ConvertLogger | None = None) -> 
                 else:
                     break
         
-        # 策略间等待
+        # 策略间等待（如实现 should_stop，可在等待期间切片检查）
         if i < len(strategies):
             time.sleep(1)
     
@@ -693,6 +694,7 @@ else:
 - [x] 函数签名更新为 `logger: ConvertLogger | None = None`。
 - [x] 使用细粒度日志方法替代通用方法。
 - [x] 正确处理错误和重试场景。
+- [x] 传播 `should_stop` 并在耗时点检查；遇到停止抛出 `StopRequested`。
 
 ## 总结
 

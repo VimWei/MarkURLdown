@@ -19,6 +19,7 @@ from markdownall.services.playwright_driver import (
     try_close_modal_with_selectors,
     wait_for_selector_stable,
 )
+from markdownall.core.exceptions import StopRequested
 
 
 # 1. 数据类
@@ -482,7 +483,7 @@ def _try_click_expand_buttons(page) -> bool:
 
 
 def _goto_target_and_prepare_content(
-    page, url: str, logger: Optional[ConvertLogger] = None
+    page, url: str, logger: Optional[ConvertLogger] = None, should_stop: Optional[Callable[[], bool]] = None
 ) -> None:
     """访问目标URL，处理登录弹窗，等待页面稳定，并尝试展开全文。"""
     # 访问目标
@@ -494,7 +495,15 @@ def _goto_target_and_prepare_content(
         pass
 
     # 初步等待
-    page.wait_for_timeout(random.uniform(2000, 3000))
+    # 初步等待（带停止感知）
+    total_wait = random.uniform(2000, 3000) / 1000.0
+    slept = 0.0
+    while slept < total_wait:
+        if should_stop and should_stop():
+            raise StopRequested()
+        step = min(0.2, total_wait - slept)
+        page.wait_for_timeout(int(step * 1000))
+        slept += step
 
     # 关闭登录弹窗
     try:
@@ -510,7 +519,14 @@ def _goto_target_and_prepare_content(
         pass
 
     # 等待页面稳定
-    page.wait_for_timeout(random.uniform(1000, 2000))
+    total_wait2 = random.uniform(1000, 2000) / 1000.0
+    slept2 = 0.0
+    while slept2 < total_wait2:
+        if should_stop and should_stop():
+            raise StopRequested()
+        step = min(0.2, total_wait2 - slept2)
+        page.wait_for_timeout(int(step * 1000))
+        slept2 += step
 
     # 处理知乎回答页面的展开逻辑
     try:
@@ -535,7 +551,7 @@ def _goto_target_and_prepare_content(
 
 
 def _try_playwright_crawler(
-    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None
+    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None, should_stop: Optional[Callable[[], bool]] = None
 ) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理知乎的验证机制"""
     # 检测页面类型
@@ -549,7 +565,11 @@ def _try_playwright_crawler(
             _apply_zhihu_stealth_and_defaults(page)
 
             # 访问目标URL
-            _goto_target_and_prepare_content(page, url, logger)
+            if should_stop and should_stop():
+                raise StopRequested()
+            _goto_target_and_prepare_content(page, url, logger, should_stop)
+            if should_stop and should_stop():
+                raise StopRequested()
             html, title = read_page_content_and_title(page, logger)
             teardown_context_page(context, page)
             return CrawlerResult(success=True, title=title, text_content=html)
@@ -585,7 +605,11 @@ def _try_playwright_crawler(
             _apply_zhihu_stealth_and_defaults(page)
 
             # 访问目标URL
-            _goto_target_and_prepare_content(page, url, logger)
+            if should_stop and should_stop():
+                raise StopRequested()
+            _goto_target_and_prepare_content(page, url, logger, should_stop)
+            if should_stop and should_stop():
+                raise StopRequested()
             html, title = read_page_content_and_title(page, logger)
 
             return CrawlerResult(success=True, title=title, text_content=html)
@@ -764,6 +788,7 @@ def fetch_zhihu_article(
     url: str,
     logger: Optional[ConvertLogger] = None,
     shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
 ) -> FetchResult:
     """
     使用 Playwright 获取知乎页面内容 - 现代化浏览器自动化（最可靠，能处理知乎验证）
@@ -791,15 +816,26 @@ def fetch_zhihu_article(
 
     for retry in range(max_retries):
         try:
+            if should_stop and should_stop():
+                raise StopRequested()
             if retry > 0:
                 if logger:
                     logger.fetch_retry("知乎策略", retry, max_retries)
-                time.sleep(random.uniform(3, 6))  # 重试时等待更长时间
+                total_sleep = random.uniform(3, 6)
+                slept = 0.0
+                while slept < total_sleep:
+                    if should_stop and should_stop():
+                        raise StopRequested()
+                    step = min(0.2, total_sleep - slept)
+                    time.sleep(step)
+                    slept += step
             else:
                 if logger:
                     logger.fetch_start("知乎策略")
 
-            result = _try_playwright_crawler(url, logger, shared_browser)
+            if should_stop and should_stop():
+                raise StopRequested()
+            result = _try_playwright_crawler(url, logger, shared_browser, should_stop)
             if result.success:
                 if logger:
                     logger.fetch_success()
@@ -856,6 +892,8 @@ def fetch_zhihu_article(
                     continue
                 else:
                     break
+        except StopRequested:
+            raise
         except Exception:
             if retry < max_retries - 1:
                 continue

@@ -224,6 +224,16 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
   - 日志记录：通过 `logger` 参数记录处理进度，如 `logger.fetch_start("httpx")`、`logger.convert_success()`、`logger.url_success(title)`。
 - 参考：各站点 `_process_{site}_content` 与 Registry 的最终整合流程。
 
+### 停止感知（should_stop）与 StopRequested
+
+- 服务层会在 `payload.meta['should_stop']` 传入一个回调函数用于查询是否请求停止。
+- Handler 顶层入口建议增加参数：`should_stop: Optional[Callable[[], bool]] = None`，并向下传递给耗时函数。
+- 在以下关键点检查 `should_stop()`，如为真则立刻 `raise StopRequested()`：
+  - 重试等待与策略间等待：将总睡眠拆分为 ~0.2s 片段，每段检查一次。
+  - Playwright 导航与读取前后（`page.goto` / `read_page_content_and_title`）。
+  - 进入大块解析/清理/转换之前（酌情 1-2 处）。
+- 处理器不应把“用户停止”记录为失败；抛出 `StopRequested` 即可，由 `ConvertService` 捕获并发出 `stopped` 事件，UI 显示“Conversion stopped”。
+
 ### 性能建议（实践）
 
 - 共享浏览器白名单：

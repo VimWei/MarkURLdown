@@ -23,6 +23,7 @@ from markdownall.core.filename import derive_md_filename
 from markdownall.core.images import download_images_and_rewrite
 from markdownall.core.normalize import normalize_markdown_headings
 from markdownall.io.session import build_requests_session
+from markdownall.core.exceptions import StopRequested
 
 
 @dataclass
@@ -250,6 +251,13 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
     """转换普通网站URL为Markdown"""
     assert payload.kind == "url"
     url = payload.value
+    # Define logger and should_stop at function start to avoid scope issues and allow early abort
+    logger = payload.meta.get("logger")
+    should_stop = payload.meta.get("should_stop") or (lambda: False)
+
+    def _check_stop():
+        if should_stop():
+            raise StopRequested()
 
     # 多策略尝试顺序
     crawler_strategies = []
@@ -278,14 +286,24 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
     for i, strategy in enumerate(crawler_strategies, 1):
         for retry in range(max_retries):
             try:
+                _check_stop()
                 if retry > 0:
                     if logger:
                         logger.fetch_retry(f"通用策略 {i}", retry, max_retries)
-                    time.sleep(random.uniform(2, 4))
+                    # Sleep with stop-aware behavior
+                    sleep_total = random.uniform(2, 4)
+                    slept = 0.0
+                    # Break long sleep into short slices to react to stop
+                    while slept < sleep_total:
+                        _check_stop()
+                        step = min(0.2, sleep_total - slept)
+                        time.sleep(step)
+                        slept += step
                 else:
                     if logger:
                         logger.fetch_start(f"通用策略 {i}")
 
+                _check_stop()
                 result = strategy()
                 if result.success:
                     # 内容质量检测 - 简单验证
@@ -300,6 +318,7 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
                         if logger:
                             logger.clean_start()
                             logger.convert_start()
+                        _check_stop()
                         text = normalize_markdown_headings(result.text_content, result.title)
 
                         # 生成统一时间戳，确保markdown文件名和图片文件名一致
@@ -311,8 +330,7 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
                                 payload.meta.get("out_dir") and (payload.meta["out_dir"] + "/img")
                             )
                             if images_dir:
-                                should_stop_cb = payload.meta.get("should_stop")
-                                logger = payload.meta.get("logger")
+                                should_stop_cb = should_stop
                                 text = download_images_and_rewrite(
                                     text,
                                     url,
@@ -354,8 +372,14 @@ def convert_url(payload: ConvertPayload, session, options: ConversionOptions) ->
                         logger.fetch_failed(f"通用策略 {i}", "异常")
                     break
 
-        # 策略间等待
+        # 策略间等待（可被停止打断）
         if i < len(crawler_strategies):
-            time.sleep(random.uniform(1, 3))
+            sleep_total = random.uniform(1, 3)
+            slept = 0.0
+            while slept < sleep_total:
+                _check_stop()
+                step = min(0.2, sleep_total - slept)
+                time.sleep(step)
+                slept += step
 
     raise Exception("所有普通网站获取策略都失败")

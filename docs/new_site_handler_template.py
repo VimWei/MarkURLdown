@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 
 from bs4 import BeautifulSoup, NavigableString
 
@@ -16,12 +16,15 @@ try:
         teardown_context_page,
     )
     from markdownall.app_types import ConvertLogger
+    from markdownall.core.exceptions import StopRequested
 except Exception:
     # 若不依赖 Playwright，可忽略导入失败
     new_context_and_page = None  # type: ignore
     teardown_context_page = None  # type: ignore
     read_page_content_and_title = None  # type: ignore
     ConvertLogger = None  # type: ignore
+    class StopRequested(Exception):
+        pass
 
 
 @dataclass
@@ -387,7 +390,10 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
 
 
 def _try_playwright_crawler(
-    url: str, logger: ConvertLogger | None = None, shared_browser: Any | None = None
+    url: str,
+    logger: ConvertLogger | None = None,
+    shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
 ) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
@@ -397,13 +403,28 @@ def _try_playwright_crawler(
         if shared_browser is not None and new_context_and_page is not None:
             context, page = new_context_and_page(shared_browser, apply_stealth=False)
             try:
+                if should_stop and should_stop():
+                    raise StopRequested()
                 page.goto(url, wait_until="networkidle", timeout=30000)
-                page.wait_for_timeout(2000)
+                # 等待稳定（可停止）
+                import time
+                total_sleep = 2.0
+                slept = 0.0
+                while slept < total_sleep:
+                    if should_stop and should_stop():
+                        raise StopRequested()
+                    step = min(0.2, total_sleep - slept)
+                    time.sleep(step)
+                    slept += step
                 if logger:
                     logger.fetch_start("playwright")
                 if read_page_content_and_title is not None:
+                    if should_stop and should_stop():
+                        raise StopRequested()
                     html, title = read_page_content_and_title(page, logger)
                 else:
+                    if should_stop and should_stop():
+                        raise StopRequested()
                     html, title = page.content(), page.title()
                 if logger:
                     logger.fetch_success(len(html))
@@ -422,10 +443,23 @@ def _try_playwright_crawler(
             browser = p.chromium.launch(headless=True)
             context = browser.new_context()
             page = context.new_page()
+            if should_stop and should_stop():
+                raise StopRequested()
             page.goto(url, wait_until="networkidle", timeout=30000)
-            page.wait_for_timeout(2000)
+            # 等待稳定（可停止）
+            import time
+            total_sleep = 2.0
+            slept = 0.0
+            while slept < total_sleep:
+                if should_stop and should_stop():
+                    raise StopRequested()
+                step = min(0.2, total_sleep - slept)
+                time.sleep(step)
+                slept += step
             if logger:
                 logger.fetch_start("playwright")
+            if should_stop and should_stop():
+                raise StopRequested()
             html, title = page.content(), page.title()
             if logger:
                 logger.fetch_success(len(html))
@@ -456,6 +490,7 @@ def fetch_newsite_article(
     url: str,
     logger: ConvertLogger | None = None,
     shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
     min_content_length: int = 200,
 ) -> FetchResult:
     """获取新站点文章内容（多策略爬取 + 统一内容处理）。
@@ -469,7 +504,7 @@ def fetch_newsite_article(
     """
     strategies = [
         lambda: _try_httpx_crawler(session, url),
-        lambda: _try_playwright_crawler(url, logger, shared_browser),
+        lambda: _try_playwright_crawler(url, logger, shared_browser, should_stop),
     ]
 
     max_retries = 2
@@ -482,15 +517,26 @@ def fetch_newsite_article(
 
                     if logger:
                         logger.fetch_retry(f"策略{i}", retry, max_retries)
-                    time.sleep(random.uniform(2, 4))
+                    total_sleep = random.uniform(2, 4)
+                    slept = 0.0
+                    while slept < total_sleep:
+                        if should_stop and should_stop():
+                            raise StopRequested()
+                        step = min(0.2, total_sleep - slept)
+                        time.sleep(step)
+                        slept += step
                 else:
                     if logger:
                         logger.fetch_start(f"策略{i}")
 
+                if should_stop and should_stop():
+                    raise StopRequested()
                 r = strat()
                 if r.success:
                     # 统一处理：策略层只负责获取HTML，这里统一解析/清理/转换
                     if r.html_markdown:
+                        if should_stop and should_stop():
+                            raise StopRequested()
                         processed = _process_newsite_content(
                             r.html_markdown, url, title_hint=r.title
                         )
@@ -515,6 +561,8 @@ def fetch_newsite_article(
                         if logger:
                             logger.warning(f"策略 {i} 重试次数用尽，尝试下一个策略")
                         break
+            except StopRequested:
+                raise
             except Exception as e:
                 if logger:
                     logger.fetch_failed(f"策略{i}", str(e))
@@ -529,8 +577,14 @@ def fetch_newsite_article(
         if i < len(strategies):
             import random
             import time
-
-            time.sleep(random.uniform(1, 2))
+            total_sleep = random.uniform(1, 2)
+            slept = 0.0
+            while slept < total_sleep:
+                if should_stop and should_stop():
+                    raise StopRequested()
+                step = min(0.2, total_sleep - slept)
+                time.sleep(step)
+                slept += step
 
     if logger:
         logger.url_failed(url, "所有策略都失败")
