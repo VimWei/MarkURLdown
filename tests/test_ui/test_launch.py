@@ -418,22 +418,22 @@ def test_launch_main_success(monkeypatch, tmp_path):
         fake_load_json_from_root,
     )
 
-    # Stub PySideApp class
+    # Stub MainWindow class（入口统一为 MainWindow）
     created_args = {}
 
     class FakeWindow:
         def show(self):
             self.shown = True
 
-    def fake_pyside_app(*, root_dir, settings):
+    def fake_main_window(*, root_dir, settings):
         created_args["root_dir"] = root_dir
         created_args["settings"] = settings
         return FakeWindow()
 
     monkeypatch.setattr(
-        importlib.import_module("markdownall.ui.pyside.gui"),
-        "PySideApp",
-        staticmethod(lambda **kw: fake_pyside_app(**kw)),
+        importlib.import_module("markdownall.ui.pyside.main_window"),
+        "MainWindow",
+        staticmethod(lambda **kw: fake_main_window(**kw)),
     )
 
     # Run
@@ -491,14 +491,14 @@ def test_launch_main_exception(monkeypatch, tmp_path):
     # Ensure progress emitter doesn't touch Qt specifics
     monkeypatch.setattr(launch, "_emit_startup_progress", lambda *a, **k: None)
 
-    # Make PySideApp raise
-    def raising_pyside_app(**_kw):
+    # Make MainWindow raise
+    def raising_main_window(**_kw):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(
-        importlib.import_module("markdownall.ui.pyside.gui"),
-        "PySideApp",
-        staticmethod(lambda **kw: raising_pyside_app(**kw)),
+        importlib.import_module("markdownall.ui.pyside.main_window"),
+        "MainWindow",
+        staticmethod(lambda **kw: raising_main_window(**kw)),
     )
 
     # Stub config loader to return empty

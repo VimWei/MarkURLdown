@@ -18,9 +18,10 @@ from PySide6.QtCore import QTimer
 # Add the src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from markdownall.ui.pyside.config_manager import ConfigManager
-from markdownall.ui.pyside.startup_manager import StartupManager, MemoryOptimizer
+from markdownall.config.config_manager import ConfigManager
+from markdownall.utils.memory_optimizer import MemoryOptimizer
 from markdownall.ui.pyside.error_handler import ErrorHandler
+from markdownall.services.config_service import ConfigService
 
 
 class TestConfigManager(unittest.TestCase):
@@ -132,50 +133,7 @@ class TestConfigManager(unittest.TestCase):
         self.assertIsInstance(result, bool)
 
 
-class TestStartupManager(unittest.TestCase):
-    """Test StartupManager functionality."""
-    
-    def setUp(self):
-        """Set up test fixtures."""
-        self.app = QApplication.instance()
-        if self.app is None:
-            self.app = QApplication([])
-        
-        self.root_dir = os.path.dirname(__file__)
-        self.startup_manager = StartupManager(self.root_dir)
-    
-    def test_initialization(self):
-        """Test StartupManager initialization."""
-        self.assertIsNotNone(self.startup_manager)
-        self.assertEqual(self.startup_manager.root_dir, self.root_dir)
-        self.assertIsNotNone(self.startup_manager.config_manager)
-    
-    def test_startup_phases(self):
-        """Test startup phases."""
-        # Test that phases are defined
-        self.assertIsInstance(self.startup_manager._phases, list)
-        self.assertGreater(len(self.startup_manager._phases), 0)
-        
-        # Test phase names
-        for phase_name, phase_func in self.startup_manager._phases:
-            self.assertIsInstance(phase_name, str)
-            self.assertTrue(callable(phase_func))
-    
-    def test_startup_sequence(self):
-        """Test startup sequence."""
-        # Test that startup can be started
-        self.startup_manager.start_startup()
-        
-        # Test that startup manager has the required methods
-        self.assertTrue(hasattr(self.startup_manager, 'startup_complete'))
-        self.assertTrue(hasattr(self.startup_manager, 'startup_error'))
-        self.assertTrue(hasattr(self.startup_manager, 'startup_progress'))
-    
-    def test_config_manager_access(self):
-        """Test access to config manager."""
-        config_manager = self.startup_manager.get_config_manager()
-        self.assertIsNotNone(config_manager)
-        self.assertIsInstance(config_manager, ConfigManager)
+## StartupManager 已移除，相关测试下线
 
 
 class TestErrorHandler(unittest.TestCase):
@@ -189,12 +147,13 @@ class TestErrorHandler(unittest.TestCase):
         
         self.root_dir = os.path.dirname(__file__)
         self.config_manager = ConfigManager(self.root_dir)
-        self.error_handler = ErrorHandler(self.config_manager)
+        self.config_service = ConfigService(self.root_dir)
+        self.error_handler = ErrorHandler(self.config_service)
     
     def test_initialization(self):
         """Test ErrorHandler initialization."""
         self.assertIsNotNone(self.error_handler)
-        self.assertEqual(self.error_handler.config_manager, self.config_manager)
+        self.assertTrue(hasattr(self.error_handler, 'config_service'))
     
     def test_error_handling(self):
         """Test error handling functionality."""

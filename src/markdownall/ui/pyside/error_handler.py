@@ -182,10 +182,10 @@ class ErrorHandler(QObject):
         try:
             # Try to create missing directories
             if "session" in context.lower():
-                os.makedirs(self.config_manager.sessions_dir, exist_ok=True)
+                os.makedirs(self.config_service.config_manager.sessions_dir, exist_ok=True)
                 return True
             elif "log" in context.lower():
-                log_dir = os.path.join(self.config_manager.root_dir, "data", "log")
+                log_dir = os.path.join(self.config_service.config_manager.root_dir, "data", "log")
                 os.makedirs(log_dir, exist_ok=True)
                 return True
             return False
@@ -197,7 +197,7 @@ class ErrorHandler(QObject):
         try:
             # Try to change file permissions
             if "session" in context.lower():
-                session_dir = self.config_manager.sessions_dir
+                session_dir = self.config_service.config_manager.sessions_dir
                 if os.path.exists(session_dir):
                     os.chmod(session_dir, 0o755)
                     return True

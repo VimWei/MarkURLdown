@@ -10,7 +10,7 @@ from unittest import mock
 import pytest
 from PySide6.QtWidgets import QApplication
 
-from markdownall.ui.pyside.gui import PySideApp
+# 不再使用 PySideApp，统一入口为 MainWindow（仅用于版本函数校验，此处无需导入）
 from markdownall.version import get_app_title
 
 

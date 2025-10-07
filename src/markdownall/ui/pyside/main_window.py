@@ -43,7 +43,6 @@ from .components import CommandPanel, LogPanel
 from markdownall.services.config_service import ConfigService
 from markdownall.services.startup_service import StartupService
 from markdownall.utils.memory_optimizer import MemoryOptimizer
-from .startup_manager import StartupManager, BackgroundInitializer
 from .error_handler import ErrorHandler, ErrorRecovery
 
 
@@ -145,13 +144,10 @@ class MainWindow(QMainWindow):
         # Initialize enhanced managers
         self.config_service = ConfigService(root_dir)
         self.startup_service = StartupService(root_dir)
-        self.startup_manager = StartupManager(self.startup_service)
         self.error_handler = ErrorHandler(self.config_service)
         self.memory_optimizer = MemoryOptimizer()
         
         # Connect manager signals
-        self.startup_manager.startup_complete.connect(self._on_startup_complete)
-        self.startup_manager.startup_error.connect(self._on_startup_error)
         self.error_handler.error_occurred.connect(self._on_error_occurred)
         self.error_handler.performance_warning.connect(self._on_performance_warning)
         
@@ -1034,15 +1030,7 @@ class MainWindow(QMainWindow):
         }
         self.webpage_page.set_config(webpage_config)
     
-    def _on_startup_complete(self):
-        """Handle startup completion."""
-        print("Startup sequence completed successfully")
-        # Any post-startup initialization can go here
-        
-    def _on_startup_error(self, error_message: str):
-        """Handle startup error."""
-        print(f"Startup error: {error_message}")
-        # Show error to user or attempt recovery
+    # StartupManager removed; keep placeholders if needed in future
         
     def _on_error_occurred(self, error_type: str, error_message: str):
         """Handle error occurrence."""

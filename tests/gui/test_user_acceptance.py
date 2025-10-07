@@ -208,10 +208,9 @@ class TestCompatibility(unittest.TestCase):
             self.main_window.close()
     
     def test_backward_compatibility(self):
-        """Test backward compatibility."""
-        # Test that PySideApp alias exists
-        from markdownall.ui.pyside.main_window import PySideApp
-        self.assertEqual(PySideApp, MainWindow)
+        """Backward compatibility no longer requires PySideApp alias."""
+        # 统一入口为 MainWindow，不再保证 PySideApp 存在
+        self.assertIsNotNone(MainWindow)
     
     def test_signal_compatibility(self):
         """Test that signals are compatible with existing code."""

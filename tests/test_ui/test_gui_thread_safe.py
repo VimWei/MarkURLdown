@@ -150,15 +150,15 @@ def test_on_event_thread_safe_calls_on_event(monkeypatch, tmp_path):
     gui = importlib.import_module("markdownall.ui.pyside.gui")
 
     # Avoid heavy UI setup during construction
-    monkeypatch.setattr(gui.PySideApp, "_setup_ui", lambda self: None)
-    monkeypatch.setattr(gui.PySideApp, "_retranslate_ui", lambda self: None)
-    monkeypatch.setattr(gui.PySideApp, "_connect_signals", lambda self: None)
+    monkeypatch.setattr(gui.MainWindow, "_setup_ui", lambda self: None)
+    monkeypatch.setattr(gui.MainWindow, "_retranslate_ui", lambda self: None)
+    monkeypatch.setattr(gui.MainWindow, "_connect_signals", lambda self: None)
     # Make translator load without filesystem
     monkeypatch.setattr(
         gui.Translator, "load_language", lambda self, code: setattr(self, "language", "en")
     )
 
-    app = gui.PySideApp(root_dir=str(tmp_path), settings={})
+    app = gui.MainWindow(root_dir=str(tmp_path), settings={})
 
     calls = {}
 
@@ -181,14 +181,14 @@ def test_on_event_thread_safe_handles_exception(monkeypatch, tmp_path):
         del sys.modules["markdownall.ui.pyside.gui"]
     gui = importlib.import_module("markdownall.ui.pyside.gui")
 
-    monkeypatch.setattr(gui.PySideApp, "_setup_ui", lambda self: None)
-    monkeypatch.setattr(gui.PySideApp, "_retranslate_ui", lambda self: None)
-    monkeypatch.setattr(gui.PySideApp, "_connect_signals", lambda self: None)
+    monkeypatch.setattr(gui.MainWindow, "_setup_ui", lambda self: None)
+    monkeypatch.setattr(gui.MainWindow, "_retranslate_ui", lambda self: None)
+    monkeypatch.setattr(gui.MainWindow, "_connect_signals", lambda self: None)
     monkeypatch.setattr(
         gui.Translator, "load_language", lambda self, code: setattr(self, "language", "en")
     )
 
-    app = gui.PySideApp(root_dir=str(tmp_path), settings={})
+    app = gui.MainWindow(root_dir=str(tmp_path), settings={})
 
     def raising(*_a, **_k):
         raise RuntimeError("boom")

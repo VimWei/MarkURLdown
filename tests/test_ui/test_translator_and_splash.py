@@ -5,7 +5,7 @@ from unittest import mock
 
 import pytest
 
-from markdownall.ui.pyside.gui import Translator
+from markdownall.ui.pyside.main_window import Translator
 from markdownall.ui.pyside.splash import _pick_splash_image, show_immediate_splash
 
 

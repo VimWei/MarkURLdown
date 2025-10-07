@@ -9,7 +9,7 @@ from unittest import mock
 
 import pytest
 
-from markdownall.ui.pyside.gui import PySideApp
+# 不再使用 PySideApp；版本信息测试与窗口类无关
 from markdownall.version import get_app_title, get_version
 
 

@@ -7,7 +7,8 @@ from unittest import mock
 import pytest
 
 from markdownall.app_types import ConversionOptions, ProgressEvent, SourceRequest
-from markdownall.ui.pyside.gui import PySideApp, QFileDialog
+from markdownall.ui.pyside.main_window import MainWindow
+from PySide6.QtWidgets import QFileDialog
 from markdownall.ui.viewmodel import ViewModel
 
 
@@ -26,7 +27,7 @@ def test_viewmodel_delegates_to_service_run_and_stop():
 def _make_window(tmp_path, qapp):
     root = tmp_path
     (root / "data" / "sessions").mkdir(parents=True)
-    window = PySideApp(root_dir=str(root), settings={"language": "en"})
+    window = MainWindow(root_dir=str(root), settings={"language": "en"})
     return window
 
 
@@ -213,14 +214,20 @@ def test_list_operations_move_delete_clear(tmp_path, qapp):
 
 
 @pytest.mark.unit
-def test_run_gui_entrypoint_is_callable(monkeypatch, tmp_path, qapp):
+def test_run_entrypoint_is_callable_via_launch(monkeypatch, tmp_path, qapp):
     # Patch heavy parts to avoid real GUI loop
-    import markdownall.ui.pyside.gui as gui_mod
+    import importlib
+    import markdownall.launch as launch_mod
 
     fake_app = qapp
     splash_mock = mock.Mock()
-    monkeypatch.setattr(gui_mod, "show_immediate_splash", lambda: (fake_app, splash_mock))
-    monkeypatch.setattr(gui_mod, "load_json_from_root", lambda *args, **kwargs: {})
+    monkeypatch.setattr(launch_mod, "show_immediate_splash", lambda: (fake_app, splash_mock))
+    # Patch config loader where launch.main imports it from
+    monkeypatch.setattr(
+        importlib.import_module("markdownall.io.config"),
+        "load_json_from_root",
+        lambda *args, **kwargs: {},
+    )
     created = {}
 
     class DummyWin:
@@ -230,11 +237,16 @@ def test_run_gui_entrypoint_is_callable(monkeypatch, tmp_path, qapp):
         def show(self):
             created["shown"] = True
 
-    monkeypatch.setattr(gui_mod, "PySideApp", DummyWin)
+    # Stub MainWindow constructor
+    monkeypatch.setattr(
+        importlib.import_module("markdownall.ui.pyside.main_window"),
+        "MainWindow",
+        DummyWin,
+    )
     # Prevent exec loop
     monkeypatch.setattr(fake_app, "exec", lambda: 0)
 
-    gui_mod.run_gui()
+    launch_mod.main()
     assert created.get("shown") is True
     splash_mock.finish.assert_called()
 

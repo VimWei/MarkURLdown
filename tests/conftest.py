@@ -110,39 +110,7 @@ def prevent_blocking_qt_dialogs(monkeypatch):
     Individual tests can override with mock.patch/monkeypatch as needed.
     """
     # Patch at the module-under-test level to ensure dialogs never block
-    try:
-        import markdownall.ui.pyside.gui as gui_mod
-
-        # Ensure the class keeps identity; only stub methods so tests can patch them
-        if hasattr(gui_mod, "QFileDialog"):
-            if not hasattr(gui_mod.QFileDialog, "getExistingDirectory"):
-                setattr(
-                    gui_mod.QFileDialog, "getExistingDirectory", staticmethod(lambda *a, **k: "")
-                )
-            else:
-                monkeypatch.setattr(
-                    gui_mod.QFileDialog, "getExistingDirectory", lambda *a, **k: "", raising=False
-                )
-            if not hasattr(gui_mod.QFileDialog, "getOpenFileName"):
-                setattr(
-                    gui_mod.QFileDialog, "getOpenFileName", staticmethod(lambda *a, **k: ("", ""))
-                )
-            else:
-                monkeypatch.setattr(
-                    gui_mod.QFileDialog, "getOpenFileName", lambda *a, **k: ("", ""), raising=False
-                )
-            if not hasattr(gui_mod.QFileDialog, "getSaveFileName"):
-                setattr(
-                    gui_mod.QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: ("", ""))
-                )
-            else:
-                monkeypatch.setattr(
-                    gui_mod.QFileDialog, "getSaveFileName", lambda *a, **k: ("", ""), raising=False
-                )
-
-        monkeypatch.setattr(gui_mod.QMessageBox, "critical", lambda *a, **k: None, raising=False)
-    except Exception:
-        pass
+    # 过去会对 gui 模块做桩替换；现在直接针对 PySide6 做桩即可
 
     # Also patch at the PySide6 layer
     try:
