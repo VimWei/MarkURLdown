@@ -144,8 +144,8 @@ class BasicPage(QWidget):
         self.choose_dir_btn.clicked.connect(self._choose_output_dir)
         self.url_entry.returnPressed.connect(self._add_url_from_entry)
         
-        # Connect output directory changes
-        self.output_entry.textChanged.connect(self._on_output_dir_changed)
+        # Connect output directory changes only when editing finished to avoid log spam
+        self.output_entry.editingFinished.connect(self._on_output_dir_changed)
 
     def _add_url_from_entry(self):
         """Add URL(s) from the input field."""
