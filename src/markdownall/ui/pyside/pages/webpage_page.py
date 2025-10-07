@@ -68,10 +68,10 @@ class WebpagePage(QWidget):
 
         # Options frame
         options_frame = QFrame()
-        options_layout = QHBoxLayout(options_frame)
-        options_layout.setSpacing(10)
+        # Arrange options in three rows
+        options_layout = QVBoxLayout(options_frame)
+        options_layout.setSpacing(8)
         options_layout.setContentsMargins(0, 6, 0, 6)
-        options_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Create checkboxes
         self.use_proxy_cb = QCheckBox()
@@ -89,15 +89,30 @@ class WebpagePage(QWidget):
         self.use_shared_browser_cb = QCheckBox()
         self.use_shared_browser_cb.setChecked(self.use_shared_browser_var)
 
-        # Add checkboxes to layout
-        for cb in [
-            self.use_proxy_cb,
-            self.ignore_ssl_cb,
-            self.download_images_cb,
-            self.filter_site_chrome_cb,
-            self.use_shared_browser_cb,
-        ]:
-            options_layout.addWidget(cb)
+        # Row 1: Use system proxy + Ignore SSL verification
+        row1_layout = QHBoxLayout()
+        row1_layout.setSpacing(10)
+        row1_layout.addWidget(self.use_proxy_cb)
+        row1_layout.addWidget(self.ignore_ssl_cb)
+        row1_layout.addStretch(1)
+
+        # Row 2: Download images + Filter non-content elements
+        row2_layout = QHBoxLayout()
+        row2_layout.setSpacing(10)
+        row2_layout.addWidget(self.download_images_cb)
+        row2_layout.addWidget(self.filter_site_chrome_cb)
+        row2_layout.addStretch(1)
+
+        # Row 3: Speed mode (shared browser)
+        row3_layout = QHBoxLayout()
+        row3_layout.setSpacing(10)
+        row3_layout.addWidget(self.use_shared_browser_cb)
+        row3_layout.addStretch(1)
+
+        # Add rows to the options container
+        options_layout.addLayout(row1_layout)
+        options_layout.addLayout(row2_layout)
+        options_layout.addLayout(row3_layout)
 
         layout.addWidget(options_frame)
         

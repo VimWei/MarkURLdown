@@ -90,6 +90,6 @@
   "progress_processing": "处理中...",
   "progress_completed": "已完成",
   "progress_error": "错误",
-  "log_clear": "清除",
-  "log_copy": "复制"
+  "log_clear": "清除日志",
+  "log_copy": "复制日志"
 }

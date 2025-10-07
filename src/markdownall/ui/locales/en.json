@@ -1,5 +1,5 @@
 {
-  "url_label": "Web Page URL",
+  "url_label": "Webpage URL",
   "add_button": "Add +",
   "url_list_label": "URL List",
   "move_up_button": "Move Up ↑",
@@ -90,6 +90,6 @@
   "progress_processing": "Processing...",
   "progress_completed": "Completed",
   "progress_error": "Error",
-  "log_clear": "Clear",
-  "log_copy": "Copy"
+  "log_clear": "Clear Log",
+  "log_copy": "Copy Log"
 }
