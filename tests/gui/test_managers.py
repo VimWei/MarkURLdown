@@ -71,13 +71,9 @@ class TestConfigManager(unittest.TestCase):
         self.config_manager.advanced.language = "zh"
         self.assertEqual(self.config_manager.advanced.language, "zh")
         
-        # Test setting debug mode
-        self.config_manager.advanced.debug_mode = True
-        self.assertTrue(self.config_manager.advanced.debug_mode)
+        # Debug mode removed
         
-        # Test setting log level
-        self.config_manager.advanced.log_level = "DEBUG"
-        self.assertEqual(self.config_manager.advanced.log_level, "DEBUG")
+        # Log level removed from advanced config
     
     def test_config_export_import(self):
         """Test configuration export and import."""

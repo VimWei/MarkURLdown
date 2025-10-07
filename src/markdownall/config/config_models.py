@@ -37,8 +37,7 @@ class AdvancedConfig:
     """Advanced page configuration."""
     user_data_path: str = ""
     language: str = "auto"
-    log_level: str = "INFO"
-    debug_mode: bool = False
+    # debug_mode removed
 
 
 @dataclass

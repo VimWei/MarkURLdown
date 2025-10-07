@@ -96,13 +96,9 @@ class TestFunctionalityCompleteness(unittest.TestCase):
         self.main_window.advanced_page.set_language("zh")
         self.assertEqual(self.main_window.advanced_page.get_language(), "zh")
         
-        # Test log level
-        self.main_window.advanced_page.set_log_level("DEBUG")
-        self.assertEqual(self.main_window.advanced_page.get_log_level(), "DEBUG")
+        # Log level feature removed; skip
         
-        # Test debug mode
-        self.main_window.advanced_page.set_debug_mode(True)
-        self.assertTrue(self.main_window.advanced_page.get_debug_mode())
+        # Debug mode removed
 
 
 class TestUserExperience(unittest.TestCase):

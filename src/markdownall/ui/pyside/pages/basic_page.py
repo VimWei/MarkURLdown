@@ -56,12 +56,14 @@ class BasicPage(QWidget):
     def _setup_ui(self):
         """Setup the UI layout for basic page."""
         layout = QGridLayout(self)
-        layout.setHorizontalSpacing(10)
-        layout.setVerticalSpacing(8)
-        layout.setContentsMargins(20, 20, 20, 20)
+        # Tighter, consistent spacing/margins (match MdxScraper)
+        layout.setHorizontalSpacing(8)
+        layout.setVerticalSpacing(6)
+        layout.setContentsMargins(12, 12, 12, 12)
 
         # Row 0: URL Input
         self.url_label = QLabel()
+        self.url_label.setProperty("class", "field-label")
         layout.addWidget(self.url_label, 0, 0)
         
         self.url_entry = QLineEdit()
@@ -75,6 +77,7 @@ class BasicPage(QWidget):
 
         # Row 1: URL List
         self.url_list_label = QLabel()
+        self.url_list_label.setProperty("class", "field-label")
         layout.addWidget(self.url_list_label, 1, 0)
         
         self.url_listbox = QListWidget()
@@ -106,6 +109,7 @@ class BasicPage(QWidget):
 
         # Row 2: Output Directory
         self.output_dir_label = QLabel()
+        self.output_dir_label.setProperty("class", "field-label")
         layout.addWidget(self.output_dir_label, 2, 0)
         
         self.output_entry = QLineEdit(self.output_dir_var)

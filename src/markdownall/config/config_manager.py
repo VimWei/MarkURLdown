@@ -114,10 +114,7 @@ class ConfigManager:
             # Load advanced settings
             if "language" in data:
                 self.advanced.language = data["language"]
-            if "log_level" in data:
-                self.advanced.log_level = data["log_level"]
-            if "debug_mode" in data:
-                self.advanced.debug_mode = bool(data["debug_mode"])
+            # debug_mode removed
                 
             return True
             
@@ -133,8 +130,6 @@ class ConfigManager:
             
             data = {
                 "language": self.advanced.language,
-                "log_level": self.advanced.log_level,
-                "debug_mode": self.advanced.debug_mode,
             }
             
             save_config(settings_path, data)

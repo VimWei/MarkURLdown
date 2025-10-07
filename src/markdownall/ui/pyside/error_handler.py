@@ -337,7 +337,6 @@ class ErrorRecovery:
             "advanced": {
                 "user_data_path": "",
                 "language": "auto",
-                "log_level": "INFO",
-                "debug_mode": False
+                # debug_mode removed
             }
         }

@@ -35,13 +35,12 @@ class AdvancedPage(QWidget):
     This page contains:
     - User data directory management
     - Configuration operations
-    - System settings (log level, debug mode, language)
+    - System settings (debug mode, language)
     """
     
     # Signals for communicating with MainWindow
     openUserDataRequested = Signal()
     restoreDefaultConfigRequested = Signal()
-    logLevelChanged = Signal(str)
     debugModeChanged = Signal(bool)
     languageChanged = Signal(str)
 
@@ -52,7 +51,6 @@ class AdvancedPage(QWidget):
         # Initialize data
         self.user_data_path = ""
         self.language = "auto"
-        self.log_level = "INFO"
         self.debug_mode = False
         
         # Setup UI
@@ -65,7 +63,7 @@ class AdvancedPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
 
-        # User data directory section
+        # User Data Path section (mirror MdxScraper style)
         data_section = QHBoxLayout()
         _lbl_data = QLabel("User Data Path:", self)
         _lbl_data.setProperty("class", "field-label")
@@ -82,10 +80,9 @@ class AdvancedPage(QWidget):
         self.btn_open_data.setFixedWidth(90)
         self.btn_open_data.setObjectName("open-data-button")
         data_section.addWidget(self.btn_open_data)
-
         layout.addLayout(data_section)
 
-        # Configuration actions section
+        # Config Actions section
         config_section = QHBoxLayout()
         _lbl_config = QLabel("Config Actions:", self)
         _lbl_config.setProperty("class", "field-label")
@@ -97,74 +94,45 @@ class AdvancedPage(QWidget):
         self.btn_restore_default.setFixedWidth(150)
         self.btn_restore_default.setObjectName("restore-default-button")
         config_section.addWidget(self.btn_restore_default)
-
-        # Add spacer to push button to the left
         config_section.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
         layout.addLayout(config_section)
 
-        # System settings section
+        # Language section
         system_section = QHBoxLayout()
-        _lbl_system = QLabel("System Settings:", self)
-        _lbl_system.setProperty("class", "field-label")
-        _lbl_system.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        system_section.addWidget(_lbl_system)
+        _lbl_language_left = QLabel("Language:", self)
+        _lbl_language_left.setProperty("class", "field-label")
+        _lbl_language_left.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        system_section.addWidget(_lbl_language_left)
         system_section.addSpacing(8)
 
-        # Log level selection
-        log_level_frame = QHBoxLayout()
-        log_level_label = QLabel("Log Level:", self)
-        self.log_level_combo = QComboBox(self)
-        self.log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR"])
-        self.log_level_combo.setCurrentText(self.log_level)
-        self.log_level_combo.setFixedWidth(100)
-        log_level_frame.addWidget(log_level_label)
-        log_level_frame.addWidget(self.log_level_combo)
-
-        # Debug mode checkbox
-        self.debug_mode_cb = QCheckBox("Debug Mode", self)
-        self.debug_mode_cb.setChecked(self.debug_mode)
-
-        # Language selection
-        language_frame = QHBoxLayout()
-        language_label = QLabel("Language:", self)
         self.language_combo = QComboBox(self)
         self.language_combo.addItem("English", "en")
         self.language_combo.addItem("简体中文", "zh")
         self.language_combo.addItem("Auto", "auto")
         self.language_combo.setCurrentText("Auto")
         self.language_combo.setFixedWidth(100)
-        language_frame.addWidget(language_label)
-        language_frame.addWidget(self.language_combo)
-
-        system_section.addLayout(log_level_frame)
-        system_section.addSpacing(20)
-        system_section.addWidget(self.debug_mode_cb)
-        system_section.addSpacing(20)
-        system_section.addLayout(language_frame)
+        system_section.addWidget(self.language_combo)
         system_section.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
         layout.addLayout(system_section)
 
-        # Align section labels to the longest label width
+        # Align section labels to the longest label width (with padding)
         _section_w = max(
             _lbl_data.sizeHint().width(),
             _lbl_config.sizeHint().width(),
-            _lbl_system.sizeHint().width(),
-        )
+            _lbl_language_left.sizeHint().width(),
+        ) + 16
         _lbl_data.setFixedWidth(_section_w)
         _lbl_config.setFixedWidth(_section_w)
-        _lbl_system.setFixedWidth(_section_w)
+        _lbl_language_left.setFixedWidth(_section_w)
 
-        # Add some spacing at the bottom
+        # Bottom spacer
         layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
     def _connect_signals(self):
         """Connect internal widget signals to page signals."""
         self.btn_open_data.clicked.connect(self.openUserDataRequested.emit)
         self.btn_restore_default.clicked.connect(self.restoreDefaultConfigRequested.emit)
-        self.log_level_combo.currentTextChanged.connect(self.logLevelChanged.emit)
-        self.debug_mode_cb.stateChanged.connect(
-            lambda checked: self.debugModeChanged.emit(bool(checked))
-        )
+        # (Debug Mode removed)
         self.language_combo.currentTextChanged.connect(
             lambda text: self.languageChanged.emit(self.language_combo.currentData())
         )
@@ -224,21 +192,7 @@ class AdvancedPage(QWidget):
         if index != -1:
             self.language_combo.setCurrentIndex(index)
 
-    def get_log_level(self) -> str:
-        """Get current log level."""
-        return self.log_level_combo.currentText()
-
-    def set_log_level(self, level: str) -> None:
-        """Set log level."""
-        self.log_level_combo.setCurrentText(level)
-
-    def get_debug_mode(self) -> bool:
-        """Get debug mode setting."""
-        return self.debug_mode_cb.isChecked()
-
-    def set_debug_mode(self, enabled: bool) -> None:
-        """Set debug mode."""
-        self.debug_mode_cb.setChecked(enabled)
+    # Debug mode removed
 
     def retranslate_ui(self):
         """Retranslate UI elements."""
@@ -265,13 +219,14 @@ class AdvancedPage(QWidget):
             # Parent doesn't have tabs or is not the expected type
             pass
 
+        # No dynamic realignment; label width set once during setup
+
     def get_config(self) -> dict:
         """Get current page configuration."""
         return {
             "user_data_path": self.get_user_data_path(),
             "language": self.get_language(),
-            "log_level": self.get_log_level(),
-            "debug_mode": self.get_debug_mode(),
+            # debug_mode removed
         }
 
     def set_config(self, config: dict) -> None:
@@ -285,7 +240,6 @@ class AdvancedPage(QWidget):
         self.edit_data_path.setText("data/ (relative to project root)")
         if "language" in config:
             self.set_language(config["language"])
-        if "log_level" in config:
-            self.set_log_level(config["log_level"])
-        if "debug_mode" in config:
-            self.set_debug_mode(config["debug_mode"])
+        # debug_mode removed
+
+    # Dynamic re-alignment removed; stable layout mirrors MdxScraper

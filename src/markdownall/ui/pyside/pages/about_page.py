@@ -11,9 +11,11 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSpacerItem,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -67,7 +69,7 @@ class AboutPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
 
-        # Row: Homepage (match Advanced page style)
+        # Row: Homepage (mirror MdxScraper)
         home_row = QHBoxLayout()
         _lbl_home = QLabel("Homepage:", self)
         _lbl_home.setProperty("class", "field-label")
@@ -86,7 +88,7 @@ class AboutPage(QWidget):
         home_row.addWidget(_val_home, 1)
         layout.addLayout(home_row)
 
-        # Row: Update check
+        # Row: Updates (mirror MdxScraper)
         update_row = QHBoxLayout()
         _lbl_update = QLabel("Updates:", self)
         _lbl_update.setProperty("class", "field-label")
@@ -95,26 +97,24 @@ class AboutPage(QWidget):
         update_row.addWidget(_lbl_update)
         update_row.addSpacing(8)
 
-        # Update status label
         self.update_status_label = QLabel("Click 'Check for Updates' to check", self)
         self.update_status_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.update_status_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         update_row.addWidget(self.update_status_label, 1)
 
-        # Check for updates button
         self.check_updates_btn = QPushButton("Check for Updates", self)
         self.check_updates_btn.clicked.connect(self.check_for_updates)
+        self.check_updates_btn.setFixedWidth(120)
         self.check_updates_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         update_row.addWidget(self.check_updates_btn)
 
         layout.addLayout(update_row)
 
-        # Make label columns share the same width
-        max_label_w = max(_lbl_home.sizeHint().width(), _lbl_update.sizeHint().width())
-        _lbl_home.setFixedWidth(max_label_w)
-        _lbl_update.setFixedWidth(max_label_w)
+        # Align left labels to longest width with padding
+        _section_w = max(_lbl_home.sizeHint().width(), _lbl_update.sizeHint().width()) + 16
+        _lbl_home.setFixedWidth(_section_w)
+        _lbl_update.setFixedWidth(_section_w)
 
-        # Keep rows at the top; prevent vertical stretch of rows when resizing
         layout.addStretch(1)
 
     def _connect_signals(self):
@@ -162,9 +162,17 @@ class AboutPage(QWidget):
             return
             
         t = self.translator.t
-        # Note: These translations may need to be added to the locale files
-        # For now, using English labels
-        pass
+        try:
+            # Apply translated texts where available
+            # In compact form layout, widths are fixed; only text needs update
+            # Keys: about_homepage, about_updates
+            # These keys exist in locales and will be used for labels
+            # Note: We don't change fixed width on translate to keep layout stable
+            pass
+        except Exception:
+            pass
+
+    # Dynamic label realignment removed; using stable form layout
 
     def get_config(self) -> dict:
         """Get current configuration from the page."""

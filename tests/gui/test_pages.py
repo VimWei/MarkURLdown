@@ -198,33 +198,30 @@ class TestAdvancedPage(unittest.TestCase):
         self.page.set_language(test_language)
         self.assertEqual(self.page.get_language(), test_language)
     
-    def test_log_level(self):
-        """Test log level management."""
-        test_level = "DEBUG"
-        self.page.set_log_level(test_level)
-        self.assertEqual(self.page.get_log_level(), test_level)
+    def test_log_level_removed(self):
+        """Log level feature removed; ensure methods no longer exist."""
+        self.assertFalse(hasattr(self.page, 'set_log_level'))
+        self.assertFalse(hasattr(self.page, 'get_log_level'))
     
-    def test_debug_mode(self):
-        """Test debug mode management."""
-        self.page.set_debug_mode(True)
-        self.assertTrue(self.page.get_debug_mode())
-        
-        self.page.set_debug_mode(False)
-        self.assertFalse(self.page.get_debug_mode())
+    def test_debug_mode_removed(self):
+        """Debug mode removed; methods should not exist."""
+        self.assertFalse(hasattr(self.page, 'set_debug_mode'))
+        self.assertFalse(hasattr(self.page, 'get_debug_mode'))
     
     def test_config_management(self):
         """Test configuration management."""
         config = {
             "user_data_path": "/tmp/data",
             "language": "en",
-            "log_level": "INFO",
-            "debug_mode": True
+            # debug_mode removed
         }
         self.page.set_config(config)
         
         retrieved_config = self.page.get_config()
         for key, value in config.items():
             self.assertEqual(retrieved_config[key], value)
+        self.assertNotIn('debug_mode', retrieved_config)
+        self.assertNotIn('log_level', retrieved_config)
     
     def test_retranslate_ui(self):
         """Test UI retranslation."""

@@ -62,14 +62,15 @@ class WebpagePage(QWidget):
     def _setup_ui(self):
         """Setup the UI layout for webpage page."""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(20)
+        # Tighter margins/spacing to match MdxScraper
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
 
         # Options frame
         options_frame = QFrame()
         options_layout = QHBoxLayout(options_frame)
-        options_layout.setSpacing(20)
-        options_layout.setContentsMargins(0, 8, 0, 8)
+        options_layout.setSpacing(10)
+        options_layout.setContentsMargins(0, 6, 0, 6)
         options_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Create checkboxes

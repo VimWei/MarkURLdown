@@ -184,8 +184,8 @@ class MainWindow(QMainWindow):
             self.setWindowIcon(QIcon(icon_path))
 
         # 基于布局计算设置窗口大小
-        # 布局计算: Tab(320) + Command(120) + Log(160) + 边距(50) = 650px
-        self.resize(950, 650)  # 初始大小: 800x650 (基于精确布局计算)
+        # 布局计算: Tab(270) + Command(120) + Log(160) + 边距(50) = 600px
+        self.resize(800, 600)  # 初始大小: 800x600 (基于精确布局计算)
         qr = self.frameGeometry()
         cp = QApplication.primaryScreen().availableGeometry().center()
         qr.moveCenter(cp)
@@ -199,8 +199,9 @@ class MainWindow(QMainWindow):
         # Create main vertical layout (模仿MdxScraper)
         from PySide6.QtWidgets import QVBoxLayout
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(16, 16, 16, 16)  # 16px margins like MdxScraper
-        main_layout.setSpacing(12)  # 12px spacing like MdxScraper
+        # Tighter global margins and spacing for a compact layout
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(10)
         
         # Create splitter for all areas (tabs, command, log) - like MdxScraper
         self.splitter = QSplitter(Qt.Vertical, self)
@@ -226,7 +227,7 @@ class MainWindow(QMainWindow):
         """Setup the tabbed interface with pages."""
         # Create tab widget
         self.tabs = QTabWidget()
-        self.tabs.setMinimumHeight(350)  # 进一步增加最小高度，确保内容不堆叠
+        self.tabs.setMinimumHeight(300)  # 进一步增加最小高度，确保内容不堆叠
         
         # Create real pages
         self._create_pages()
@@ -261,7 +262,7 @@ class MainWindow(QMainWindow):
         """Configure splitter behavior and initial sizes (适配MarkdownAll需求)."""
         # Configure splitter for all three areas: tabs, command panel, log panel
         # 基于布局计算设置初始尺寸
-        self.splitter.setSizes([320, 120, 160])  # Tab(320) + Command(120) + Log(160) = 600px
+        self.splitter.setSizes([270, 120, 160])  # Tab(270) + Command(120) + Log(160) = 550px
         self.splitter.setStretchFactor(0, 0)  # Tab area fixed height (not stretchable)
         self.splitter.setStretchFactor(1, 0)  # Command panel fixed
         self.splitter.setStretchFactor(2, 1)  # Log area stretchable
@@ -269,8 +270,8 @@ class MainWindow(QMainWindow):
         self.splitter.splitterMoved.connect(self._on_splitter_moved)
         
         # 设置整体窗口最小尺寸，基于精确布局计算
-        # 布局计算: Tab(320) + Command(120) + Log(160) + 边距(50) = 650px
-        self.setMinimumSize(800, 650)  # 最小尺寸: 800x650 (基于精确布局计算)
+        # 布局计算: Tab(270) + Command(120) + Log(160) + 边距(50) = 600px
+        self.setMinimumSize(800, 600)  # 最小尺寸: 800x650 (基于精确布局计算)
         
         # Override showEvent to force splitter behavior after window is shown
         self.showEvent = self._on_show_event
@@ -393,8 +394,6 @@ class MainWindow(QMainWindow):
         self.advanced_page.openUserDataRequested.connect(self._open_user_data)
         self.advanced_page.restoreDefaultConfigRequested.connect(self._restore_default_config)
         self.advanced_page.languageChanged.connect(self._on_language_changed)
-        self.advanced_page.logLevelChanged.connect(self._on_log_level_changed)
-        self.advanced_page.debugModeChanged.connect(self._on_debug_mode_changed)
         
         # About page signals
         self.about_page.checkUpdatesRequested.connect(self._check_updates)
@@ -753,30 +752,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.log_error(f"Failed to change language: {e}")
 
-    def _on_log_level_changed(self, level: str):
-        """Handle log level changes."""
-        try:
-            # Update log level in config
-            self._save_config()
-            
-            # Apply log level filtering (if implemented)
-            self.log_info(f"Log level changed to: {level}")
-        except Exception as e:
-            self.log_error(f"Failed to change log level: {e}")
-
-    def _on_debug_mode_changed(self, enabled: bool):
-        """Handle debug mode changes."""
-        try:
-            # Update debug mode in config
-            self._save_config()
-            
-            if enabled:
-                self.log_info("Debug mode enabled")
-                self.log_debug("Debug logging is now active")
-            else:
-                self.log_info("Debug mode disabled")
-        except Exception as e:
-            self.log_error(f"Failed to change debug mode: {e}")
+    # Debug mode removed
 
     def _check_updates(self):
         """Check for updates."""
@@ -949,10 +925,7 @@ class MainWindow(QMainWindow):
         """Log error message directly."""
         self.log_panel.appendLog(message)
 
-    def log_debug(self, message: str) -> None:
-        """Log debug message directly."""
-        if self.advanced_page.get_debug_mode():
-            self.log_panel.appendLog(f"🐛 {message}")
+    # log_debug removed
         
     def _on_performance_warning(self, warning_message: str):
         """Handle performance warning."""
@@ -983,8 +956,6 @@ class MainWindow(QMainWindow):
             advanced_config = self.advanced_page.get_config()
             self.config_service.set_advanced_config({
                 "language": advanced_config.get("language", "auto"),
-                "log_level": advanced_config.get("log_level", "INFO"),
-                "debug_mode": advanced_config.get("debug_mode", False)
             })
             
             # Save session and settings
