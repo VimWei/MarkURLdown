@@ -46,6 +46,7 @@ class CommandPanel(QWidget):
     def __init__(self, parent: QWidget | None = None, translator: Translator | None = None):
         super().__init__(parent)
         self.translator = translator
+        self._is_converting = False
         
         # Set fixed height for command panel (mimicking MdxScraper)
         self.setFixedHeight(120)
@@ -91,16 +92,10 @@ class CommandPanel(QWidget):
         self.btn_convert.setFixedWidth(200)
         self.btn_convert.setFixedHeight(40)
         self.btn_convert.setObjectName("convert-button")
-        
-        self.btn_stop = QPushButton("Stop", self)
-        self.btn_stop.setFixedWidth(100)
-        self.btn_stop.setFixedHeight(40)
-        self.btn_stop.setObjectName("stop-button")
-        self.btn_stop.setVisible(False)  # Initially hidden
+        # Use a dynamic property to toggle visual style for stop state
+        self.btn_convert.setProperty("mode", "convert")
         
         row_convert.addWidget(self.btn_convert)
-        row_convert.addSpacing(12)
-        row_convert.addWidget(self.btn_stop)
         row_convert.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
         root.addLayout(row_convert)
 
@@ -118,8 +113,14 @@ class CommandPanel(QWidget):
         self.btn_restore.clicked.connect(self.restoreRequested.emit)
         self.btn_import.clicked.connect(self.importRequested.emit)
         self.btn_export.clicked.connect(self.exportRequested.emit)
-        self.btn_convert.clicked.connect(self.convertRequested.emit)
-        self.btn_stop.clicked.connect(self.stopRequested.emit)
+        self.btn_convert.clicked.connect(self._on_convert_clicked)
+
+    def _on_convert_clicked(self) -> None:
+        """Toggle convert/stop by internal converting state."""
+        if self._is_converting:
+            self.stopRequested.emit()
+        else:
+            self.convertRequested.emit()
 
     # Public API (mimicking MdxScraper)
     def setProgress(self, value: int) -> None:
@@ -145,21 +146,27 @@ class CommandPanel(QWidget):
         self.btn_convert.setText(text)
 
     def setConvertingState(self, is_converting: bool) -> None:
-        """Set converting state (show/hide convert/stop buttons)."""
-        if is_converting:
-            self.btn_convert.setVisible(False)
-            self.btn_stop.setVisible(True)
-            self.btn_stop.setEnabled(True)
+        """Set converting state (single button toggles text and style)."""
+        self._is_converting = bool(is_converting)
+        # Update text
+        if self.translator:
+            t = self.translator.t
+            self.btn_convert.setText(t("command_stop") if self._is_converting else t("command_convert"))
         else:
-            self.btn_convert.setVisible(True)
-            self.btn_stop.setVisible(False)
-            self.btn_convert.setEnabled(True)
+            self.btn_convert.setText("Stop" if self._is_converting else "Convert to Markdown")
+        # Update style via dynamic property
+        self.btn_convert.setProperty("mode", "stop" if self._is_converting else "convert")
+        # Force style refresh so QSS picks up property change
+        style = self.btn_convert.style()
+        style.unpolish(self.btn_convert)
+        style.polish(self.btn_convert)
+        self.btn_convert.update()
 
     def setEnabled(self, enabled: bool) -> None:
         """Set enabled state."""
         super().setEnabled(enabled)
         # Keep buttons consistent when disabling panel
-        for b in (self.btn_restore, self.btn_import, self.btn_export, self.btn_convert, self.btn_stop):
+        for b in (self.btn_restore, self.btn_import, self.btn_export, self.btn_convert):
             b.setEnabled(enabled)
 
     def retranslate_ui(self):
@@ -171,8 +178,11 @@ class CommandPanel(QWidget):
         self.btn_restore.setText(t("command_restore_session"))
         self.btn_import.setText(t("command_import_session"))
         self.btn_export.setText(t("command_export_session"))
-        self.btn_convert.setText(t("command_convert"))
-        self.btn_stop.setText(t("command_stop"))
+        # Keep current state text
+        if self._is_converting:
+            self.btn_convert.setText(t("command_stop"))
+        else:
+            self.btn_convert.setText(t("command_convert"))
 
     def get_config(self) -> dict:
         """Get current component configuration."""

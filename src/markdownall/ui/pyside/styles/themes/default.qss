@@ -39,6 +39,42 @@ QPushButton#convert-button:disabled {
     color: #666666;
 }
 
+/* Single-button stop mode (styled via dynamic property mode="stop") */
+QPushButton#convert-button[mode="stop"] {
+    background-color: #d83b01;
+    color: white;
+}
+QPushButton#convert-button[mode="stop"]:hover {
+    background-color: #c23601;
+}
+QPushButton#convert-button[mode="stop"]:pressed {
+    background-color: #a52e01;
+}
+
+/* Stop button styles: match convert-button metrics to keep size consistent */
+QPushButton#stop-button {
+    background-color: #d83b01; /* distinct stop color */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 12px 24px; /* match convert-button */
+}
+
+QPushButton#stop-button:hover {
+    background-color: #c23601;
+}
+
+QPushButton#stop-button:pressed {
+    background-color: #a52e01;
+}
+
+QPushButton#stop-button:disabled {
+    background-color: #cccccc;
+    color: #666666;
+}
+
 QPushButton#open-data-button {
     background-color: #4caf50;
     color: white;
