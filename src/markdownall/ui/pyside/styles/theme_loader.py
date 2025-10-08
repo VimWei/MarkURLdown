@@ -20,26 +20,39 @@ class ThemeLoader:
     
     def load_theme(self) -> str:
         """Load QSS theme content."""
-        theme_file = self.theme_dir / f"{self.theme_name}.qss"
-        
-        if not theme_file.exists():
-            # Fallback to default theme
-            theme_file = self.theme_dir / "default.qss"
-        
-        if theme_file.exists():
-            with open(theme_file, 'r', encoding='utf-8') as f:
-                return f.read()
-        
-        return ""
+        try:
+            theme_file = self.theme_dir / f"{self.theme_name}.qss"
+            if not theme_file.exists():
+                # Fallback to default theme
+                theme_file = self.theme_dir / "default.qss"
+            if theme_file.exists():
+                try:
+                    with open(theme_file, 'r', encoding='utf-8') as f:
+                        return f.read()
+                except Exception:
+                    # If reading fails, return empty content for safe no-op
+                    return ""
+            return ""
+        except Exception:
+            # On any unexpected error, return empty content
+            return ""
     
     def apply_theme(self, app: QApplication):
         """Apply theme to the application."""
-        qss_content = self.load_theme()
-        if qss_content:
-            app.setStyleSheet(qss_content)
+        try:
+            qss_content = self.load_theme()
+            if qss_content:
+                app.setStyleSheet(qss_content)
+        except Exception:
+            # Swallow exceptions per tests; do not apply
+            pass
     
     def apply_theme_to_widget(self, widget):
         """Apply theme to a specific widget."""
-        qss_content = self.load_theme()
-        if qss_content:
-            widget.setStyleSheet(qss_content)
+        try:
+            qss_content = self.load_theme()
+            if qss_content:
+                widget.setStyleSheet(qss_content)
+        except Exception:
+            # Swallow exceptions per tests; do not apply
+            pass

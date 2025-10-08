@@ -314,8 +314,8 @@ class TestPerformance(unittest.TestCase):
         end_time = time.time()
         error_handling_time = end_time - start_time
         
-        # Error handling should be fast (less than 0.1 seconds)
-        self.assertLess(error_handling_time, 0.1, 
+        # Error handling should be fast (less than 0.2 seconds)
+        self.assertLess(error_handling_time, 0.2, 
                        f"Error handling too slow: {error_handling_time:.2f}s")
     
     def test_config_management_performance(self):

@@ -165,10 +165,39 @@ def prevent_blocking_qt_dialogs(monkeypatch):
                     QtW.QFileDialog, "getSaveFileName", lambda *a, **k: ("", ""), raising=False
                 )
 
-        # Ensure QMessageBox.critical is non-blocking
+        # Ensure QMessageBox APIs are non-blocking in tests
         monkeypatch.setattr(QtW.QMessageBox, "critical", lambda *a, **k: None, raising=False)
+        monkeypatch.setattr(QtW.QMessageBox, "exec", lambda *a, **k: 0, raising=False)
     except Exception:
         pass
+
+
+@pytest.fixture(autouse=True)
+def silence_external_openers(monkeypatch):
+    """Silence OS openers like explorer/open/xdg-open during tests.
+
+    Prevents tests from actually opening system file browsers when code calls
+    subprocess.run(["explorer"|"open"|"xdg-open", path]). Other subprocess.run
+    calls are forwarded to the real implementation.
+    """
+    import subprocess as _sp
+
+    real_run = _sp.run
+
+    def _quiet_run(args, *pargs, **kwargs):
+        try:
+            cmd = args[0] if isinstance(args, (list, tuple)) and args else args
+            if isinstance(cmd, str):
+                opener = cmd
+            else:
+                opener = cmd
+            if opener in ("explorer", "open", "xdg-open"):
+                return None
+        except Exception:
+            pass
+        return real_run(args, *pargs, **kwargs)
+
+    monkeypatch.setattr("subprocess.run", _quiet_run, raising=False)
 
 
 def pytest_configure(config):
