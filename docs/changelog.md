@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.1] - 2025-10-09
+
+- refactor(ConvertService): improve shared browser handling and optimize test performance
+- feat(BasicPage): enhance URL list management with multi-selection support
+
 ## [1.0.0] - 2025-10-08
 
 - docs: update README
