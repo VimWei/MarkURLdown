@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -90,6 +91,8 @@ class BasicPage(QWidget):
         row_list.addWidget(self.url_list_label)
 
         self.url_listbox = QListWidget()
+        # Enable multi-selection for URL operations
+        self.url_listbox.setSelectionMode(QAbstractItemView.ExtendedSelection)
         row_list.addWidget(self.url_listbox, 1)
 
         url_btn_frame = QFrame()
@@ -183,29 +186,64 @@ class BasicPage(QWidget):
         self._emit_url_list_changed()
 
     def _move_selected_up(self):
-        """Move selected URL up in the list."""
-        current = self.url_listbox.currentRow()
-        if current > 0:
-            item = self.url_listbox.takeItem(current)
-            self.url_listbox.insertItem(current - 1, item)
-            self.url_listbox.setCurrentRow(current - 1)
-            self._emit_url_list_changed()
+        """Move selected URLs up, preserving relative order."""
+        selected_rows = sorted({idx.row() for idx in self.url_listbox.selectedIndexes()})
+        if not selected_rows:
+            return
+
+        # Move non-adjacent leading items; skip when the item above is also selected
+        for row in selected_rows:
+            if row <= 0:
+                continue
+            if (row - 1) in selected_rows:
+                continue
+            item = self.url_listbox.takeItem(row)
+            self.url_listbox.insertItem(row - 1, item)
+
+        # Reselect moved items at their new positions
+        new_selection = []
+        for row in selected_rows:
+            new_row = max(0, row - (0 if (row - 1) in selected_rows or row == 0 else 1))
+            new_selection.append(new_row)
+        self.url_listbox.clearSelection()
+        for r in new_selection:
+            self.url_listbox.item(r).setSelected(True)
+        self._emit_url_list_changed()
 
     def _move_selected_down(self):
-        """Move selected URL down in the list."""
-        current = self.url_listbox.currentRow()
-        if current < self.url_listbox.count() - 1:
-            item = self.url_listbox.takeItem(current)
-            self.url_listbox.insertItem(current + 1, item)
-            self.url_listbox.setCurrentRow(current + 1)
-            self._emit_url_list_changed()
+        """Move selected URLs down, preserving relative order."""
+        selected_rows = sorted({idx.row() for idx in self.url_listbox.selectedIndexes()})
+        if not selected_rows:
+            return
+
+        count = self.url_listbox.count()
+        # Iterate bottom-up; skip when the item below is also selected
+        for row in reversed(selected_rows):
+            if row >= count - 1:
+                continue
+            if (row + 1) in selected_rows:
+                continue
+            item = self.url_listbox.takeItem(row)
+            self.url_listbox.insertItem(row + 1, item)
+
+        # Reselect moved items at their new positions
+        new_selection = []
+        for row in selected_rows:
+            new_row = min(count - 1, row + (0 if (row + 1) in selected_rows or row >= count - 1 else 1))
+            new_selection.append(new_row)
+        self.url_listbox.clearSelection()
+        for r in new_selection:
+            self.url_listbox.item(r).setSelected(True)
+        self._emit_url_list_changed()
 
     def _delete_selected(self):
-        """Delete selected URL from the list."""
-        current = self.url_listbox.currentRow()
-        if current >= 0:
-            self.url_listbox.takeItem(current)
-            self._emit_url_list_changed()
+        """Delete selected URLs from the list (multi-select supported)."""
+        selected_rows = sorted({idx.row() for idx in self.url_listbox.selectedIndexes()})
+        if not selected_rows:
+            return
+        for row in reversed(selected_rows):
+            self.url_listbox.takeItem(row)
+        self._emit_url_list_changed()
 
     def _clear_list(self):
         """Clear all URLs from the list."""
@@ -213,16 +251,16 @@ class BasicPage(QWidget):
         self._emit_url_list_changed()
 
     def _copy_selected(self):
-        """Copy selected URL to clipboard."""
-        current = self.url_listbox.currentRow()
-        if current >= 0:
-            url = self.url_listbox.item(current).text()
-            from PySide6.QtWidgets import QApplication
+        """Copy selected URL(s) to clipboard (one per line)."""
+        selected_rows = sorted({idx.row() for idx in self.url_listbox.selectedIndexes()})
+        if not selected_rows:
+            return
+        urls = [self.url_listbox.item(r).text() for r in selected_rows]
+        from PySide6.QtWidgets import QApplication
 
-            clipboard = QApplication.clipboard()
-            clipboard.setText(url)
-            # Emit signal for status update
-            self.addUrlRequested.emit(f"URL copied: {url}")
+        clipboard = QApplication.clipboard()
+        clipboard.setText("\n".join(urls))
+        self.addUrlRequested.emit(f"Copied {len(urls)} URL(s)")
 
     def _choose_output_dir(self):
         """Open directory chooser dialog."""
