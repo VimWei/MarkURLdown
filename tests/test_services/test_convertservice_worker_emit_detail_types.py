@@ -38,10 +38,7 @@ def test_worker_emit_detail_handles_str_and_dict(tmp_path, monkeypatch):
     )
 
     def _reg_convert_side_effect(payload, session, options):
-        cb = payload.meta.get("on_detail")
-        if callable(cb):
-            cb("simple text message")
-            cb({"key": "stage", "data": {"step": 1}})
+        # on_detail callback is no longer used
         return mock.Mock(title="T", markdown="# md", suggested_filename="f.md")
 
     # Critically, patch the alias used inside convert_service module
@@ -61,7 +58,7 @@ def test_worker_emit_detail_handles_str_and_dict(tmp_path, monkeypatch):
     )
 
     # Run synchronously
-    svc._worker(reqs, str(tmp_path), _make_options(), events.append)
+    svc._worker(reqs, str(tmp_path), _make_options(), events.append, None)
 
     # Collect emitted detail events (text-form and key/data-form)
     detail_events = [e for e in events if getattr(e, "kind", None) == "detail"]

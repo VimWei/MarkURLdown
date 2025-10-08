@@ -73,7 +73,7 @@ def test_shared_browser_start_close_and_restart(tmp_path):
         sp.return_value.start.side_effect = [dummy_runtime, dummy_runtime]
 
         # Run
-        svc._worker(reqs, str(tmp_path), _make_options(), events.append)
+        svc._worker(reqs, str(tmp_path), _make_options(), events.append, None)
 
     # Collect emitted event keys for browser lifecycle
     keys = [getattr(e, "key", None) for e in events]

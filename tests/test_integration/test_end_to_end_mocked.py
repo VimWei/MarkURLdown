@@ -28,7 +28,7 @@ def test_end_to_end_mixed_urls(
     mock_build_sess, mock_reg_convert, mock_write_md, mock_dl_async, tmp_path
 ):
     # Prepare image downloader to succeed and return final paths
-    def dl_fake(tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def dl_fake(tasks, aio_session, logger, hash_to_path, hash_lock):
         results = {}
         for url, path, headers in tasks:
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -72,7 +72,7 @@ def test_end_to_end_mixed_urls(
         SourceRequest(kind="url", value="https://a.example/1"),
         SourceRequest(kind="url", value="https://b.example/2"),
     ]
-    svc._worker(reqs, str(tmp_path), make_opts(), events.append)
+    svc._worker(reqs, str(tmp_path), make_opts(), events.append, None)
 
     # Validate two outputs written
     written = [fn for fn in os.listdir(tmp_path) if fn.endswith(".md")]

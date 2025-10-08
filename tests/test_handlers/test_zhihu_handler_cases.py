@@ -51,7 +51,7 @@ def test_fetch_zhihu_article_retries_then_success(mock_session, mock_zhihu_url, 
         ),
     ]
 
-    def _try(url, on_detail=None, shared_browser=None):
+    def _try(url, logger=None, shared_browser=None, should_stop=None):
         return seq.pop(0)
 
     monkeypatch.setattr(zh, "_try_playwright_crawler", _try)
@@ -76,7 +76,7 @@ def test_fetch_zhihu_article_detects_validation_and_exhausts(
     monkeypatch.setattr(
         zh,
         "_try_playwright_crawler",
-        lambda url, on_detail=None, shared_browser=None: types.SimpleNamespace(
+        lambda url, logger=None, shared_browser=None, should_stop=None: types.SimpleNamespace(
             success=True, title="验证", text_content=html
         ),
     )

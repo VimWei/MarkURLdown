@@ -15,7 +15,7 @@ def test_protocol_relative_and_data_urls(tmp_path):
     images_dir = tmp_path / "img"
     images_dir.mkdir(parents=True, exist_ok=True)
 
-    def dl_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def dl_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         return {url: (True, path) for url, path, _ in image_tasks}
 
     with mock.patch("markdownall.core.images._download_images_async", side_effect=dl_async):
@@ -34,7 +34,7 @@ def test_html_img_single_quote_and_uppercase(tmp_path):
     images_dir = tmp_path / "img"
     images_dir.mkdir(parents=True, exist_ok=True)
 
-    def dl_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def dl_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         return {url: (True, path) for url, path, _ in image_tasks}
 
     with mock.patch("markdownall.core.images._download_images_async", side_effect=dl_async):

@@ -54,11 +54,11 @@ class TestFunctionalityCompleteness(unittest.TestCase):
                           f"Missing component: {component_name}")
     
     def test_all_managers_present(self):
-        """Test that all required managers are present."""
-        required_managers = ['config_manager', 'startup_manager', 'error_handler', 'memory_optimizer']
-        for manager_name in required_managers:
-            self.assertTrue(hasattr(self.main_window, manager_name), 
-                          f"Missing manager: {manager_name}")
+        """Test that all required managers are present (updated architecture)."""
+        # Config now accessed via service layer; StartupManager removed
+        self.assertTrue(hasattr(self.main_window, 'config_service'))
+        self.assertTrue(hasattr(self.main_window, 'error_handler'))
+        self.assertTrue(hasattr(self.main_window, 'memory_optimizer'))
     
     def test_basic_functionality(self):
         """Test basic functionality is working."""
@@ -324,8 +324,9 @@ class TestPerformance(unittest.TestCase):
         start_time = time.time()
         
         # Test config operations
-        config = self.main_window.config_manager.get_all_config()
-        self.main_window.config_manager.set_all_config(config)
+        cm = self.main_window.config_service.config_manager
+        config = cm.get_all_config()
+        cm.set_all_config(config)
         
         end_time = time.time()
         config_time = end_time - start_time

@@ -103,6 +103,12 @@ uv run pytest tests/test_handlers/test_weixin_handler.py::test_fetch_weixin_arti
 uv run pytest tests/test_handlers/test_weixin_handler.py::test_fetch_weixin_article_basic tests/test_handlers/test_zhihu_handler.py::test_fetch_zhihu_article_basic -v
 ```
 
+#### 输出首个失败
+
+```python
+uv run pytest -q -x
+```
+
 ### 高级测试选项
 
 #### 性能分析
@@ -195,7 +201,7 @@ omit =
 [report]
 exclude_lines =
     pragma: no cover
-    if __name__ == .__main__.: 
+    if __name__ == .__main__.:
 ```
 
 代码中也可以使用 `# pragma: no cover` 标记特定行不计入覆盖率。
@@ -601,4 +607,4 @@ tests/
 ```
 
 * Created:  2025/09/28 02:27:20
-* Modified: 2025/09/30 09:01:44
+* Modified: 2025/10/08 13:47:24

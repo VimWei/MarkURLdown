@@ -100,22 +100,20 @@ class MemoryOptimizer:
             virtual_memory = psutil.virtual_memory()
             
             return {
-                "rss_mb": memory_info.rss / 1024 / 1024,  # Resident Set Size in MB
-                "vms_mb": memory_info.vms / 1024 / 1024,  # Virtual Memory Size in MB
+                "rss": memory_info.rss,  # bytes
+                "vms": memory_info.vms,  # bytes
                 "percent": process.memory_percent(),
-                "available_mb": virtual_memory.available / 1024 / 1024,  # Available memory in MB
-                "total_mb": virtual_memory.total / 1024 / 1024,  # Total memory in MB
-                "used_mb": virtual_memory.used / 1024 / 1024,  # Used memory in MB
+                "available": virtual_memory.available,  # bytes
             }
         except ImportError:
             # Fallback when psutil is not available
+            # Provide minimal keys expected by tests
+            approx_bytes = int(self.check_memory_usage() * 1024 * 1024)
             return {
-                "rss_mb": self.check_memory_usage(),
-                "vms_mb": 0.0,
+                "rss": approx_bytes,
+                "vms": 0,
                 "percent": 0.0,
-                "available_mb": 0.0,
-                "total_mb": 0.0,
-                "used_mb": 0.0,
+                "available": 0,
             }
     
     def optimize_python_settings(self):

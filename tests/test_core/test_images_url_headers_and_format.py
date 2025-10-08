@@ -19,7 +19,7 @@ def test_images_adds_special_headers_for_weixin_and_sspai(tmp_path):
     # Track headers passed into downloader by checking constructed image_tasks via side-effect
     captured_headers = {}
 
-    def fake_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def fake_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         # image_tasks: list[(url, local_path, headers)]
         for url, path, headers in image_tasks:
             captured_headers[url] = headers or {}
@@ -57,7 +57,7 @@ def test_images_format_detection_and_rename(tmp_path):
     # Expected final path after rename
     final_png = images_dir / "20250101_000000_001.png"
 
-    def fake_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def fake_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         # Write a minimal PNG header to .img temp result to let detector decide .png
         results = {}
         for url, path, headers in image_tasks:

@@ -17,7 +17,6 @@ def test_download_images_async_wraps_single_download_results():
         return await _download_images_async(
             image_tasks=[("https://u", "/tmp/x", {})],
             session=None,
-            on_detail=None,
             hash_to_path={},
             hash_lock=asyncio.Lock(),
         )

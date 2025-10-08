@@ -49,7 +49,7 @@ def test_worker_shared_browser_start_failure_downgrades(tmp_path):
         mock.patch("playwright.sync_api.sync_playwright", side_effect=RuntimeError("no pw")),
     ):
         # use_shared_browser=True but playwright startup fails -> should downgrade gracefully
-        svc._worker(reqs, str(tmp_path), make_opts(use_shared_browser=True), events.append)
+        svc._worker(reqs, str(tmp_path), make_opts(use_shared_browser=True), events.append, None)
 
     kinds = [getattr(e, "kind", None) for e in events]
     assert "progress_init" in kinds
@@ -79,7 +79,7 @@ def test_worker_emits_via_signals_when_provided(tmp_path):
     ):
         # Run through public run() to set signals and avoid threading by calling _worker directly
         svc._signals = signals
-        svc._worker(reqs, str(tmp_path), make_opts(use_shared_browser=False), lambda e: None)
+        svc._worker(reqs, str(tmp_path), make_opts(use_shared_browser=False), lambda e: None, None)
 
     kinds = [getattr(e, "kind", None) for e in signal_events]
     assert "progress_init" in kinds and "progress_done" in kinds

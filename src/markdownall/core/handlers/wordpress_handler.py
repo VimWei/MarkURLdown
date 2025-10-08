@@ -224,7 +224,8 @@ def _try_playwright_crawler(url: str, logger: Optional[ConvertLogger] = None, sh
             return FetchResult(title=title, html_markdown=html)
 
         # 分支2：使用独立浏览器（兜底方案）
-        logger.info("[浏览器] 使用独立浏览器...")
+        if logger:
+            logger.info("[浏览器] 使用独立浏览器...")
         from playwright.sync_api import sync_playwright
 
         with sync_playwright() as p:

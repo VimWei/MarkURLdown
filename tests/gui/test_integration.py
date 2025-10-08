@@ -208,14 +208,14 @@ class TestConversionWorkflow(unittest.TestCase):
     
     def test_conversion_control(self):
         """Test conversion control integration."""
-        # Test that conversion buttons are accessible
+        # Test that conversion control is accessible (single toggle button)
         self.assertIsNotNone(self.main_window.command_panel.btn_convert)
-        self.assertIsNotNone(self.main_window.command_panel.btn_stop)
-        
-        # Test button states
         self.assertTrue(self.main_window.command_panel.btn_convert.isEnabled())
-        # Stop button might be disabled initially
-        self.assertIsInstance(self.main_window.command_panel.btn_stop.isEnabled(), bool)
+        # Toggle converting state to mimic stop mode
+        self.main_window.command_panel.setConvertingState(True)
+        self.assertTrue(self.main_window.command_panel._is_converting)
+        self.main_window.command_panel.setConvertingState(False)
+        self.assertFalse(self.main_window.command_panel._is_converting)
 
 
 class TestSessionManagement(unittest.TestCase):
@@ -249,14 +249,13 @@ class TestSessionManagement(unittest.TestCase):
     
     def test_config_management(self):
         """Test configuration management."""
-        # Test that config manager is accessible
-        self.assertIsNotNone(self.main_window.config_manager)
-        
-        # Test that config manager has expected methods
-        self.assertTrue(hasattr(self.main_window.config_manager, 'save_session'))
-        self.assertTrue(hasattr(self.main_window.config_manager, 'load_session'))
-        self.assertTrue(hasattr(self.main_window.config_manager, 'get_all_config'))
-        self.assertTrue(hasattr(self.main_window.config_manager, 'set_all_config'))
+        # Access via service layer in new architecture
+        self.assertIsNotNone(self.main_window.config_service)
+        cm = self.main_window.config_service.config_manager
+        self.assertTrue(hasattr(cm, 'save_session'))
+        self.assertTrue(hasattr(cm, 'load_session'))
+        self.assertTrue(hasattr(cm, 'get_all_config'))
+        self.assertTrue(hasattr(cm, 'set_all_config'))
     
     def test_session_buttons(self):
         """Test session management buttons."""
@@ -364,9 +363,8 @@ class TestErrorHandling(unittest.TestCase):
     
     def test_startup_error_handling(self):
         """Test startup error handling."""
-        # Test that startup error handlers exist
-        self.assertTrue(hasattr(self.main_window, '_on_startup_error'))
-        self.assertTrue(hasattr(self.main_window, '_on_startup_complete'))
+        # StartupManager removed; ensure error handler exists instead
+        self.assertTrue(hasattr(self.main_window, 'error_handler'))
 
 
 if __name__ == '__main__':

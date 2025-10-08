@@ -15,7 +15,7 @@ def test_download_failures_keep_original_links(tmp_path):
     images_dir.mkdir(parents=True, exist_ok=True)
 
     # All downloads fail
-    def dl_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def dl_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         return {url: (False, path) for url, path, _ in image_tasks}
 
     with mock.patch("markdownall.core.images._download_images_async", side_effect=dl_async):
@@ -36,7 +36,7 @@ def test_github_raw_conversion_path(tmp_path):
     images_dir = tmp_path / "img"
     images_dir.mkdir(parents=True, exist_ok=True)
 
-    def dl_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def dl_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         results = {}
         for url, path, headers in image_tasks:
             # Simulate what single-image would do: ensure conversion would change the URL

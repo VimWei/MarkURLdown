@@ -65,7 +65,7 @@ def test_worker_continues_on_error_and_emits_done(tmp_path):
         gen_conv.side_effect = side_effect_convert
 
         # Directly invoke _worker synchronously to avoid threading complexity
-        svc._worker(reqs, str(tmp_path), make_opts(use_shared_browser=False), events.append)
+        svc._worker(reqs, str(tmp_path), make_opts(use_shared_browser=False), events.append, None)
 
     # Should have final progress_done event
     kinds = [getattr(e, "kind", None) for e in events]
@@ -114,7 +114,7 @@ def test_worker_stop_early(tmp_path):
         reg_convert2.side_effect = side_effect_convert
         gen_conv.side_effect = side_effect_convert
 
-        svc._worker(reqs, str(tmp_path), make_opts(use_shared_browser=False), events.append)
+        svc._worker(reqs, str(tmp_path), make_opts(use_shared_browser=False), events.append, None)
 
     kinds = [getattr(e, "kind", None) for e in events]
     # Accept stopped or immediate completion if stop was honored before second progress

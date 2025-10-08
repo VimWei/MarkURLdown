@@ -17,7 +17,7 @@ def test_compact_resequence_skips_missing_files(tmp_path):
     images_dir = tmp_path / "img"
     images_dir.mkdir(parents=True, exist_ok=True)
 
-    def fake_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def fake_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         results = {}
         for url, path, headers in image_tasks:
             with open(path, "wb") as f:

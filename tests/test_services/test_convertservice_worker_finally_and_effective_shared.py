@@ -64,7 +64,7 @@ def test_worker_finally_closes_browser_and_runtime_on_early_stop(tmp_path, monke
             svc._should_stop = True
 
     # Run
-    svc._worker(reqs, str(tmp_path), _make_options(shared=True), on_event)
+    svc._worker(reqs, str(tmp_path), _make_options(shared=True), on_event, None)
 
     # Ensure runtime was launched then closed in finally
     assert counters["launch"] == 1
@@ -122,7 +122,7 @@ def test_effective_shared_browser_none_when_url_disallows_shared(tmp_path, monke
         "markdownall.io.writer.write_markdown", lambda out_dir, fn, text: str(tmp_path / fn)
     )
 
-    svc._worker(reqs, str(tmp_path), _make_options(shared=True), events.append)
+    svc._worker(reqs, str(tmp_path), _make_options(shared=True), events.append, None)
 
     # Payload must carry shared_browser=None due to policy
     assert captured_payloads and captured_payloads[0].meta.get("shared_browser") is None

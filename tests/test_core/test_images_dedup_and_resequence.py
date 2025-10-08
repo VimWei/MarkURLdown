@@ -17,7 +17,7 @@ def test_image_dedup_by_content(tmp_path):
     images_dir.mkdir(parents=True, exist_ok=True)
 
     # two URLs, same content bytes -> should map to the same final file
-    def fake_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def fake_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         results = {}
         first_final = None
         for url, path, headers in image_tasks:
@@ -57,7 +57,7 @@ def test_compact_resequence_rename(tmp_path):
     images_dir.mkdir(parents=True, exist_ok=True)
 
     # bytes: a.png -> AA, b.png -> BB, c same as a
-    def fake_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def fake_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         results = {}
         for url, path, headers in image_tasks:
             content = b"AA" if url.endswith("a.png") else b"BB"

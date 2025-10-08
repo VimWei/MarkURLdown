@@ -201,14 +201,14 @@ def test_zhihu_try_playwright_crawler_shared_success(monkeypatch):
     )
     context = types.SimpleNamespace(new_page=lambda: page)
     # patch helpers
-    monkeypatch.setattr(zh, "new_context_and_page", lambda b, apply_stealth=False: (context, page))
+    monkeypatch.setattr(zh, "new_context_and_page", lambda b, context_options=None, apply_stealth=False: (context, page))
     monkeypatch.setattr(zh, "_apply_zhihu_stealth_and_defaults", lambda p: None)
-    monkeypatch.setattr(zh, "_goto_target_and_prepare_content", lambda p, url, on_detail=None: None)
+    monkeypatch.setattr(zh, "_goto_target_and_prepare_content", lambda p, url, logger=None, should_stop=None: None)
     monkeypatch.setattr(
-        zh, "read_page_content_and_title", lambda p, on_detail=None: ("<html>OK</html>", "T")
+        zh, "read_page_content_and_title", lambda p, logger=None: ("<html>OK</html>", "T")
     )
     monkeypatch.setattr(zh, "teardown_context_page", lambda c, p: None)
     r = zh._try_playwright_crawler(
-        "https://www.zhihu.com/question/1/answer/2", on_detail=None, shared_browser=object()
+        "https://www.zhihu.com/question/1/answer/2", shared_browser=object()
     )
     assert r.success and r.text_content.startswith("<html>")

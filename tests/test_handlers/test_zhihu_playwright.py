@@ -34,12 +34,12 @@ def test_zhihu_try_playwright_crawler_success(monkeypatch):
 
     page = DummyPage()
     monkeypatch.setattr(
-        zh, "new_context_and_page", lambda b, apply_stealth=False: (DummyContext(page), page)
+        zh, "new_context_and_page", lambda b, context_options=None, apply_stealth=False: (DummyContext(page), page)
     )
     monkeypatch.setattr(zh, "_apply_zhihu_stealth_and_defaults", lambda p: None)
-    monkeypatch.setattr(zh, "_goto_target_and_prepare_content", lambda p, url, cb=None: None)
+    monkeypatch.setattr(zh, "_goto_target_and_prepare_content", lambda p, url, logger=None, should_stop=None: None)
     monkeypatch.setattr(
-        zh, "read_page_content_and_title", lambda p, on_detail=None: ("<html>OK</html>", "T")
+        zh, "read_page_content_and_title", lambda p, logger=None: ("<html>OK</html>", "T")
     )
 
     fake_sync = lambda: DummyP(page)
@@ -56,8 +56,11 @@ def test_zhihu_try_playwright_crawler_success(monkeypatch):
 @pytest.mark.unit
 @pytest.mark.handler
 def test_zhihu_try_playwright_crawler_import_error(monkeypatch):
-    for mod in ["playwright", "playwright.sync_api"]:
-        sys.modules.pop(mod, None)
-
+    # Mock the import to raise ImportError
+    def mock_import_error(*args, **kwargs):
+        raise ImportError("No module named 'playwright'")
+    
+    monkeypatch.setattr("builtins.__import__", mock_import_error)
+    
     r = zh._try_playwright_crawler("https://u")
     assert r.success is False and r.error and "Playwright" in r.error

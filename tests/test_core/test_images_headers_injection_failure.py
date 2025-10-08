@@ -15,7 +15,7 @@ def test_special_headers_injection_failure_does_not_crash(tmp_path):
     images_dir = tmp_path / "img"
     images_dir.mkdir(parents=True, exist_ok=True)
 
-    def dl_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def dl_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         # assert headers constructed without KeyError
         for url, path, headers in image_tasks:
             assert "Referer" in headers

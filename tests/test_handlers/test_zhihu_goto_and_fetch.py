@@ -29,7 +29,7 @@ def test_goto_target_and_prepare_content_calls_paths(monkeypatch):
     monkeypatch.setattr(zh, "try_close_modal_with_selectors", lambda *a, **k: True)
     monkeypatch.setattr(zh, "_try_click_expand_buttons", lambda page: False)
     zh._goto_target_and_prepare_content(
-        p, "https://www.zhihu.com/question/1/answer/2", on_detail=lambda s: None
+        p, "https://www.zhihu.com/question/1/answer/2"
     )
     assert p.got and p.waits
 

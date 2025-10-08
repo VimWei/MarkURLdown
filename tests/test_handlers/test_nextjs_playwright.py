@@ -16,8 +16,9 @@ def test_nextjs_try_playwright_crawler_shared_and_independent(monkeypatch):
         goto=lambda *a, **k: None,
     )
     context = types.SimpleNamespace(new_page=lambda: page)
-    monkeypatch.setattr(nx, "new_context_and_page", lambda b, apply_stealth=False: (context, page))
-    monkeypatch.setattr(nx, "read_page_content_and_title", lambda p: ("<html>OK</html>", "T"))
+    monkeypatch.setattr(nx, "new_context_and_page", lambda b, context_options=None, apply_stealth=False: (context, page))
+    # Mock the imported function directly in the nextjs_handler module
+    monkeypatch.setattr(nx, "read_page_content_and_title", lambda p, logger=None: ("<html>OK</html>", "T"))
     monkeypatch.setattr(nx, "teardown_context_page", lambda c, p: None)
     r = nx._try_playwright_crawler("https://u", shared_browser=object())
     assert r.success and r.html_markdown.startswith("<html>") and r.title == "T"

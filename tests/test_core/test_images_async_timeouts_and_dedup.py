@@ -16,7 +16,7 @@ def test_async_timeout_errors_are_swallowed(tmp_path):
     images_dir = tmp_path / "img"
     images_dir.mkdir(parents=True, exist_ok=True)
 
-    def dl_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def dl_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         # Simulate timeout behavior by marking all downloads as failed, without raising
         return {url: (False, path) for url, path, _ in image_tasks}
 
@@ -36,7 +36,7 @@ def test_async_dedup_concurrency_same_path(tmp_path):
     images_dir.mkdir(parents=True, exist_ok=True)
 
     # Simulate two URLs yielding identical content hashes
-    def dl_async(image_tasks, aio_session, on_detail, hash_to_path, hash_lock):
+    def dl_async(image_tasks, aio_session, logger, hash_to_path, hash_lock):
         results = {}
         first_path = None
         for url, path, headers in image_tasks:

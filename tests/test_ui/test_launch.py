@@ -311,6 +311,57 @@ def _install_fake_pyside(monkeypatch):
         def setText(self, *a, **k):
             pass
 
+    class _QSplitter:
+        def __init__(self, *a, **k):
+            pass
+
+        def addWidget(self, *a, **k):
+            pass
+
+        def setSizes(self, *a, **k):
+            pass
+
+        def setStretchFactor(self, *a, **k):
+            pass
+
+    class _QTabWidget:
+        def __init__(self, *a, **k):
+            pass
+
+        def addTab(self, *a, **k):
+            pass
+
+        def setCurrentIndex(self, *a, **k):
+            pass
+
+    class _QSizePolicy:
+        Fixed = 0
+        Minimum = 1
+        Maximum = 2
+        Preferred = 3
+        Expanding = 4
+        Ignored = 5
+
+        def __init__(self, *a, **k):
+            pass
+
+    class _QSpacerItem:
+        def __init__(self, *a, **k):
+            pass
+
+    class _QTextEdit:
+        def __init__(self, *a, **k):
+            pass
+
+        def setPlainText(self, *a, **k):
+            pass
+
+        def append(self, *a, **k):
+            pass
+
+        def clear(self, *a, **k):
+            pass
+
     class _QClipboard:
         def setText(self, *a, **k):
             pass
@@ -327,6 +378,7 @@ def _install_fake_pyside(monkeypatch):
 
     qtcore.Qt = _Qt()
     qtcore.QObject = _QObject
+    qtcore.QThread = object
     qtcore.QTimer = _QTimer
     qtcore.Signal = _Signal
     qtgui.QColor = _QColor
@@ -352,6 +404,11 @@ def _install_fake_pyside(monkeypatch):
     qtwidgets.QComboBox = _QComboBox
     qtwidgets.QFileDialog = _QFileDialog
     qtwidgets.QCheckBox = _QCheckBox
+    qtwidgets.QSplitter = _QSplitter
+    qtwidgets.QTabWidget = _QTabWidget
+    qtwidgets.QSizePolicy = _QSizePolicy
+    qtwidgets.QSpacerItem = _QSpacerItem
+    qtwidgets.QTextEdit = _QTextEdit
 
     fake_pkg.QtCore = qtcore
     fake_pkg.QtGui = qtgui
@@ -403,19 +460,25 @@ def test_launch_main_success(monkeypatch, tmp_path):
 
     monkeypatch.setattr(launch, "show_immediate_splash", fake_show_immediate_splash)
 
-    # Stub config loader to return Chinese language to exercise i18n branch
-    def fake_load_json_from_root(_root, _name):
-        return {"language": "zh"}
-
     monkeypatch.setenv("PYTHONIOENCODING", "utf-8")
     monkeypatch.setenv("TZ", "UTC")
     monkeypatch.setattr(launch, "QMessageBox", SimpleNamespace(critical=lambda *a, **k: None))
 
-    # Inject the loader symbol into the module namespace after it is imported inside main
+    # Stub ConfigService used by launch to provide language
+    class _FakeCfg:
+        def __init__(self, *_a, **_k):
+            pass
+        def load_session(self, *_a, **_k):
+            return True
+        def get_advanced_config(self):
+            return {"language": "zh"}
+
+    # Patch where from-import will bind from
     monkeypatch.setattr(
-        importlib.import_module("markdownall.io.config"),
-        "load_json_from_root",
-        fake_load_json_from_root,
+        importlib.import_module("markdownall.services.config_service"),
+        "ConfigService",
+        _FakeCfg,
+        raising=False,
     )
 
     # Stub MainWindow class（入口统一为 MainWindow）
@@ -501,9 +564,20 @@ def test_launch_main_exception(monkeypatch, tmp_path):
         staticmethod(lambda **kw: raising_main_window(**kw)),
     )
 
-    # Stub config loader to return empty
+    # Stub ConfigService for exception path
+    class _FakeCfg2:
+        def __init__(self, *_a, **_k):
+            pass
+        def load_session(self, *_a, **_k):
+            return False
+        def get_advanced_config(self):
+            return {}
+
     monkeypatch.setattr(
-        importlib.import_module("markdownall.io.config"), "load_json_from_root", lambda *a, **k: {}
+        importlib.import_module("markdownall.services.config_service"),
+        "ConfigService",
+        _FakeCfg2,
+        raising=False,
     )
 
     # Stub QMessageBox and QApplication in module namespace
