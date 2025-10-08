@@ -461,10 +461,9 @@ class ConvertService:
 
                 task_logger = _TaskAwareLogger(logger, idx, total)
 
-                # Handler级别的共享浏览器控制
-                # 根据handler声明自动决定是否使用共享浏览器
+                # Handler级别的共享浏览器控制（仅当启用了共享浏览器时才进行判断）
                 effective_shared_browser = shared_browser
-                if req.kind == "url" and isinstance(req.value, str):
+                if shared_browser is not None and req.kind == "url" and isinstance(req.value, str):
                     url = req.value
                     from markdownall.core.registry import (
                         should_use_shared_browser_for_url,
@@ -482,29 +481,28 @@ class ConvertService:
                         except:
                             pass
 
-                        if shared_browser is not None:
-                            # Structured event for i18n at UI layer
-                            self._emit_event_safe(
-                                ProgressEvent(
-                                    kind="detail",
-                                    key="shared_browser_disabled_for_handler",
-                                    data={"handler": handler_name},
-                                    text=f"[浏览器] {handler_name}需要独立浏览器，关闭共享浏览器",
-                                ),
-                                on_event,
-                            )
+                        # Structured event for i18n at UI layer
+                        self._emit_event_safe(
+                            ProgressEvent(
+                                kind="detail",
+                                key="shared_browser_disabled_for_handler",
+                                data={"handler": handler_name},
+                                text=f"[浏览器] {handler_name}需要独立浏览器，关闭共享浏览器",
+                            ),
+                            on_event,
+                        )
+                        try:
+                            shared_browser.close()
+                        except Exception:
+                            pass
+                        shared_browser = None
+                        # 同时关闭playwright runtime
+                        if playwright_runtime is not None:
                             try:
-                                shared_browser.close()
+                                playwright_runtime.stop()
                             except Exception:
                                 pass
-                            shared_browser = None
-                            # 同时关闭playwright runtime
-                            if playwright_runtime is not None:
-                                try:
-                                    playwright_runtime.stop()
-                                except Exception:
-                                    pass
-                                playwright_runtime = None
+                            playwright_runtime = None
 
                         # 使用同步等待，确保资源完全释放
                         try:
@@ -555,7 +553,8 @@ class ConvertService:
 
                     # 如果刚处理完不使用共享浏览器的URL，需要重新创建共享浏览器供后续URL使用
                     if (
-                        req.kind == "url"
+                        shared_browser is not None
+                        and req.kind == "url"
                         and isinstance(req.value, str)
                         and not should_use_shared_browser_for_url(req.value)
                     ):
