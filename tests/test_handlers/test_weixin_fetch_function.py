@@ -14,7 +14,9 @@ def test_fetch_weixin_article_success(monkeypatch):
         success=True, title="T", text_content="<html><div>ok content</div></html>"
     )
     monkeypatch.setattr(
-        wx, "_try_playwright_crawler", lambda url, logger=None, shared_browser=None, should_stop=None: wxres
+        wx,
+        "_try_playwright_crawler",
+        lambda url, logger=None, shared_browser=None, should_stop=None: wxres,
     )
     r = wx.fetch_weixin_article(
         session=object(), url="https://mp.weixin.qq.com/s/abc", shared_browser=None
@@ -26,6 +28,10 @@ def test_fetch_weixin_article_success(monkeypatch):
 def test_fetch_weixin_article_failure_raises(monkeypatch):
     # Always fail path triggering final exception
     wxres = wx.CrawlerResult(success=False, title=None, text_content="", error="e")
-    monkeypatch.setattr(wx, "_try_playwright_crawler", lambda url, logger=None, shared_browser=None, should_stop=None: wxres)
+    monkeypatch.setattr(
+        wx,
+        "_try_playwright_crawler",
+        lambda url, logger=None, shared_browser=None, should_stop=None: wxres,
+    )
     with pytest.raises(Exception):
         wx.fetch_weixin_article(session=object(), url="https://mp.weixin.qq.com/s/abc")

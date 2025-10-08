@@ -10,5 +10,3 @@ class StopRequested(Exception):
     """
 
     pass
-
-

@@ -14,9 +14,10 @@ from typing import Optional
 @dataclass
 class BasicConfig:
     """Basic page configuration."""
+
     urls: list[str] = None
     output_dir: str = ""
-    
+
     def __post_init__(self):
         if self.urls is None:
             self.urls = []
@@ -25,6 +26,7 @@ class BasicConfig:
 @dataclass
 class WebpageConfig:
     """Webpage page configuration."""
+
     use_proxy: bool = False
     ignore_ssl: bool = False
     download_images: bool = True
@@ -35,6 +37,7 @@ class WebpageConfig:
 @dataclass
 class AdvancedConfig:
     """Advanced page configuration."""
+
     user_data_path: str = ""
     language: str = "auto"
     # debug_mode removed
@@ -43,5 +46,6 @@ class AdvancedConfig:
 @dataclass
 class AboutConfig:
     """About page configuration."""
+
     homepage_clicked: bool = False
     last_update_check: Optional[str] = None

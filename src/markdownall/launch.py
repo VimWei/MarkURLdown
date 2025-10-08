@@ -31,6 +31,7 @@ def main() -> None:
 
         # Read language via ConfigService from unified session file
         from markdownall.services.config_service import ConfigService  # noqa: WPS433
+
         cfg = ConfigService(root_dir)
         cfg.load_session("last_state")  # best-effort; ok if missing
         lang = str(cfg.get_advanced_config().get("language", "en"))

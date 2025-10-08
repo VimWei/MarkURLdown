@@ -171,12 +171,12 @@ def test_wait_for_selector_stable_with_mapping_and_timeout():
 def test_read_page_content_and_title_emits_and_reads():
     p = DummyPage()
     messages = []
-    
+
     # Create a mock logger that captures messages
     class MockLogger:
         def info(self, msg):
             messages.append(msg)
-    
+
     logger = MockLogger()
     html, title = drv.read_page_content_and_title(p, logger)
     assert html.startswith("<html") and title == "T"

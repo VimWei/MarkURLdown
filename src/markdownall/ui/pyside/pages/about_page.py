@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QSpacerItem,
     QSizePolicy,
+    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
@@ -43,12 +43,12 @@ class VersionCheckThread(QThread):
 class AboutPage(QWidget):
     """
     About page for project information and version checking.
-    
+
     This page contains:
     - Project homepage link
     - Version check functionality
     """
-    
+
     # Signals for communicating with MainWindow
     checkUpdatesRequested = Signal()
     openHomepageRequested = Signal()
@@ -56,10 +56,10 @@ class AboutPage(QWidget):
     def __init__(self, parent: QWidget | None = None, translator: Translator | None = None):
         super().__init__(parent)
         self.translator = translator
-        
+
         # Initialize version check thread
         self.version_thread = None
-        
+
         # Setup UI
         self._setup_ui()
         self._connect_signals()
@@ -111,7 +111,9 @@ class AboutPage(QWidget):
         layout.addLayout(update_row)
 
         # Align left labels to longest width with padding
-        _section_w = max(self._lbl_home.sizeHint().width(), self._lbl_update.sizeHint().width()) + 16
+        _section_w = (
+            max(self._lbl_home.sizeHint().width(), self._lbl_update.sizeHint().width()) + 16
+        )
         self._lbl_home.setFixedWidth(_section_w)
         self._lbl_update.setFixedWidth(_section_w)
 
@@ -188,7 +190,7 @@ class AboutPage(QWidget):
         """Retranslate UI elements."""
         if not self.translator:
             return
-            
+
         t = self.translator.t
         try:
             self._lbl_home.setText(t("about_homepage"))
@@ -203,10 +205,13 @@ class AboutPage(QWidget):
         # Recompute and apply deterministic label widths after translation
         try:
             metrics = self.fontMetrics()
-            left_w = max(
-                metrics.horizontalAdvance(self._lbl_home.text()),
-                metrics.horizontalAdvance(self._lbl_update.text()),
-            ) + 16
+            left_w = (
+                max(
+                    metrics.horizontalAdvance(self._lbl_home.text()),
+                    metrics.horizontalAdvance(self._lbl_update.text()),
+                )
+                + 16
+            )
             self._lbl_home.setFixedWidth(left_w)
             self._lbl_update.setFixedWidth(left_w)
         except Exception:
@@ -217,8 +222,8 @@ class AboutPage(QWidget):
     def get_config(self) -> dict:
         """Get current configuration from the page."""
         return {
-            "homepage_clicked": getattr(self, '_homepage_clicked', False),
-            "last_update_check": getattr(self, '_last_update_check', None),
+            "homepage_clicked": getattr(self, "_homepage_clicked", False),
+            "last_update_check": getattr(self, "_last_update_check", None),
         }
 
     def set_config(self, config: dict) -> None:

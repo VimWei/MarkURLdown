@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from typing import Any, Iterable, Mapping, Optional
+
 from markdownall.app_types import ConvertLogger
 
 # --- Lifecycle helpers ---

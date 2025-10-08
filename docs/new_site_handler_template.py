@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Optional, Callable
+from typing import Any, Callable, Optional
 
 from bs4 import BeautifulSoup, NavigableString
 
@@ -10,19 +10,20 @@ from markdownall.core.html_to_md import html_fragment_to_markdown
 
 # 可选：使用 Playwright driver 辅助（共享或独立浏览器均可复用这些工具）
 try:
+    from markdownall.app_types import ConvertLogger
+    from markdownall.core.exceptions import StopRequested
     from markdownall.services.playwright_driver import (
         new_context_and_page,
         read_page_content_and_title,
         teardown_context_page,
     )
-    from markdownall.app_types import ConvertLogger
-    from markdownall.core.exceptions import StopRequested
 except Exception:
     # 若不依赖 Playwright，可忽略导入失败
     new_context_and_page = None  # type: ignore
     teardown_context_page = None  # type: ignore
     read_page_content_and_title = None  # type: ignore
     ConvertLogger = None  # type: ignore
+
     class StopRequested(Exception):
         pass
 
@@ -408,6 +409,7 @@ def _try_playwright_crawler(
                 page.goto(url, wait_until="networkidle", timeout=30000)
                 # 等待稳定（可停止）
                 import time
+
                 total_sleep = 2.0
                 slept = 0.0
                 while slept < total_sleep:
@@ -448,6 +450,7 @@ def _try_playwright_crawler(
             page.goto(url, wait_until="networkidle", timeout=30000)
             # 等待稳定（可停止）
             import time
+
             total_sleep = 2.0
             slept = 0.0
             while slept < total_sleep:
@@ -497,7 +500,7 @@ def fetch_newsite_article(
 
     参数:
     - logger: 可选的日志记录器，使用细粒度日志方法记录操作进度和状态。
-      支持的方法包括：fetch_start(), fetch_success(), fetch_failed(), 
+      支持的方法包括：fetch_start(), fetch_success(), fetch_failed(),
       fetch_retry(), parse_content_short(), url_success(), url_failed() 等。
     - shared_browser: 共享浏览器实例（如有）。
     - min_content_length: 内容质量阈值（字符数），过短则继续尝试其他策略。
@@ -577,6 +580,7 @@ def fetch_newsite_article(
         if i < len(strategies):
             import random
             import time
+
             total_sleep = random.uniform(1, 2)
             slept = 0.0
             while slept < total_sleep:

@@ -36,9 +36,13 @@ def test_weixin_try_playwright_crawler_success(monkeypatch):
 
     page = DummyPage()
     monkeypatch.setattr(
-        wx, "new_context_and_page", lambda b, context_options=None, apply_stealth=False: (DummyContext(page), page)
+        wx,
+        "new_context_and_page",
+        lambda b, context_options=None, apply_stealth=False: (DummyContext(page), page),
     )
-    monkeypatch.setattr(wx, "_goto_target_and_prepare_content", lambda p, url, logger=None, should_stop=None: None)
+    monkeypatch.setattr(
+        wx, "_goto_target_and_prepare_content", lambda p, url, logger=None, should_stop=None: None
+    )
     monkeypatch.setattr(
         wx, "read_page_content_and_title", lambda p, logger=None: ("<html>OK</html>", "T")
     )

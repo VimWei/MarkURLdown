@@ -3,6 +3,7 @@ Tests for time utility functions.
 """
 
 import pytest
+
 from markdownall.utils.time_utils import human_readable_duration
 
 
@@ -80,12 +81,12 @@ class TestTimeUtils:
         """Test human_readable_duration formatting."""
         result = human_readable_duration(3661.0)
         parts = result.split()
-        
+
         # Check that hours, minutes, seconds are present
         assert "hours" in result
         assert "minutes" in result
         assert "seconds" in result
-        
+
         # Check format: XX hoursXX minutesXX.XXX seconds
         assert result.count("hours") == 1
         assert result.count("minutes") == 1

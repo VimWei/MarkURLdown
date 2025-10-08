@@ -38,9 +38,15 @@ def test_sspai_try_playwright_crawler_shared_success_and_error(monkeypatch):
         title=lambda: "T",
     )
     context = types.SimpleNamespace(new_page=lambda: page, close=lambda: None)
-    monkeypatch.setattr(sp, "new_context_and_page", lambda b, context_options=None, apply_stealth=False: (context, page))
+    monkeypatch.setattr(
+        sp,
+        "new_context_and_page",
+        lambda b, context_options=None, apply_stealth=False: (context, page),
+    )
     # Mock the imported function directly in the sspai_handler module
-    monkeypatch.setattr(sp, "read_page_content_and_title", lambda p, logger=None: ("<html>OK</html>", "T"))
+    monkeypatch.setattr(
+        sp, "read_page_content_and_title", lambda p, logger=None: ("<html>OK</html>", "T")
+    )
     monkeypatch.setattr(sp, "teardown_context_page", lambda c, p: None)
     r = sp._try_playwright_crawler("https://u", shared_browser=object())
     assert r.success and r.html_markdown.startswith("<html>") and r.title == "T"

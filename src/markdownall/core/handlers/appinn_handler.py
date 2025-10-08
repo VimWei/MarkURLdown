@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Optional, Callable
-from markdownall.app_types import ConvertLogger
+from typing import Any, Callable, Optional
 
 from bs4 import BeautifulSoup, NavigableString
 
+from markdownall.app_types import ConvertLogger
 from markdownall.core.html_to_md import html_fragment_to_markdown
 
 # 可选：使用 Playwright driver 辅助（共享或独立浏览器均可复用这些工具）
@@ -342,7 +342,7 @@ def _clean_and_normalize_appinn_content(content_elem) -> None:
 
 def _process_appinn_content(
     html: str, url: Optional[str] = None, title_hint: Optional[str] = None
-    ) -> FetchResult:
+) -> FetchResult:
     """处理 appinn.com 内容，提取标题、元数据和过滤后的正文"""
     try:
         soup = BeautifulSoup(html, "lxml")
@@ -410,7 +410,10 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
 
 
 def _try_playwright_crawler(
-    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None, should_stop: Optional[Callable[[], bool]] = None
+    url: str,
+    logger: Optional[ConvertLogger] = None,
+    shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
 ) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
@@ -425,6 +428,7 @@ def _try_playwright_crawler(
                 page.goto(url, wait_until="networkidle", timeout=30000)
                 # 等待稳定（可停止）
                 import time
+
                 total_sleep = 2.0
                 slept = 0.0
                 while slept < total_sleep:
@@ -461,6 +465,7 @@ def _try_playwright_crawler(
             page.goto(url, wait_until="networkidle", timeout=30000)
             # 等待稳定（可停止）
             import time
+
             total_sleep = 2.0
             slept = 0.0
             while slept < total_sleep:
@@ -513,6 +518,7 @@ def fetch_appinn_article(
                 if retry > 0:
                     import random
                     import time
+
                     if logger:
                         logger.fetch_retry(f"Appinn策略 {i}", retry, max_retries)
                     total_sleep = random.uniform(2, 4)
@@ -578,6 +584,7 @@ def fetch_appinn_article(
         if i < len(strategies):
             import random
             import time
+
             total_sleep = random.uniform(1, 2)
             slept = 0.0
             while slept < total_sleep:

@@ -5,11 +5,12 @@ import re
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
-from markdownall.app_types import ConvertLogger
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup, NavigableString
 
+from markdownall.app_types import ConvertLogger
+from markdownall.core.exceptions import StopRequested
 from markdownall.core.handlers import generic_handler as _generic
 from markdownall.core.html_to_md import html_fragment_to_markdown
 from markdownall.services.playwright_driver import (
@@ -19,7 +20,6 @@ from markdownall.services.playwright_driver import (
     try_close_modal_with_selectors,
     wait_for_selector_stable,
 )
-from markdownall.core.exceptions import StopRequested
 
 
 # 1. 数据类
@@ -483,7 +483,10 @@ def _try_click_expand_buttons(page) -> bool:
 
 
 def _goto_target_and_prepare_content(
-    page, url: str, logger: Optional[ConvertLogger] = None, should_stop: Optional[Callable[[], bool]] = None
+    page,
+    url: str,
+    logger: Optional[ConvertLogger] = None,
+    should_stop: Optional[Callable[[], bool]] = None,
 ) -> None:
     """访问目标URL，处理登录弹窗，等待页面稳定，并尝试展开全文。"""
     # 访问目标
@@ -551,7 +554,10 @@ def _goto_target_and_prepare_content(
 
 
 def _try_playwright_crawler(
-    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None, should_stop: Optional[Callable[[], bool]] = None
+    url: str,
+    logger: Optional[ConvertLogger] = None,
+    shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
 ) -> CrawlerResult:
     """尝试使用 Playwright 爬虫 - 能处理知乎的验证机制"""
     # 检测页面类型

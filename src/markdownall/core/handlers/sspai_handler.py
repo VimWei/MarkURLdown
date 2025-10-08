@@ -7,17 +7,17 @@ import random
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, Optional, Callable
-from markdownall.app_types import ConvertLogger
+from typing import Any, Callable, Optional
 
 from bs4 import BeautifulSoup, NavigableString
 
+from markdownall.app_types import ConvertLogger
+from markdownall.core.exceptions import StopRequested
 from markdownall.services.playwright_driver import (
     new_context_and_page,
     read_page_content_and_title,
     teardown_context_page,
 )
-from markdownall.core.exceptions import StopRequested
 
 # 1. 数据类
 
@@ -493,7 +493,10 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
 
 
 def _try_playwright_crawler(
-    url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None, should_stop: Optional[Callable[[], bool]] = None
+    url: str,
+    logger: Optional[ConvertLogger] = None,
+    shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
 ) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
@@ -508,6 +511,7 @@ def _try_playwright_crawler(
                 page.goto(url, wait_until="networkidle", timeout=30000)
                 # 等待稳定（可停止）
                 import time
+
                 total_sleep = 2.0
                 slept = 0.0
                 while slept < total_sleep:
@@ -544,6 +548,7 @@ def _try_playwright_crawler(
             page.goto(url, wait_until="networkidle", timeout=30000)
             # 等待稳定（可停止）
             import time
+
             total_sleep = 2.0
             slept = 0.0
             while slept < total_sleep:
@@ -568,7 +573,11 @@ def _try_playwright_crawler(
 
 
 def fetch_sspai_article(
-    session, url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None, should_stop: Optional[Callable[[], bool]] = None
+    session,
+    url: str,
+    logger: Optional[ConvertLogger] = None,
+    shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
 ) -> FetchResult:
     """获取少数派文章内容（多策略爬取 + 统一内容处理）"""
     strategies = [
@@ -583,7 +592,9 @@ def fetch_sspai_article(
                 if retry > 0:
                     if logger:
                         logger.fetch_retry(f"少数派策略 {i}", retry, max_retries)
-                    import time, random
+                    import random
+                    import time
+
                     total_sleep = random.uniform(2, 4)
                     slept = 0.0
                     while slept < total_sleep:
@@ -645,7 +656,9 @@ def fetch_sspai_article(
 
         # 策略间等待
         if i < len(strategies):
-            import time, random
+            import random
+            import time
+
             total_sleep = random.uniform(1, 2)
             slept = 0.0
             while slept < total_sleep:

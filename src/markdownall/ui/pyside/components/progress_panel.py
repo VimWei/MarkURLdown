@@ -26,21 +26,21 @@ if TYPE_CHECKING:
 class ProgressPanel(QWidget):
     """
     Progress panel component for multi-task progress display.
-    
+
     This component contains:
     - Progress bar for overall task progress
     - Status label for current processing status
     - Fixed height: 100px
     - Simplified display, detailed info through LogPanel
     """
-    
+
     # Progress update signal
     progressUpdated = Signal(int, str)  # value, text
 
     def __init__(self, parent: QWidget | None = None, translator: Translator | None = None):
         super().__init__(parent)
         self.translator = translator
-        
+
         # Set fixed height (adapted for multi-task display)
         self.setFixedHeight(100)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -61,7 +61,8 @@ class ProgressPanel(QWidget):
         self.progress.setFixedHeight(24)
         self.progress.setTextVisible(True)
         self.progress.setFormat("Ready")
-        self.progress.setStyleSheet("""
+        self.progress.setStyleSheet(
+            """
             QProgressBar {
                 border: 1px solid #ccc;
                 border-radius: 4px;
@@ -72,7 +73,8 @@ class ProgressPanel(QWidget):
                 background-color: #0078d4;
                 border-radius: 3px;
             }
-        """)
+        """
+        )
         layout.addWidget(self.progress)
 
         # Simplified status display (single line layout, working with LogPanel)
@@ -84,7 +86,7 @@ class ProgressPanel(QWidget):
     def setProgress(self, value: int, text: str = "") -> None:
         """Set progress value and display text."""
         self.progress.setValue(max(0, min(100, int(value))))
-        
+
         if text:
             # Show custom text
             self.progress.setFormat(text)
@@ -96,19 +98,26 @@ class ProgressPanel(QWidget):
         """Set status text."""
         self.status_label.setText(text)
 
-    def setMultiTaskProgress(self, current: int, total: int, current_url: str = "", 
-                           successful: int = 0, failed: int = 0, pending: int = 0) -> None:
+    def setMultiTaskProgress(
+        self,
+        current: int,
+        total: int,
+        current_url: str = "",
+        successful: int = 0,
+        failed: int = 0,
+        pending: int = 0,
+    ) -> None:
         """Set multi-task progress (optimized for MarkdownAll)."""
         # Calculate overall progress
         progress = int((current / total) * 100) if total > 0 else 0
         self.setProgress(progress)
-        
+
         # Set status text (simplified display)
         if current_url:
             self.setStatus(f"Processing {current}/{total}: {current_url}")
         else:
             self.setStatus(f"Processing {current}/{total} URLs")
-        
+
         # Detailed status information through LogPanel, here only show core progress info
 
     def reset(self) -> None:
@@ -127,7 +136,7 @@ class ProgressPanel(QWidget):
         """Retranslate UI elements."""
         if not self.translator:
             return
-            
+
         t = self.translator.t
         # Note: These translations may need to be added to the locale files
         # For now, using English labels

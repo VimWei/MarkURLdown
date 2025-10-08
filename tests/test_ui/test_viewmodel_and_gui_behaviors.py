@@ -5,10 +5,10 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+from PySide6.QtWidgets import QFileDialog
 
 from markdownall.app_types import ConversionOptions, ProgressEvent, SourceRequest
 from markdownall.ui.pyside.main_window import MainWindow
-from PySide6.QtWidgets import QFileDialog
 from markdownall.ui.viewmodel import ViewModel
 
 
@@ -36,7 +36,10 @@ def test_add_url_from_entry_normalizes_and_adds(tmp_path, qapp):
     window = _make_window(tmp_path, qapp)
     window.basic_page.url_entry.setText("example.com  https://already.com\n http://plain.net")
     window.basic_page._add_url_from_entry()
-    items = [window.basic_page.url_listbox.item(i).text() for i in range(window.basic_page.url_listbox.count())]
+    items = [
+        window.basic_page.url_listbox.item(i).text()
+        for i in range(window.basic_page.url_listbox.count())
+    ]
     assert items == [
         "https://example.com",
         "https://already.com",
@@ -175,7 +178,9 @@ def test_on_event_branches_update_ui(tmp_path, qapp):
     # Note: detail_label may be handled differently in new architecture
     pass
 
-    window._on_event_thread_safe(ProgressEvent(kind="progress_step", data={"completed": 2}, text="step"))
+    window._on_event_thread_safe(
+        ProgressEvent(kind="progress_step", data={"completed": 2}, text="step")
+    )
     # Note: progress is now in command_panel
     pass
 
@@ -203,19 +208,28 @@ def test_list_operations_move_delete_clear(tmp_path, qapp):
     window.basic_page.url_listbox.addItem("c")
     window.basic_page.url_listbox.setCurrentRow(1)  # b
     window.basic_page._move_selected_up()
-    assert [window.basic_page.url_listbox.item(i).text() for i in range(window.basic_page.url_listbox.count())] == [
+    assert [
+        window.basic_page.url_listbox.item(i).text()
+        for i in range(window.basic_page.url_listbox.count())
+    ] == [
         "b",
         "a",
         "c",
     ]
     window.basic_page._move_selected_down()
-    assert [window.basic_page.url_listbox.item(i).text() for i in range(window.basic_page.url_listbox.count())] == [
+    assert [
+        window.basic_page.url_listbox.item(i).text()
+        for i in range(window.basic_page.url_listbox.count())
+    ] == [
         "a",
         "b",
         "c",
     ]
     window.basic_page._delete_selected()
-    assert [window.basic_page.url_listbox.item(i).text() for i in range(window.basic_page.url_listbox.count())] == [
+    assert [
+        window.basic_page.url_listbox.item(i).text()
+        for i in range(window.basic_page.url_listbox.count())
+    ] == [
         "a",
         "c",
     ]
@@ -227,26 +241,29 @@ def test_list_operations_move_delete_clear(tmp_path, qapp):
 def test_run_entrypoint_is_callable_via_launch(monkeypatch, tmp_path, qapp):
     # Patch heavy parts to avoid real GUI loop
     import importlib
+
     import markdownall.launch as launch_mod
 
     # Create a more robust mock for splash screen
     class MockSplash:
         def showMessage(self, *args, **kwargs):
             pass
+
         def show(self):
             pass
+
         def finish(self, window=None):
             pass
 
     fake_app = qapp
     splash_mock = MockSplash()
-    
+
     # Mock the splash creation more safely
     def safe_show_splash():
         return fake_app, splash_mock
-    
+
     monkeypatch.setattr(launch_mod, "show_immediate_splash", safe_show_splash)
-    
+
     # Patch config loader where launch.main imports it from
     monkeypatch.setattr(
         importlib.import_module("markdownall.io.config"),
@@ -274,7 +291,7 @@ def test_run_entrypoint_is_callable_via_launch(monkeypatch, tmp_path, qapp):
     # Mock the _emit_startup_progress function to avoid Qt issues
     def safe_emit_progress(app, splash, message):
         pass
-    
+
     monkeypatch.setattr(launch_mod, "_emit_startup_progress", safe_emit_progress)
 
     launch_mod.main()

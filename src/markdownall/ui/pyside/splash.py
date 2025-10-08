@@ -46,6 +46,7 @@ def show_immediate_splash() -> Tuple[QApplication, QSplashScreen]:
 
     # Determine headless/CI conditions where a real splash may crash
     import os
+
     is_pytest = bool(os.environ.get("PYTEST_CURRENT_TEST"))
     headless = False
     try:
@@ -55,19 +56,26 @@ def show_immediate_splash() -> Tuple[QApplication, QSplashScreen]:
         headless = True
 
     if is_pytest or headless:
+
         class _FallbackSplash:
             def __init__(self) -> None:
                 self._visible = True
+
             def show(self) -> None:
                 self._visible = True
+
             def isVisible(self) -> bool:  # type: ignore[override]
                 return self._visible
+
             def close(self) -> None:
                 self._visible = False
+
             def showMessage(self, *args, **kwargs) -> None:
                 return None
+
             def finish(self, *args, **kwargs) -> None:
                 self.close()
+
         return app, _FallbackSplash()
 
     try:
@@ -83,14 +91,20 @@ def show_immediate_splash() -> Tuple[QApplication, QSplashScreen]:
         class _FallbackSplash:
             def __init__(self) -> None:
                 self._visible = True
+
             def show(self) -> None:
                 self._visible = True
+
             def isVisible(self) -> bool:  # type: ignore[override]
                 return self._visible
+
             def close(self) -> None:
                 self._visible = False
+
             def showMessage(self, *args, **kwargs) -> None:
                 return None
+
             def finish(self, *args, **kwargs) -> None:
                 self.close()
+
         return app, _FallbackSplash()

@@ -30,13 +30,13 @@ if TYPE_CHECKING:
 class BasicPage(QWidget):
     """
     Basic configuration page for URL management and output directory.
-    
+
     This page contains:
     - URL input field and add button
     - URL list with management buttons (up, down, delete, clear, copy)
     - Output directory selection
     """
-    
+
     # Signals for communicating with MainWindow
     urlListChanged = Signal(list)
     outputDirChanged = Signal(str)
@@ -45,13 +45,13 @@ class BasicPage(QWidget):
     def __init__(self, parent: QWidget | None = None, translator: Translator | None = None):
         super().__init__(parent)
         self.translator = translator
-        
+
         # Initialize data
         self.output_dir_var = ""
         # Cached widths for stable layout across language/reset
         self._left_label_w = None
         self._btn_w = None
-        
+
         # Setup UI
         self._setup_ui()
         self._connect_signals()
@@ -101,7 +101,13 @@ class BasicPage(QWidget):
         self.copy_btn = QPushButton()
         self.delete_btn = QPushButton()
         self.clear_btn = QPushButton()
-        for btn in [self.move_up_btn, self.move_down_btn, self.copy_btn, self.delete_btn, self.clear_btn]:
+        for btn in [
+            self.move_up_btn,
+            self.move_down_btn,
+            self.copy_btn,
+            self.delete_btn,
+            self.clear_btn,
+        ]:
             btn.setFixedHeight(button_height)
             url_btn_layout.addWidget(btn)
         row_list.addWidget(url_btn_frame)
@@ -143,7 +149,7 @@ class BasicPage(QWidget):
         self.copy_btn.clicked.connect(self._copy_selected)
         self.choose_dir_btn.clicked.connect(self._choose_output_dir)
         self.url_entry.returnPressed.connect(self._add_url_from_entry)
-        
+
         # Connect output directory changes only when editing finished to avoid log spam
         self.output_entry.editingFinished.connect(self._on_output_dir_changed)
 
@@ -152,10 +158,10 @@ class BasicPage(QWidget):
         raw = self.url_entry.text().strip()
         if not raw:
             return
-            
+
         parts = [p.strip() for p in raw.replace("\r", "\n").split("\n")]
         urls = []
-        
+
         for part in parts:
             if not part:
                 continue
@@ -166,13 +172,13 @@ class BasicPage(QWidget):
                 if not u.lower().startswith(("http://", "https://")):
                     u = "https://" + u
                 urls.append(u)
-        
+
         if not urls:
             return
-            
+
         for u in urls:
             self.url_listbox.addItem(u)
-            
+
         self.url_entry.setText("")
         self._emit_url_list_changed()
 
@@ -212,6 +218,7 @@ class BasicPage(QWidget):
         if current >= 0:
             url = self.url_listbox.item(current).text()
             from PySide6.QtWidgets import QApplication
+
             clipboard = QApplication.clipboard()
             clipboard.setText(url)
             # Emit signal for status update
@@ -221,7 +228,7 @@ class BasicPage(QWidget):
         """Open directory chooser dialog."""
         if not self.translator:
             return
-            
+
         # Determine initial directory for the dialog (common convention)
         # 1) If the field has a valid existing directory, use it.
         # 2) Otherwise, fall back to the app's default output directory.
@@ -230,7 +237,9 @@ class BasicPage(QWidget):
         if field_value and os.path.isdir(field_value):
             initial_dir = field_value
         else:
-            initial_dir = self.output_dir_var or os.path.abspath(os.path.join(os.getcwd(), "data", "output"))
+            initial_dir = self.output_dir_var or os.path.abspath(
+                os.path.join(os.getcwd(), "data", "output")
+            )
         try:
             if not os.path.isdir(initial_dir):
                 os.makedirs(initial_dir, exist_ok=True)
@@ -287,7 +296,7 @@ class BasicPage(QWidget):
         """Retranslate UI elements."""
         if not self.translator:
             return
-            
+
         t = self.translator.t
         # Reset cached widths so language switch behaves like a fresh start
         self._left_label_w = None
@@ -312,11 +321,14 @@ class BasicPage(QWidget):
         try:
             metrics = self.fontMetrics()
             # Left labels width = max text width + padding
-            left_w = max(
-                metrics.horizontalAdvance(self.url_label.text()),
-                metrics.horizontalAdvance(self.url_list_label.text()),
-                metrics.horizontalAdvance(self.output_dir_label.text()),
-            ) + 16
+            left_w = (
+                max(
+                    metrics.horizontalAdvance(self.url_label.text()),
+                    metrics.horizontalAdvance(self.url_list_label.text()),
+                    metrics.horizontalAdvance(self.output_dir_label.text()),
+                )
+                + 16
+            )
             self.url_label.setFixedWidth(left_w)
             self.url_list_label.setFixedWidth(left_w)
             self.output_dir_label.setFixedWidth(left_w)
@@ -326,15 +338,18 @@ class BasicPage(QWidget):
         try:
             metrics = self.fontMetrics()
             # Button width = max translated text width + padding for button chrome
-            btn_w = max(
-                metrics.horizontalAdvance(self.add_btn.text()),
-                metrics.horizontalAdvance(self.move_up_btn.text()),
-                metrics.horizontalAdvance(self.move_down_btn.text()),
-                metrics.horizontalAdvance(self.copy_btn.text()),
-                metrics.horizontalAdvance(self.delete_btn.text()),
-                metrics.horizontalAdvance(self.clear_btn.text()),
-                metrics.horizontalAdvance(self.choose_dir_btn.text()),
-            ) + 28
+            btn_w = (
+                max(
+                    metrics.horizontalAdvance(self.add_btn.text()),
+                    metrics.horizontalAdvance(self.move_up_btn.text()),
+                    metrics.horizontalAdvance(self.move_down_btn.text()),
+                    metrics.horizontalAdvance(self.copy_btn.text()),
+                    metrics.horizontalAdvance(self.delete_btn.text()),
+                    metrics.horizontalAdvance(self.clear_btn.text()),
+                    metrics.horizontalAdvance(self.choose_dir_btn.text()),
+                )
+                + 28
+            )
             for b in [
                 self.add_btn,
                 self.choose_dir_btn,

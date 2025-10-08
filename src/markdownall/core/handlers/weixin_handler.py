@@ -4,16 +4,16 @@ import random
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
-from markdownall.app_types import ConvertLogger
 
 from bs4 import BeautifulSoup
 
+from markdownall.app_types import ConvertLogger
+from markdownall.core.exceptions import StopRequested
 from markdownall.core.html_to_md import html_fragment_to_markdown
 from markdownall.services.playwright_driver import (
     new_context_and_page,
     read_page_content_and_title,
 )
-from markdownall.core.exceptions import StopRequested
 
 
 @dataclass

@@ -31,13 +31,13 @@ if TYPE_CHECKING:
 class AdvancedPage(QWidget):
     """
     Advanced options configuration page.
-    
+
     This page contains:
     - User data directory management
     - Configuration operations
     - System settings (debug mode, language)
     """
-    
+
     # Signals for communicating with MainWindow
     openUserDataRequested = Signal()
     restoreDefaultConfigRequested = Signal()
@@ -47,14 +47,14 @@ class AdvancedPage(QWidget):
     def __init__(self, parent: QWidget | None = None, translator: Translator | None = None):
         super().__init__(parent)
         self.translator = translator
-        
+
         # Initialize data
         self.user_data_path = ""
         self.language = "auto"
         self.debug_mode = False
         # Track whether data path field shows the localized hint text
         self._is_data_path_hint = True
-        
+
         # Setup UI
         self._setup_ui()
         self._connect_signals()
@@ -118,11 +118,14 @@ class AdvancedPage(QWidget):
         layout.addLayout(system_section)
 
         # Align section labels to the longest label width (with padding)
-        _section_w = max(
-            self._lbl_data.sizeHint().width(),
-            self._lbl_config.sizeHint().width(),
-            self._lbl_language_left.sizeHint().width(),
-        ) + 16
+        _section_w = (
+            max(
+                self._lbl_data.sizeHint().width(),
+                self._lbl_config.sizeHint().width(),
+                self._lbl_language_left.sizeHint().width(),
+            )
+            + 16
+        )
         self._lbl_data.setFixedWidth(_section_w)
         self._lbl_config.setFixedWidth(_section_w)
         self._lbl_language_left.setFixedWidth(_section_w)
@@ -192,7 +195,7 @@ class AdvancedPage(QWidget):
         self.user_data_path = path
         # Reflect absolute path in the readonly input when explicitly set
         try:
-            if hasattr(self, 'edit_data_path') and self.edit_data_path is not None:
+            if hasattr(self, "edit_data_path") and self.edit_data_path is not None:
                 self.edit_data_path.setText(path)
                 # Now the field displays a concrete absolute path, not the hint
                 self._is_data_path_hint = False
@@ -216,7 +219,7 @@ class AdvancedPage(QWidget):
         """Retranslate UI elements."""
         if not self.translator:
             return
-            
+
         t = self.translator.t
         # Update internal labels and buttons
         try:
@@ -234,11 +237,14 @@ class AdvancedPage(QWidget):
         # Recompute and apply deterministic label widths based on translated texts
         try:
             metrics = self.fontMetrics()
-            left_w = max(
-                metrics.horizontalAdvance(self._lbl_data.text()),
-                metrics.horizontalAdvance(self._lbl_config.text()),
-                metrics.horizontalAdvance(self._lbl_language_left.text()),
-            ) + 16
+            left_w = (
+                max(
+                    metrics.horizontalAdvance(self._lbl_data.text()),
+                    metrics.horizontalAdvance(self._lbl_config.text()),
+                    metrics.horizontalAdvance(self._lbl_language_left.text()),
+                )
+                + 16
+            )
             self._lbl_data.setFixedWidth(left_w)
             self._lbl_config.setFixedWidth(left_w)
             self._lbl_language_left.setFixedWidth(left_w)

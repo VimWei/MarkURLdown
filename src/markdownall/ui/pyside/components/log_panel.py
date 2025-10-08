@@ -27,13 +27,13 @@ if TYPE_CHECKING:
 class LogPanel(QWidget):
     """
     Log panel component for detailed log information display.
-    
+
     This component contains:
     - Scrollable log text area
     - Log operation buttons (clear, copy)
     - Adopts MdxScraper's simple design
     """
-    
+
     # Log operation signals
     logCleared = Signal()
     logCopied = Signal()
@@ -41,7 +41,7 @@ class LogPanel(QWidget):
     def __init__(self, parent: QWidget | None = None, translator: Translator | None = None):
         super().__init__(parent)
         self.translator = translator
-        
+
         # Setup UI
         self._setup_ui()
         self._connect_signals()
@@ -67,19 +67,19 @@ class LogPanel(QWidget):
         button_layout = QHBoxLayout()
         button_layout.setContentsMargins(0, 0, 0, 0)
         button_layout.setSpacing(8)
-        
+
         self.clear_btn = QPushButton("Clear", self)
         self.clear_btn.setObjectName("log-clear-button")
         self.clear_btn.setFixedSize(70, 22)  # 更小的尺寸
-        
+
         self.copy_btn = QPushButton("Copy", self)
         self.copy_btn.setObjectName("log-copy-button")
         self.copy_btn.setFixedSize(70, 22)  # 更小的尺寸
-        
+
         button_layout.addWidget(self.clear_btn)
         button_layout.addWidget(self.copy_btn)
         button_layout.addStretch(1)
-        
+
         layout.addLayout(button_layout)
 
     def _connect_signals(self):
@@ -95,6 +95,7 @@ class LogPanel(QWidget):
         """Copy log content to clipboard."""
         try:
             from PySide6.QtWidgets import QApplication
+
             clipboard = QApplication.clipboard()
             text = self.log_text.toPlainText()
             # 防止递归：只做一次设置，不触发任何自定义 copy 操作
@@ -110,10 +111,10 @@ class LogPanel(QWidget):
         """Append log text (main method for log output)."""
         timestamp = datetime.now().strftime("%H:%M:%S")
         formatted_text = f"[{timestamp}] {text}"
-        
+
         # Append to log text area
         self.log_text.append(formatted_text)
-        
+
         # Auto-scroll to bottom
         scrollbar = self.log_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
@@ -139,7 +140,13 @@ class LogPanel(QWidget):
         success_rate = (successful / total * 100) if total > 0 else 0
         if self.translator:
             t = self.translator.t
-            summary = t("multi_task_summary", successful=successful, failed=failed, total=total, success_rate=f"{success_rate:.1f}")
+            summary = t(
+                "multi_task_summary",
+                successful=successful,
+                failed=failed,
+                total=total,
+                success_rate=f"{success_rate:.1f}",
+            )
         else:
             summary = f"Multi-task completed: {successful} successful, {failed} failed, {total} total, 📈 成功率: {success_rate:.1f}%"
         self.appendLog(summary)
@@ -167,7 +174,7 @@ class LogPanel(QWidget):
         """Retranslate UI elements."""
         if not self.translator:
             return
-            
+
         t = self.translator.t
         self.clear_btn.setText(t("log_clear"))
         self.copy_btn.setText(t("log_copy"))

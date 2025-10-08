@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # Force headless platform early for collection phase
 import os
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 # Preemptively patch QSplashScreen at module import time to avoid platform crashes
@@ -12,17 +13,28 @@ try:
     class _FakeQSplash:
         def __init__(self, *_a, **_k):
             self._visible = False
-        def show(self): self._visible = True
-        def isVisible(self): return self._visible
-        def finish(self, _w): self._visible = False
-        def close(self): self._visible = False
-        def showMessage(self, *_a, **_k): pass
+
+        def show(self):
+            self._visible = True
+
+        def isVisible(self):
+            return self._visible
+
+        def finish(self, _w):
+            self._visible = False
+
+        def close(self):
+            self._visible = False
+
+        def showMessage(self, *_a, **_k):
+            pass
 
     setattr(_QtW, "QSplashScreen", _FakeQSplash)
 
     # If splash module is already imported during collection, patch its bound symbol too
     try:
         import markdownall.ui.pyside.splash as _splash_mod
+
         setattr(_splash_mod, "QSplashScreen", _FakeQSplash)
     except Exception:
         pass

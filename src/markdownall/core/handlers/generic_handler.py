@@ -19,11 +19,11 @@ from markdownall.core.common_utils import (
     extract_title_from_body,
     extract_title_from_html,
 )
+from markdownall.core.exceptions import StopRequested
 from markdownall.core.filename import derive_md_filename
 from markdownall.core.images import download_images_and_rewrite
 from markdownall.core.normalize import normalize_markdown_headings
 from markdownall.io.session import build_requests_session
-from markdownall.core.exceptions import StopRequested
 
 
 @dataclass

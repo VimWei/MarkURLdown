@@ -468,8 +468,10 @@ def test_launch_main_success(monkeypatch, tmp_path):
     class _FakeCfg:
         def __init__(self, *_a, **_k):
             pass
+
         def load_session(self, *_a, **_k):
             return True
+
         def get_advanced_config(self):
             return {"language": "zh"}
 
@@ -568,8 +570,10 @@ def test_launch_main_exception(monkeypatch, tmp_path):
     class _FakeCfg2:
         def __init__(self, *_a, **_k):
             pass
+
         def load_session(self, *_a, **_k):
             return False
+
         def get_advanced_config(self):
             return {}
 

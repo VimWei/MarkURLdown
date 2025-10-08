@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class WebpagePage(QWidget):
     """
     Webpage options configuration page.
-    
+
     This page contains:
     - Use proxy checkbox
     - Ignore SSL checkbox
@@ -33,21 +33,21 @@ class WebpagePage(QWidget):
     - Filter site Chrome checkbox
     - Use shared browser checkbox
     """
-    
+
     # Signals for communicating with MainWindow
     optionsChanged = Signal(dict)
 
     def __init__(self, parent: QWidget | None = None, translator: Translator | None = None):
         super().__init__(parent)
         self.translator = translator
-        
+
         # Initialize default options
         self.use_proxy_var = False
         self.ignore_ssl_var = False
         self.download_images_var = True
         self.filter_site_chrome_var = True
         self.use_shared_browser_var = True
-        
+
         # Setup UI
         self._setup_ui()
         self._connect_signals()
@@ -76,16 +76,16 @@ class WebpagePage(QWidget):
         # Create checkboxes
         self.use_proxy_cb = QCheckBox()
         self.use_proxy_cb.setChecked(self.use_proxy_var)
-        
+
         self.ignore_ssl_cb = QCheckBox()
         self.ignore_ssl_cb.setChecked(self.ignore_ssl_var)
-        
+
         self.download_images_cb = QCheckBox()
         self.download_images_cb.setChecked(self.download_images_var)
-        
+
         self.filter_site_chrome_cb = QCheckBox()
         self.filter_site_chrome_cb.setChecked(self.filter_site_chrome_var)
-        
+
         self.use_shared_browser_cb = QCheckBox()
         self.use_shared_browser_cb.setChecked(self.use_shared_browser_var)
 
@@ -115,7 +115,7 @@ class WebpagePage(QWidget):
         options_layout.addLayout(row3_layout)
 
         layout.addWidget(options_frame)
-        
+
         # Add stretch to center the options
         layout.addStretch(1)
 
@@ -167,7 +167,7 @@ class WebpagePage(QWidget):
         """Retranslate UI elements."""
         if not self.translator:
             return
-            
+
         t = self.translator.t
         self.use_proxy_cb.setText(t("use_proxy_checkbox"))
         self.ignore_ssl_cb.setText(t("ignore_ssl_checkbox"))

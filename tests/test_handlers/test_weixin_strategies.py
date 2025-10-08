@@ -33,7 +33,11 @@ def test_weixin_try_playwright_crawler_success_shared(monkeypatch):
         wait_for_timeout=lambda ms: None,
     )
     context = types.SimpleNamespace(new_page=lambda: page)
-    monkeypatch.setattr(wx, "new_context_and_page", lambda b, context_options=None, apply_stealth=False: (context, page))
+    monkeypatch.setattr(
+        wx,
+        "new_context_and_page",
+        lambda b, context_options=None, apply_stealth=False: (context, page),
+    )
     monkeypatch.setattr(
         wx, "read_page_content_and_title", lambda p, logger=None: ("<html>OK</html>", "T")
     )

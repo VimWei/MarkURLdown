@@ -162,14 +162,19 @@ def test_on_event_thread_safe_calls_on_event(monkeypatch, tmp_path):
 
     # Create a proper QApplication instance that works with our fake setup
     from PySide6.QtWidgets import QApplication
+
     app_instance = QApplication([])
-    
+
     # Ensure primaryScreen method works
-    monkeypatch.setattr(QApplication, "primaryScreen", lambda: type('Screen', (), {
-        'availableGeometry': lambda: type('Geometry', (), {
-            'center': lambda: (400, 300)
-        })()
-    })())
+    monkeypatch.setattr(
+        QApplication,
+        "primaryScreen",
+        lambda: type(
+            "Screen",
+            (),
+            {"availableGeometry": lambda: type("Geometry", (), {"center": lambda: (400, 300)})()},
+        )(),
+    )
 
     # Avoid heavy UI setup during construction
     monkeypatch.setattr(gui.MainWindow, "_setup_ui", lambda self: None)
@@ -179,39 +184,41 @@ def test_on_event_thread_safe_calls_on_event(monkeypatch, tmp_path):
     monkeypatch.setattr(
         gui.Translator, "load_language", lambda self, code: setattr(self, "language", "en")
     )
-    
+
     # Mock QWidget constructor to avoid QApplication check
     from PySide6.QtWidgets import QWidget
+
     def mock_qwidget_init(self, *args, **kwargs):
         pass
-    
+
     monkeypatch.setattr(QWidget, "__init__", mock_qwidget_init)
-    
+
     # Also mock QMainWindow constructor
     from PySide6.QtWidgets import QMainWindow
+
     def mock_qmainwindow_init(self, *args, **kwargs):
         pass
-    
+
     monkeypatch.setattr(QMainWindow, "__init__", mock_qmainwindow_init)
-    
+
     # Mock QWidget class itself
     class MockQWidget:
         def __init__(self, *args, **kwargs):
             pass
-    
+
     monkeypatch.setattr("PySide6.QtWidgets.QWidget", MockQWidget)
-    
+
     # Mock QMainWindow class itself
     class MockQMainWindow(MockQWidget):
         def __init__(self, *args, **kwargs):
             pass
-    
+
     monkeypatch.setattr("PySide6.QtWidgets.QMainWindow", MockQMainWindow)
-    
+
     # Mock QWidget class itself in the module
     monkeypatch.setattr("markdownall.ui.pyside.main_window.QWidget", MockQWidget)
     monkeypatch.setattr("markdownall.ui.pyside.main_window.QMainWindow", MockQMainWindow)
-    
+
     # Mock QWidget class itself in the module
     monkeypatch.setattr("markdownall.ui.pyside.main_window.QWidget", MockQWidget)
     monkeypatch.setattr("markdownall.ui.pyside.main_window.QMainWindow", MockQMainWindow)

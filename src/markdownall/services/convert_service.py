@@ -11,12 +11,12 @@ from markdownall.app_types import (
     ProgressEvent,
     SourceRequest,
 )
+from markdownall.core.exceptions import StopRequested
 from markdownall.core.registry import convert as registry_convert
 from markdownall.io.logger import log_urls
 from markdownall.io.session import build_requests_session
 from markdownall.io.writer import write_markdown
 from markdownall.utils.time_utils import human_readable_duration
-from markdownall.core.exceptions import StopRequested
 
 EventCallback = Callable[[ProgressEvent], None]
 
@@ -33,7 +33,9 @@ class LoggerAdapter:
         self._ui = ui
         self._signals = signals
 
-    def _emit_progress(self, kind: str, key: str | None = None, text: str | None = None, data: dict | None = None) -> None:
+    def _emit_progress(
+        self, kind: str, key: str | None = None, text: str | None = None, data: dict | None = None
+    ) -> None:
         # 尽量使用 signals 将事件发到主线程
         try:
             if self._signals is not None and hasattr(self._signals, "progress_event"):
@@ -44,7 +46,10 @@ class LoggerAdapter:
                     progress_sink = getattr(self._signals, "progress_event", None)
                     if hasattr(progress_sink, "emit"):
                         # Prefer emit for signal-like objects; but if it's a Mock with side_effect, call directly to surface exception
-                        if hasattr(progress_sink, "side_effect") and getattr(progress_sink, "side_effect") is not None:
+                        if (
+                            hasattr(progress_sink, "side_effect")
+                            and getattr(progress_sink, "side_effect") is not None
+                        ):
                             progress_sink(ev)
                         else:
                             progress_sink.emit(ev)
@@ -65,6 +70,7 @@ class LoggerAdapter:
         # 避免在工作线程直接调用 UI，导致 Qt 线程冲突并崩溃
         try:
             import threading
+
             if self._ui is not None and threading.current_thread().name == "MainThread":
                 # 将 kind 映射到 UI 的 log_* 方法
                 ui_method = None
@@ -116,7 +122,9 @@ class LoggerAdapter:
         except Exception:
             print(f"Processing: {url}")
 
-    def images_progress(self, total: int, task_idx: int | None = None, task_total: int | None = None) -> None:
+    def images_progress(
+        self, total: int, task_idx: int | None = None, task_total: int | None = None
+    ) -> None:
         try:
             self._emit_progress(
                 kind="status",
@@ -127,7 +135,9 @@ class LoggerAdapter:
         except Exception:
             print(f"[图片] 发现 {total} 张图片，开始下载...")
 
-    def images_done(self, total: int, task_idx: int | None = None, task_total: int | None = None) -> None:
+    def images_done(
+        self, total: int, task_idx: int | None = None, task_total: int | None = None
+    ) -> None:
         try:
             self._emit_progress(
                 kind="status",
@@ -176,13 +186,17 @@ class LoggerAdapter:
         self._emit_progress(kind="status", text=f"[解析] 解析成功，内容长度: {content_length} 字符")
 
     def clean_start(self) -> None:
-        self._emit_progress(kind="status", key="phase_clean_start", text="[清理] 移除广告和无关内容...")
+        self._emit_progress(
+            kind="status", key="phase_clean_start", text="[清理] 移除广告和无关内容..."
+        )
 
     def clean_success(self) -> None:
         self._emit_progress(kind="status", text="[清理] 内容清理完成")
 
     def convert_start(self) -> None:
-        self._emit_progress(kind="status", key="phase_convert_start", text="[转换] 转换为Markdown...")
+        self._emit_progress(
+            kind="status", key="phase_convert_start", text="[转换] 转换为Markdown..."
+        )
 
     def convert_success(self) -> None:
         # 移除冗余的转换完成日志，转换开始已经足够
@@ -196,7 +210,12 @@ class LoggerAdapter:
 
     def batch_start(self, total: int) -> None:
         # Structured event for i18n at UI layer
-        self._emit_progress(kind="status", key="batch_start", data={"total": total}, text=f"🚀 开始批量处理 {total} 个URL...")
+        self._emit_progress(
+            kind="status",
+            key="batch_start",
+            data={"total": total},
+            text=f"🚀 开始批量处理 {total} 个URL...",
+        )
 
     def batch_summary(self, success: int, failed: int, total: int) -> None:
         # 静默处理，统计信息将合并到 Multi-task completed 消息中
@@ -235,7 +254,9 @@ class ConvertService:
         except Exception:
             pass
         self._thread = threading.Thread(
-            target=self._worker, args=(requests_list, out_dir, options, on_event, ui_logger), daemon=True
+            target=self._worker,
+            args=(requests_list, out_dir, options, on_event, ui_logger),
+            daemon=True,
         )
         self._thread.start()
 
@@ -312,7 +333,11 @@ class ConvertService:
                     )
                     # 发出共享浏览器启动的细粒度事件
                     self._emit_event_safe(
-                        ProgressEvent(kind="detail", key="convert_shared_browser_started", text="Shared browser started"),
+                        ProgressEvent(
+                            kind="detail",
+                            key="convert_shared_browser_started",
+                            text="Shared browser started",
+                        ),
                         on_event,
                     )
                 except Exception as _e:
@@ -352,14 +377,24 @@ class ConvertService:
                         self._base.task_status(t_idx, t_total, url)  # pragma: no cover
 
                     # 注入任务上下文的图片事件
-                    def images_progress(self, total_imgs: int, task_idx: int | None = None, task_total: int | None = None) -> None:
+                    def images_progress(
+                        self,
+                        total_imgs: int,
+                        task_idx: int | None = None,
+                        task_total: int | None = None,
+                    ) -> None:
                         self._base.images_progress(
                             total_imgs,
                             task_idx=self._task_idx if task_idx is None else task_idx,
                             task_total=self._task_total if task_total is None else task_total,
                         )  # pragma: no cover
 
-                    def images_done(self, total_imgs: int, task_idx: int | None = None, task_total: int | None = None) -> None:
+                    def images_done(
+                        self,
+                        total_imgs: int,
+                        task_idx: int | None = None,
+                        task_total: int | None = None,
+                    ) -> None:
                         self._base.images_done(
                             total_imgs,
                             task_idx=self._task_idx if task_idx is None else task_idx,
@@ -370,8 +405,12 @@ class ConvertService:
                         self._base.debug(msg)  # pragma: no cover
 
                     # 细粒度阶段日志方法
-                    def fetch_start(self, strategy_name: str, retry: int = 0, max_retries: int = 0) -> None:
-                        self._base.fetch_start(strategy_name, retry, max_retries)  # pragma: no cover
+                    def fetch_start(
+                        self, strategy_name: str, retry: int = 0, max_retries: int = 0
+                    ) -> None:
+                        self._base.fetch_start(
+                            strategy_name, retry, max_retries
+                        )  # pragma: no cover
 
                     def fetch_success(self, content_length: int = 0) -> None:
                         self._base.fetch_success(content_length)  # pragma: no cover
@@ -380,7 +419,9 @@ class ConvertService:
                         self._base.fetch_failed(strategy_name, error)  # pragma: no cover
 
                     def fetch_retry(self, strategy_name: str, retry: int, max_retries: int) -> None:
-                        self._base.fetch_retry(strategy_name, retry, max_retries)  # pragma: no cover
+                        self._base.fetch_retry(
+                            strategy_name, retry, max_retries
+                        )  # pragma: no cover
 
                     def parse_start(self) -> None:
                         self._base.parse_start()  # pragma: no cover
@@ -444,7 +485,12 @@ class ConvertService:
                         if shared_browser is not None:
                             # Structured event for i18n at UI layer
                             self._emit_event_safe(
-                                ProgressEvent(kind="detail", key="shared_browser_disabled_for_handler", data={"handler": handler_name}, text=f"[浏览器] {handler_name}需要独立浏览器，关闭共享浏览器"),
+                                ProgressEvent(
+                                    kind="detail",
+                                    key="shared_browser_disabled_for_handler",
+                                    data={"handler": handler_name},
+                                    text=f"[浏览器] {handler_name}需要独立浏览器，关闭共享浏览器",
+                                ),
                                 on_event,
                             )
                             try:
@@ -482,7 +528,9 @@ class ConvertService:
                 try:
                     result = registry_convert(payload, session, options)
                     # Emit a write phase start before writing the file to reflect IO stage
-                    logger._emit_progress(kind="status", key="phase_write_start", text="[写入] 保存到文件...")
+                    logger._emit_progress(
+                        kind="status", key="phase_write_start", text="[写入] 保存到文件..."
+                    )
                     out_path = write_markdown(out_dir, result.suggested_filename, result.markdown)
                     completed += 1
                     # 发出带任务上下文的完成事件，便于UI进行多组归档
@@ -553,7 +601,11 @@ class ConvertService:
                                     ],
                                 )
                                 self._emit_event_safe(
-                                    ProgressEvent(kind="detail", key="convert_shared_browser_started", text="Shared browser restarted"),
+                                    ProgressEvent(
+                                        kind="detail",
+                                        key="convert_shared_browser_started",
+                                        text="Shared browser restarted",
+                                    ),
                                     on_event,
                                 )
                             except Exception:
@@ -598,7 +650,7 @@ class ConvertService:
                     ),
                     on_event,
                 )
-            
+
             # 关闭共享 Browser（静默处理）
             try:
                 if shared_browser is not None:

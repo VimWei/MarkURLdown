@@ -8,16 +8,17 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+
 from PySide6.QtWidgets import QApplication
 
 
 class ThemeLoader:
     """Loads and applies QSS themes to the application."""
-    
+
     def __init__(self, theme_name: str = "default"):
         self.theme_name = theme_name
         self.theme_dir = Path(__file__).parent / "themes"
-    
+
     def load_theme(self) -> str:
         """Load QSS theme content."""
         try:
@@ -27,7 +28,7 @@ class ThemeLoader:
                 theme_file = self.theme_dir / "default.qss"
             if theme_file.exists():
                 try:
-                    with open(theme_file, 'r', encoding='utf-8') as f:
+                    with open(theme_file, "r", encoding="utf-8") as f:
                         return f.read()
                 except Exception:
                     # If reading fails, return empty content for safe no-op
@@ -36,7 +37,7 @@ class ThemeLoader:
         except Exception:
             # On any unexpected error, return empty content
             return ""
-    
+
     def apply_theme(self, app: QApplication):
         """Apply theme to the application."""
         try:
@@ -46,7 +47,7 @@ class ThemeLoader:
         except Exception:
             # Swallow exceptions per tests; do not apply
             pass
-    
+
     def apply_theme_to_widget(self, widget):
         """Apply theme to a specific widget."""
         try:

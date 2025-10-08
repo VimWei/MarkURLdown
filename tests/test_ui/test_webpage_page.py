@@ -18,18 +18,20 @@ class TestWebpagePage:
             self.app = QApplication([])
         else:
             self.app = QApplication.instance()
-        
+
         self.mock_translator = Mock()
         self.mock_translator.t = Mock(side_effect=lambda key, **kwargs: f"translated_{key}")
-        
+
         self.webpage_page = WebpagePage(translator=self.mock_translator)
 
     def test_emit_options_changed(self):
         """Test _emit_options_changed method."""
-        with patch.object(self.webpage_page, 'get_options', return_value={"use_proxy": True}) as mock_get_options:
-            with patch.object(self.webpage_page, 'optionsChanged') as mock_signal:
+        with patch.object(
+            self.webpage_page, "get_options", return_value={"use_proxy": True}
+        ) as mock_get_options:
+            with patch.object(self.webpage_page, "optionsChanged") as mock_signal:
                 self.webpage_page._emit_options_changed()
-                
+
                 mock_get_options.assert_called_once()
                 mock_signal.emit.assert_called_once_with({"use_proxy": True})
 
@@ -41,7 +43,7 @@ class TestWebpagePage:
         assert self.webpage_page.download_images_var is True
         assert self.webpage_page.filter_site_chrome_var is True
         assert self.webpage_page.use_shared_browser_var is True
-        assert hasattr(self.webpage_page, 'optionsChanged')
+        assert hasattr(self.webpage_page, "optionsChanged")
         assert isinstance(self.webpage_page._options_changed_timer, QTimer)
 
     def test_initialization_without_translator(self):
@@ -63,33 +65,33 @@ class TestWebpagePage:
     def test_signal_connections(self):
         """Test that checkbox signals are properly connected."""
         # Test that all checkboxes are connected to _on_option_changed
-        with patch.object(self.webpage_page, '_on_option_changed') as mock_handler:
+        with patch.object(self.webpage_page, "_on_option_changed") as mock_handler:
             # Simulate checkbox state changes
             self.webpage_page.use_proxy_cb.stateChanged.emit(1)
             self.webpage_page.ignore_ssl_cb.stateChanged.emit(1)
             self.webpage_page.download_images_cb.stateChanged.emit(1)
             self.webpage_page.filter_site_chrome_cb.stateChanged.emit(1)
             self.webpage_page.use_shared_browser_cb.stateChanged.emit(1)
-            
+
             # Should be called 5 times (once for each checkbox)
             assert mock_handler.call_count == 5
 
     def test_on_option_changed_timer_restart(self):
         """Test _on_option_changed method restarts timer."""
-        with patch.object(self.webpage_page._options_changed_timer, 'isActive', return_value=True):
-            with patch.object(self.webpage_page._options_changed_timer, 'stop') as mock_stop:
-                with patch.object(self.webpage_page._options_changed_timer, 'start') as mock_start:
+        with patch.object(self.webpage_page._options_changed_timer, "isActive", return_value=True):
+            with patch.object(self.webpage_page._options_changed_timer, "stop") as mock_stop:
+                with patch.object(self.webpage_page._options_changed_timer, "start") as mock_start:
                     self.webpage_page._on_option_changed()
-                    
+
                     mock_stop.assert_called_once()
                     mock_start.assert_called_once()
 
     def test_on_option_changed_timer_start(self):
         """Test _on_option_changed method starts timer."""
-        with patch.object(self.webpage_page._options_changed_timer, 'isActive', return_value=False):
-            with patch.object(self.webpage_page._options_changed_timer, 'start') as mock_start:
+        with patch.object(self.webpage_page._options_changed_timer, "isActive", return_value=False):
+            with patch.object(self.webpage_page._options_changed_timer, "start") as mock_start:
                 self.webpage_page._on_option_changed()
-                
+
                 mock_start.assert_called_once()
 
     def test_get_options(self):
@@ -100,9 +102,9 @@ class TestWebpagePage:
         self.webpage_page.download_images_cb.setChecked(True)
         self.webpage_page.filter_site_chrome_cb.setChecked(False)
         self.webpage_page.use_shared_browser_cb.setChecked(True)
-        
+
         options = self.webpage_page.get_options()
-        
+
         assert options["use_proxy"] is True
         assert options["ignore_ssl"] is False
         assert options["download_images"] is True
@@ -116,11 +118,11 @@ class TestWebpagePage:
             "ignore_ssl": False,
             "download_images": True,
             "filter_site_chrome": False,
-            "use_shared_browser": True
+            "use_shared_browser": True,
         }
-        
+
         self.webpage_page.set_options(options)
-        
+
         assert self.webpage_page.use_proxy_cb.isChecked() is True
         assert self.webpage_page.ignore_ssl_cb.isChecked() is False
         assert self.webpage_page.download_images_cb.isChecked() is True
@@ -132,11 +134,11 @@ class TestWebpagePage:
         # Set initial state
         self.webpage_page.use_proxy_cb.setChecked(False)
         self.webpage_page.ignore_ssl_cb.setChecked(False)
-        
+
         # Set only some options
         options = {"use_proxy": True}
         self.webpage_page.set_options(options)
-        
+
         assert self.webpage_page.use_proxy_cb.isChecked() is True
         assert self.webpage_page.ignore_ssl_cb.isChecked() is False  # Should remain unchanged
 
@@ -144,11 +146,11 @@ class TestWebpagePage:
         """Test set_options method with invalid keys."""
         # Set initial state
         self.webpage_page.use_proxy_cb.setChecked(False)
-        
+
         # Set options with invalid key
         options = {"invalid_key": True, "use_proxy": True}
         self.webpage_page.set_options(options)
-        
+
         assert self.webpage_page.use_proxy_cb.isChecked() is True
         # Should not raise exception for invalid keys
 
@@ -157,9 +159,9 @@ class TestWebpagePage:
         # Set some checkboxes
         self.webpage_page.use_proxy_cb.setChecked(True)
         self.webpage_page.ignore_ssl_cb.setChecked(False)
-        
+
         config = self.webpage_page.get_config()
-        
+
         assert config["use_proxy"] is True
         assert config["ignore_ssl"] is False
         assert config["download_images"] is True  # Default value
@@ -173,11 +175,11 @@ class TestWebpagePage:
             "ignore_ssl": False,
             "download_images": True,
             "filter_site_chrome": False,
-            "use_shared_browser": True
+            "use_shared_browser": True,
         }
-        
+
         self.webpage_page.set_config(config)
-        
+
         assert self.webpage_page.use_proxy_cb.isChecked() is True
         assert self.webpage_page.ignore_ssl_cb.isChecked() is False
         assert self.webpage_page.download_images_cb.isChecked() is True
@@ -186,23 +188,29 @@ class TestWebpagePage:
 
     def test_retranslate_ui_with_translator(self):
         """Test retranslate_ui method with translator."""
-        with patch.object(self.webpage_page.use_proxy_cb, 'setText') as mock_proxy:
-            with patch.object(self.webpage_page.ignore_ssl_cb, 'setText') as mock_ssl:
-                with patch.object(self.webpage_page.download_images_cb, 'setText') as mock_images:
-                    with patch.object(self.webpage_page.filter_site_chrome_cb, 'setText') as mock_filter:
-                        with patch.object(self.webpage_page.use_shared_browser_cb, 'setText') as mock_browser:
+        with patch.object(self.webpage_page.use_proxy_cb, "setText") as mock_proxy:
+            with patch.object(self.webpage_page.ignore_ssl_cb, "setText") as mock_ssl:
+                with patch.object(self.webpage_page.download_images_cb, "setText") as mock_images:
+                    with patch.object(
+                        self.webpage_page.filter_site_chrome_cb, "setText"
+                    ) as mock_filter:
+                        with patch.object(
+                            self.webpage_page.use_shared_browser_cb, "setText"
+                        ) as mock_browser:
                             self.webpage_page.retranslate_ui()
-                            
+
                             mock_proxy.assert_called_with("translated_use_proxy_checkbox")
                             mock_ssl.assert_called_with("translated_ignore_ssl_checkbox")
                             mock_images.assert_called_with("translated_download_images_checkbox")
                             mock_filter.assert_called_with("translated_filter_site_chrome_checkbox")
-                            mock_browser.assert_called_with("translated_use_shared_browser_checkbox")
+                            mock_browser.assert_called_with(
+                                "translated_use_shared_browser_checkbox"
+                            )
 
     def test_retranslate_ui_without_translator(self):
         """Test retranslate_ui method without translator."""
         self.webpage_page.translator = None
-        
+
         # Should not raise exception
         self.webpage_page.retranslate_ui()
 
@@ -215,11 +223,11 @@ class TestWebpagePage:
 
     def test_ui_elements_exist(self):
         """Test that all UI elements exist."""
-        assert hasattr(self.webpage_page, 'use_proxy_cb')
-        assert hasattr(self.webpage_page, 'ignore_ssl_cb')
-        assert hasattr(self.webpage_page, 'download_images_cb')
-        assert hasattr(self.webpage_page, 'filter_site_chrome_cb')
-        assert hasattr(self.webpage_page, 'use_shared_browser_cb')
+        assert hasattr(self.webpage_page, "use_proxy_cb")
+        assert hasattr(self.webpage_page, "ignore_ssl_cb")
+        assert hasattr(self.webpage_page, "download_images_cb")
+        assert hasattr(self.webpage_page, "filter_site_chrome_cb")
+        assert hasattr(self.webpage_page, "use_shared_browser_cb")
 
     def test_checkbox_initial_states(self):
         """Test that checkboxes have correct initial states."""

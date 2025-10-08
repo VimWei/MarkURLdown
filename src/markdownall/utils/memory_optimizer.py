@@ -12,16 +12,16 @@ from __future__ import annotations
 
 import gc
 import sys
-import time
-from typing import Dict, Optional, List
-import types
 import sys as _sys
+import time
+import types
+from typing import Dict, List, Optional
 
 # Provide a shim psutil module if not installed so tests can patch it
 try:
     import psutil as _psutil  # type: ignore
 except ImportError:  # pragma: no cover - only used in environments without psutil
-    _fake = types.ModuleType('psutil')
+    _fake = types.ModuleType("psutil")
 
     class _FakeProcess:
         def memory_info(self):
@@ -38,24 +38,24 @@ except ImportError:  # pragma: no cover - only used in environments without psut
 
     _fake.Process = _FakeProcess  # type: ignore[attr-defined]
     _fake.virtual_memory = _fake_virtual_memory  # type: ignore[attr-defined]
-    _sys.modules['psutil'] = _fake
+    _sys.modules["psutil"] = _fake
 
 
 class MemoryOptimizer:
     """
     Memory optimization utilities for MarkdownAll.
-    
+
     Features:
     - Memory usage monitoring
     - Automatic garbage collection
     - Memory leak detection
     - Performance optimization
     """
-    
+
     def __init__(self, memory_threshold_mb: int = 100, gc_interval_seconds: int = 30):
         """
         Initialize the memory optimizer.
-        
+
         Args:
             memory_threshold_mb: Memory threshold in MB for optimization
             gc_interval_seconds: Interval in seconds for garbage collection
@@ -65,32 +65,33 @@ class MemoryOptimizer:
         self.__last_gc_time = time.time()
         self._last_gc_time = self.__last_gc_time
         self._gc_interval = gc_interval_seconds
-        
+
     def check_memory_usage(self) -> float:
         """
         Check current memory usage in MB.
-        
+
         Returns:
             float: Memory usage in MB
         """
         try:
             import psutil
+
             process = psutil.Process()
             return process.memory_info().rss / 1024 / 1024
         except Exception:
             # Fallback to basic memory check expected by tests
             return len(gc.get_objects()) * 0.001  # Rough estimate in MB
-    
+
     def optimize_memory(self) -> int:
         """
         Optimize memory usage.
-        
+
         Returns:
             int: Number of objects collected by garbage collection
         """
         # Force garbage collection
         collected = gc.collect()
-        
+
         # Check if we need more aggressive cleanup
         current_time = time.time()
         if current_time - getattr(self, "_last_gc_time", self.__last_gc_time) > self._gc_interval:
@@ -100,28 +101,29 @@ class MemoryOptimizer:
             gc.collect()
             gc.set_threshold(*old_thresholds)  # Reset to original thresholds
             self.__last_gc_time = current_time
-            
+
         return collected
-    
+
     def should_optimize(self) -> bool:
         """
         Check if memory optimization is needed.
-        
+
         Returns:
             bool: True if optimization is needed, False otherwise
         """
         memory_usage_mb = self.check_memory_usage()
         return memory_usage_mb > (self._memory_threshold / 1024 / 1024)
-    
+
     def get_memory_info(self) -> Dict[str, float]:
         """
         Get detailed memory information.
-        
+
         Returns:
             Dict[str, float]: Memory information dictionary
         """
         try:
             import psutil
+
             process = psutil.Process()
             memory_info = process.memory_info()
             virtual_memory = psutil.virtual_memory()
@@ -141,9 +143,9 @@ class MemoryOptimizer:
             except Exception:
                 vms_mb = 0.0
             # Prefer system memory percent if provided
-            if hasattr(virtual_memory, 'percent'):
+            if hasattr(virtual_memory, "percent"):
                 try:
-                    percent = float(getattr(virtual_memory, 'percent'))
+                    percent = float(getattr(virtual_memory, "percent"))
                 except Exception:
                     percent = 0.0
             else:
@@ -158,13 +160,17 @@ class MemoryOptimizer:
             total_mb = float(total_bytes) / 1024.0 / 1024.0 if total_bytes else 0.0
             available_mb = float(available_bytes) / 1024.0 / 1024.0 if available_bytes else 0.0
             # Prefer VM percent if available, else compute from total/available
-            if hasattr(virtual_memory, 'percent'):
+            if hasattr(virtual_memory, "percent"):
                 try:
-                    system_memory_percent = float(getattr(virtual_memory, 'percent'))
+                    system_memory_percent = float(getattr(virtual_memory, "percent"))
                 except Exception:
-                    system_memory_percent = (100.0 * (total_mb - available_mb) / total_mb) if total_mb > 0 else 0.0
+                    system_memory_percent = (
+                        (100.0 * (total_mb - available_mb) / total_mb) if total_mb > 0 else 0.0
+                    )
             else:
-                system_memory_percent = (100.0 * (total_mb - available_mb) / total_mb) if total_mb > 0 else 0.0
+                system_memory_percent = (
+                    (100.0 * (total_mb - available_mb) / total_mb) if total_mb > 0 else 0.0
+                )
 
             return {
                 "rss": rss_bytes,
@@ -198,22 +204,22 @@ class MemoryOptimizer:
                 "available_mb": 0.0,
                 "system_memory_percent": 0.0,
             }
-    
+
     def optimize_python_settings(self):
         """Optimize Python runtime settings for better memory usage."""
         # Disable integer string conversion limits if available
-        if hasattr(sys, 'set_int_max_str_digits'):
+        if hasattr(sys, "set_int_max_str_digits"):
             sys.set_int_max_str_digits(0)
         # Also tune GC thresholds (tests may expect)
         try:
             gc.set_threshold(100, 10, 10)
         except Exception:
             pass
-    
+
     def get_gc_stats(self) -> Dict[str, int]:
         """
         Get garbage collection statistics.
-        
+
         Returns:
             Dict[str, int]: GC statistics
         """
@@ -229,11 +235,11 @@ class MemoryOptimizer:
             "collected": collected,
             "uncollectable": uncollectable,
         }
-    
+
     def force_cleanup(self) -> int:
         """
         Force aggressive memory cleanup.
-        
+
         Returns:
             int: Number of objects collected
         """
@@ -260,17 +266,17 @@ class MemoryOptimizer:
 class MemoryMonitor:
     """
     Memory usage monitor for tracking memory patterns.
-    
+
     Features:
     - Memory usage tracking over time
     - Memory leak detection
     - Performance trend analysis
     """
-    
+
     def __init__(self, sample_interval_seconds: int = 60, max_samples: int = 100, **kwargs):
         """
         Initialize the memory monitor.
-        
+
         Args:
             sample_interval_seconds: Interval between memory samples
             max_samples: Maximum number of samples to keep
@@ -297,7 +303,7 @@ class MemoryMonitor:
     def samples(self) -> List[Dict[str, float]]:
         # Always respect max cap when reading in case external code appended directly
         if len(self._samples) > self._max_samples:
-            self._samples = self._samples[-self._max_samples:]
+            self._samples = self._samples[-self._max_samples :]
         return self._samples
 
     @samples.setter
@@ -305,7 +311,7 @@ class MemoryMonitor:
         self._samples = list(value)
         # Enforce max cap upon external assignment for tests
         if len(self._samples) > self._max_samples:
-            self._samples = self._samples[-self._max_samples:]
+            self._samples = self._samples[-self._max_samples :]
 
     @property
     def last_sample_time(self) -> float:
@@ -314,60 +320,76 @@ class MemoryMonitor:
     @last_sample_time.setter
     def last_sample_time(self, value: float) -> None:
         self._last_sample_time = float(value)
-        
+
     def should_sample(self) -> bool:
         """Check if it's time to take a memory sample."""
         current_time = time.time()
         return current_time - self._last_sample_time >= self._sample_interval
-    
+
     def take_sample(self) -> Optional[Dict[str, float]]:
         """
         Take a memory usage sample.
-        
+
         Returns:
             Optional[Dict[str, float]]: Memory sample data or None if not ready
         """
         if not self.should_sample():
             return None
-            
+
         sample = self._optimizer.get_memory_info()
         sample["timestamp"] = time.time()
-        
+
         self._samples.append(sample)
         self._last_sample_time = sample["timestamp"]
-        
+
         # Keep only the most recent samples
         if len(self._samples) > self._max_samples:
             # Trim to last max_samples entries
-            self._samples = self._samples[-self._max_samples:]
-            
+            self._samples = self._samples[-self._max_samples :]
+
         return sample
-    
+
     def get_memory_trend(self) -> Dict[str, float | str | int]:
         """
         Analyze memory usage trend.
-        
+
         Returns:
             Dict[str, float]: Trend analysis results
         """
         if len(self._samples) < 2:
             current_mb = self._samples[-1]["rss_mb"] if self._samples else 0.0
-            return {"trend": "unknown", "growth_rate": 0.0, "rate_mb_per_minute": 0.0, "current_mb": current_mb, "first_mb": current_mb, "last_mb": current_mb, "average_mb": current_mb}
-        
+            return {
+                "trend": "unknown",
+                "growth_rate": 0.0,
+                "rate_mb_per_minute": 0.0,
+                "current_mb": current_mb,
+                "first_mb": current_mb,
+                "last_mb": current_mb,
+                "average_mb": current_mb,
+            }
+
         recent_samples = self._samples[-10:]  # Last 10 samples
         if len(recent_samples) < 2:
             current_mb = recent_samples[-1]["rss_mb"] if recent_samples else 0.0
-            return {"trend": "unknown", "growth_rate": 0.0, "rate_mb_per_minute": 0.0, "current_mb": current_mb, "first_mb": current_mb, "last_mb": current_mb, "average_mb": current_mb}
-        
+            return {
+                "trend": "unknown",
+                "growth_rate": 0.0,
+                "rate_mb_per_minute": 0.0,
+                "current_mb": current_mb,
+                "first_mb": current_mb,
+                "last_mb": current_mb,
+                "average_mb": current_mb,
+            }
+
         # Calculate trend
         first_sample = recent_samples[0]
         last_sample = recent_samples[-1]
-        
+
         time_diff = last_sample["timestamp"] - first_sample["timestamp"]
         memory_diff = last_sample["rss_mb"] - first_sample["rss_mb"]
-        
+
         growth_rate = memory_diff / time_diff if time_diff > 0 else 0.0
-        
+
         label = "stable"
         if memory_diff > 0:
             label = "increasing"
@@ -385,26 +407,26 @@ class MemoryMonitor:
             "last_mb": last_sample.get("rss_mb", 0.0),
             "average_mb": avg,
         }
-    
+
     def detect_memory_leak(self, threshold_mb_per_minute: float = 1.0) -> bool:
         """
         Detect potential memory leaks.
-        
+
         Args:
             threshold_mb_per_minute: Memory growth threshold in MB per minute
-            
+
         Returns:
             bool: True if potential memory leak detected, False otherwise
         """
         trend = self.get_memory_trend()
         growth_rate_per_minute = trend["growth_rate"] * 60  # Convert to per minute
-        
+
         return growth_rate_per_minute > threshold_mb_per_minute
-    
+
     def get_samples(self) -> List[Dict[str, float]]:
         """Get all memory samples."""
         return self._samples.copy()
-    
+
     def clear_samples(self):
         """Clear all memory samples."""
         self._samples.clear()

@@ -1,12 +1,12 @@
 """Test ConvertService LoggerAdapter and TaskAwareLogger functionality."""
 
 import threading
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from markdownall.services.convert_service import LoggerAdapter, ConvertService
 from markdownall.app_types import ProgressEvent
+from markdownall.services.convert_service import ConvertService, LoggerAdapter
 
 
 class TestLoggerAdapter:
@@ -20,247 +20,217 @@ class TestLoggerAdapter:
 
     def test_info(self):
         """Test info method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.info("Test info message")
             mock_emit.assert_called_once_with(kind="status", text="Test info message")
 
     def test_success(self):
         """Test success method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.success("Test success message")
             mock_emit.assert_called_once_with(kind="detail", text="Test success message")
 
     def test_warning(self):
         """Test warning method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.warning("Test warning message")
             mock_emit.assert_called_once_with(kind="detail", text="⚠️ Test warning message")
 
     def test_error(self):
         """Test error method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.error("Test error message")
             mock_emit.assert_called_once_with(kind="error", text="❌ Test error message")
 
     def test_images_progress(self):
         """Test images_progress method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.images_progress(5, 1, 3)
             mock_emit.assert_called_once_with(
                 kind="status",
                 key="images_dl_progress",
                 data={"total": 5, "task_idx": 1, "task_total": 3},
-                text="[图片] 发现 5 张图片，开始下载..."
+                text="[图片] 发现 5 张图片，开始下载...",
             )
 
     def test_images_progress_with_exception(self):
         """Test images_progress method with exception."""
-        with patch.object(self.logger, '_emit_progress', side_effect=Exception("Test error")):
-            with patch('builtins.print') as mock_print:
+        with patch.object(self.logger, "_emit_progress", side_effect=Exception("Test error")):
+            with patch("builtins.print") as mock_print:
                 self.logger.images_progress(5)
                 mock_print.assert_called_once_with("[图片] 发现 5 张图片，开始下载...")
 
     def test_images_done(self):
         """Test images_done method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.images_done(5, 1, 3)
             mock_emit.assert_called_once_with(
                 kind="status",
                 key="images_dl_done",
                 data={"total": 5, "task_idx": 1, "task_total": 3},
-                text="[图片] 下载完成: 5 张图片"
+                text="[图片] 下载完成: 5 张图片",
             )
 
     def test_images_done_with_exception(self):
         """Test images_done method with exception."""
-        with patch.object(self.logger, '_emit_progress', side_effect=Exception("Test error")):
-            with patch('builtins.print') as mock_print:
+        with patch.object(self.logger, "_emit_progress", side_effect=Exception("Test error")):
+            with patch("builtins.print") as mock_print:
                 self.logger.images_done(5)
                 mock_print.assert_called_once_with("[图片] 下载完成: 5 张图片")
 
     def test_debug(self):
         """Test debug method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.debug("Test debug message")
             mock_emit.assert_called_once_with(kind="status", text="Test debug message")
 
     def test_fetch_start_no_retry(self):
         """Test fetch_start method without retry."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.fetch_start("TestStrategy")
             mock_emit.assert_called_once_with(
-                kind="status", 
-                key="phase_fetch_start", 
-                text="[抓取] TestStrategy..."
+                kind="status", key="phase_fetch_start", text="[抓取] TestStrategy..."
             )
 
     def test_fetch_start_with_retry(self):
         """Test fetch_start method with retry."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.fetch_start("TestStrategy", retry=2, max_retries=5)
             mock_emit.assert_called_once_with(
-                kind="status", 
-                key="phase_fetch_start", 
-                text="[抓取] TestStrategy重试 2/4..."
+                kind="status", key="phase_fetch_start", text="[抓取] TestStrategy重试 2/4..."
             )
 
     def test_fetch_success(self):
         """Test fetch_success method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.fetch_success(1000)
             mock_emit.assert_called_once_with(
-                kind="status", 
-                text="[抓取] 成功获取内容 (内容长度: 1000 字符)"
+                kind="status", text="[抓取] 成功获取内容 (内容长度: 1000 字符)"
             )
 
     def test_fetch_success_no_length(self):
         """Test fetch_success method without content length."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.fetch_success()
-            mock_emit.assert_called_once_with(
-                kind="status", 
-                text="[抓取] 成功获取内容"
-            )
+            mock_emit.assert_called_once_with(kind="status", text="[抓取] 成功获取内容")
 
     def test_fetch_failed(self):
         """Test fetch_failed method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.fetch_failed("TestStrategy", "Connection error")
             mock_emit.assert_called_once_with(
-                kind="detail", 
-                text="[抓取] TestStrategy策略失败: Connection error"
+                kind="detail", text="[抓取] TestStrategy策略失败: Connection error"
             )
 
     def test_fetch_retry(self):
         """Test fetch_retry method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.fetch_retry("TestStrategy", 2, 5)
-            mock_emit.assert_called_once_with(
-                kind="status", 
-                text="[抓取] TestStrategy重试 2/4..."
-            )
+            mock_emit.assert_called_once_with(kind="status", text="[抓取] TestStrategy重试 2/4...")
 
     def test_parse_start(self):
         """Test parse_start method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.parse_start()
             mock_emit.assert_called_once_with(
-                kind="status", 
-                key="phase_parse_start", 
-                text="[解析] 提取标题和正文..."
+                kind="status", key="phase_parse_start", text="[解析] 提取标题和正文..."
             )
 
     def test_parse_title(self):
         """Test parse_title method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.parse_title("Test Title")
-            mock_emit.assert_called_once_with(
-                kind="status", 
-                text="[解析] 标题: Test Title"
-            )
+            mock_emit.assert_called_once_with(kind="status", text="[解析] 标题: Test Title")
 
     def test_parse_content_short(self):
         """Test parse_content_short method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.parse_content_short(100, 200)
             mock_emit.assert_called_once_with(
-                kind="detail", 
-                text="[解析] 内容太短 (100 字符)，尝试下一个策略"
+                kind="detail", text="[解析] 内容太短 (100 字符)，尝试下一个策略"
             )
 
     def test_parse_success(self):
         """Test parse_success method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.parse_success(1500)
             mock_emit.assert_called_once_with(
-                kind="status", 
-                text="[解析] 解析成功，内容长度: 1500 字符"
+                kind="status", text="[解析] 解析成功，内容长度: 1500 字符"
             )
 
     def test_clean_start(self):
         """Test clean_start method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.clean_start()
             mock_emit.assert_called_once_with(
-                kind="status", 
-                key="phase_clean_start", 
-                text="[清理] 移除广告和无关内容..."
+                kind="status", key="phase_clean_start", text="[清理] 移除广告和无关内容..."
             )
 
     def test_clean_success(self):
         """Test clean_success method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.clean_success()
-            mock_emit.assert_called_once_with(
-                kind="status", 
-                text="[清理] 内容清理完成"
-            )
+            mock_emit.assert_called_once_with(kind="status", text="[清理] 内容清理完成")
 
     def test_convert_start(self):
         """Test convert_start method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.convert_start()
             mock_emit.assert_called_once_with(
-                kind="status", 
-                key="phase_convert_start", 
-                text="[转换] 转换为Markdown..."
+                kind="status", key="phase_convert_start", text="[转换] 转换为Markdown..."
             )
 
     def test_convert_success(self):
         """Test convert_success method (should do nothing)."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.convert_success()
             mock_emit.assert_not_called()
 
     def test_url_success(self):
         """Test url_success method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.url_success("Test Title")
-            mock_emit.assert_called_once_with(
-                kind="detail", 
-                text="✅ URL处理成功: Test Title"
-            )
+            mock_emit.assert_called_once_with(kind="detail", text="✅ URL处理成功: Test Title")
 
     def test_url_failed(self):
         """Test url_failed method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.url_failed("https://example.com", "Network error")
             mock_emit.assert_called_once_with(
-                kind="error", 
-                text="❌ URL处理失败: https://example.com - Network error"
+                kind="error", text="❌ URL处理失败: https://example.com - Network error"
             )
 
     def test_batch_start(self):
         """Test batch_start method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.batch_start(10)
             mock_emit.assert_called_once_with(
-                kind="status", 
-                key="batch_start", 
-                data={"total": 10}, 
-                text="🚀 开始批量处理 10 个URL..."
+                kind="status",
+                key="batch_start",
+                data={"total": 10},
+                text="🚀 开始批量处理 10 个URL...",
             )
 
     def test_batch_summary(self):
         """Test batch_summary method (should do nothing)."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.batch_summary(8, 2, 10)
             mock_emit.assert_not_called()
 
     def test_task_status(self):
         """Test task_status method."""
-        with patch.object(self.logger, '_emit_progress') as mock_emit:
+        with patch.object(self.logger, "_emit_progress") as mock_emit:
             self.logger.task_status(1, 5, "https://example.com")
             mock_emit.assert_called_once_with(
                 kind="status",
                 data={"url": "https://example.com", "idx": 1, "total": 5},
-                text="Processing: https://example.com"
+                text="Processing: https://example.com",
             )
 
     def test_task_status_with_exception(self):
         """Test task_status method with exception."""
-        with patch.object(self.logger, '_emit_progress', side_effect=Exception("Test error")):
-            with patch('builtins.print') as mock_print:
+        with patch.object(self.logger, "_emit_progress", side_effect=Exception("Test error")):
+            with patch("builtins.print") as mock_print:
                 self.logger.task_status(1, 5, "https://example.com")
                 mock_print.assert_called_once_with("Processing: https://example.com")
 
@@ -269,14 +239,16 @@ class TestLoggerAdapter:
         mock_signals = Mock()
         mock_signals.progress_event = Mock()
         logger = LoggerAdapter(None, mock_signals)
-        
-        with patch('markdownall.app_types.ProgressEvent') as mock_event_class:
+
+        with patch("markdownall.app_types.ProgressEvent") as mock_event_class:
             mock_event = Mock()
             mock_event_class.return_value = mock_event
-            
+
             logger._emit_progress(kind="test", text="test message")
-            
-            mock_event_class.assert_called_once_with(kind="test", key=None, text="test message", data=None)
+
+            mock_event_class.assert_called_once_with(
+                kind="test", key=None, text="test message", data=None
+            )
             mock_signals.progress_event.emit.assert_called_once_with(mock_event)
 
     def test_emit_progress_with_signals_exception(self):
@@ -284,16 +256,16 @@ class TestLoggerAdapter:
         mock_signals = Mock()
         mock_signals.progress_event = Mock(side_effect=Exception("Signal error"))
         logger = LoggerAdapter(None, mock_signals)
-        
-        with patch.object(logger, '_call') as mock_call:
+
+        with patch.object(logger, "_call") as mock_call:
             logger._emit_progress(kind="test", text="test message")
             mock_call.assert_called_once_with("test", "test message")
 
     def test_emit_progress_no_signals(self):
         """Test _emit_progress method without signals."""
         logger = LoggerAdapter(None, None)
-        
-        with patch.object(logger, '_call') as mock_call:
+
+        with patch.object(logger, "_call") as mock_call:
             logger._emit_progress(kind="test", text="test message")
             mock_call.assert_called_once_with("test", "test message")
 
@@ -302,10 +274,10 @@ class TestLoggerAdapter:
         mock_ui = Mock()
         mock_ui.log_info = Mock()
         logger = LoggerAdapter(mock_ui, None)
-        
-        with patch('threading.current_thread') as mock_thread:
+
+        with patch("threading.current_thread") as mock_thread:
             mock_thread.return_value.name = "MainThread"
-            
+
             logger._call("status", "test message")
             mock_ui.log_info.assert_called_once_with("test message")
 
@@ -313,11 +285,11 @@ class TestLoggerAdapter:
         """Test _call method in background thread."""
         mock_ui = Mock()
         logger = LoggerAdapter(mock_ui, None)
-        
-        with patch('threading.current_thread') as mock_thread:
+
+        with patch("threading.current_thread") as mock_thread:
             mock_thread.return_value.name = "BackgroundThread"
-            
-            with patch('builtins.print') as mock_print:
+
+            with patch("builtins.print") as mock_print:
                 logger._call("status", "test message")
                 mock_print.assert_called_once_with("test message")
 
@@ -328,18 +300,18 @@ class TestLoggerAdapter:
         mock_ui.log_error = Mock()
         mock_ui.log_info = Mock()
         logger = LoggerAdapter(mock_ui, None)
-        
-        with patch('threading.current_thread') as mock_thread:
+
+        with patch("threading.current_thread") as mock_thread:
             mock_thread.return_value.name = "MainThread"
-            
+
             # Test progress_done -> log_success
             logger._call("progress_done", "success message")
             mock_ui.log_success.assert_called_once_with("success message")
-            
+
             # Test error -> log_error
             logger._call("error", "error message")
             mock_ui.log_error.assert_called_once_with("error message")
-            
+
             # Test default -> log_info
             logger._call("status", "info message")
             mock_ui.log_info.assert_called_once_with("info message")
@@ -349,11 +321,11 @@ class TestLoggerAdapter:
         mock_ui = Mock()
         mock_ui.log_info = Mock(side_effect=Exception("UI error"))
         logger = LoggerAdapter(mock_ui, None)
-        
-        with patch('threading.current_thread') as mock_thread:
+
+        with patch("threading.current_thread") as mock_thread:
             mock_thread.return_value.name = "MainThread"
-            
-            with patch('builtins.print') as mock_print:
+
+            with patch("builtins.print") as mock_print:
                 logger._call("status", "test message")
                 mock_print.assert_called_once_with("test message")
 
@@ -389,14 +361,18 @@ class TestTaskAwareLogger:
                 self._base.task_status(t_idx, t_total, url)
 
             # Inject task context defaults when not provided
-            def images_progress(self, total_imgs: int, task_idx: int | None = None, task_total: int | None = None) -> None:
+            def images_progress(
+                self, total_imgs: int, task_idx: int | None = None, task_total: int | None = None
+            ) -> None:
                 self._base.images_progress(
                     total_imgs,
                     task_idx=self._task_idx if task_idx is None else task_idx,
                     task_total=self._task_total if task_total is None else task_total,
                 )
 
-            def images_done(self, total_imgs: int, task_idx: int | None = None, task_total: int | None = None) -> None:
+            def images_done(
+                self, total_imgs: int, task_idx: int | None = None, task_total: int | None = None
+            ) -> None:
                 self._base.images_done(
                     total_imgs,
                     task_idx=self._task_idx if task_idx is None else task_idx,

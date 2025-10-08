@@ -6,19 +6,18 @@ WordPress网站处理器 - 专门处理WordPress站点，如skywind.me
 import random
 import time
 from dataclasses import dataclass
-from typing import Any, Optional, Callable
-
-from markdownall.app_types import ConvertLogger
+from typing import Any, Callable, Optional
 
 from bs4 import BeautifulSoup
 from markitdown import MarkItDown
 
+from markdownall.app_types import ConvertLogger
+from markdownall.core.exceptions import StopRequested
 from markdownall.services.playwright_driver import (
     new_context_and_page,
     read_page_content_and_title,
     teardown_context_page,
 )
-from markdownall.core.exceptions import StopRequested
 
 # 1. 数据类
 
@@ -188,7 +187,12 @@ def _try_httpx_crawler(session, url: str) -> FetchResult:
         return FetchResult(title=None, html_markdown="", success=False, error=f"httpx异常: {e}")
 
 
-def _try_playwright_crawler(url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None, should_stop: Optional[Callable[[], bool]] = None) -> FetchResult:
+def _try_playwright_crawler(
+    url: str,
+    logger: Optional[ConvertLogger] = None,
+    shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
+) -> FetchResult:
     """策略2: 使用Playwright爬取原始HTML - 支持共享浏览器"""
     try:
 
@@ -203,6 +207,7 @@ def _try_playwright_crawler(url: str, logger: Optional[ConvertLogger] = None, sh
 
             # 等待页面稳定（可被停止打断）
             import time
+
             total_sleep = 2.0
             slept = 0.0
             while slept < total_sleep:
@@ -254,6 +259,7 @@ def _try_playwright_crawler(url: str, logger: Optional[ConvertLogger] = None, sh
 
             # 等待页面稳定（可被停止打断）
             import time
+
             total_sleep = 2.0
             slept = 0.0
             while slept < total_sleep:
@@ -482,7 +488,13 @@ def _process_wordpress_content(
 # 4. 主入口函数
 
 
-def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] = None, shared_browser: Any | None = None, should_stop: Optional[Callable[[], bool]] = None) -> FetchResult:
+def fetch_wordpress_article(
+    session,
+    url: str,
+    logger: Optional[ConvertLogger] = None,
+    shared_browser: Any | None = None,
+    should_stop: Optional[Callable[[], bool]] = None,
+) -> FetchResult:
     """
     获取WordPress文章内容
 
@@ -508,7 +520,9 @@ def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] =
                 if retry > 0:
                     if logger:
                         logger.fetch_retry(f"WordPress策略 {i}", retry, max_retries)
-                    import time, random
+                    import random
+                    import time
+
                     total_sleep = random.uniform(2, 4)
                     slept = 0.0
                     while slept < total_sleep:
@@ -574,7 +588,9 @@ def fetch_wordpress_article(session, url: str, logger: Optional[ConvertLogger] =
 
         # 策略间等待
         if i < len(crawler_strategies):
-            import time, random
+            import random
+            import time
+
             total_sleep = random.uniform(1, 2)
             slept = 0.0
             while slept < total_sleep:

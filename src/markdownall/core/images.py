@@ -4,12 +4,13 @@ import asyncio
 import hashlib
 import os
 import re
-from datetime import datetime
 import threading
+from datetime import datetime
 from typing import Callable, Dict, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
+
 from markdownall.app_types import ConvertLogger
 
 # =============================================================================
@@ -571,7 +572,7 @@ def download_images_and_rewrite(
     result_text = pattern_html.sub(replace_html, result_text)
 
     # 统计下载结果（仅在有下载动作时）
-    if total > 0 and 'download_results' in locals():
+    if total > 0 and "download_results" in locals():
         success_count = sum(1 for ok, _ in download_results.values() if ok)
         failed_count = total - success_count
         if logger:

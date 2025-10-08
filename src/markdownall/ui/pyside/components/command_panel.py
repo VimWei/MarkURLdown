@@ -27,14 +27,14 @@ if TYPE_CHECKING:
 class CommandPanel(QWidget):
     """
     Command panel component for session management and conversion control.
-    
+
     This component contains:
     - Session management buttons (restore, import, export)
     - Conversion control button (convert/stop)
     - Progress bar display
     - Fixed height: 120px
     """
-    
+
     # Session management signals
     restoreRequested = Signal()
     importRequested = Signal()
@@ -48,7 +48,7 @@ class CommandPanel(QWidget):
         self.translator = translator
         self._is_converting = False
         self._ready_text = "Ready"
-        
+
         # Set fixed height for command panel (mimicking MdxScraper)
         self.setFixedHeight(120)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -71,11 +71,11 @@ class CommandPanel(QWidget):
         self.btn_restore = QPushButton("Restore last session", self)
         self.btn_import = QPushButton("Import session", self)
         self.btn_export = QPushButton("Export session", self)
-        
+
         for b in (self.btn_restore, self.btn_import, self.btn_export):
             b.setFixedWidth(150)
             b.setFixedHeight(32)
-            
+
         row_actions.addWidget(self.btn_restore)
         row_actions.addSpacing(12)
         row_actions.addWidget(self.btn_import)
@@ -88,14 +88,14 @@ class CommandPanel(QWidget):
         row_convert = QHBoxLayout()
         row_convert.setContentsMargins(0, 0, 0, 0)
         row_convert.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
-        
+
         self.btn_convert = QPushButton("Convert to Markdown", self)
         self.btn_convert.setFixedWidth(200)
         self.btn_convert.setFixedHeight(40)
         self.btn_convert.setObjectName("convert-button")
         # Use a dynamic property to toggle visual style for stop state
         self.btn_convert.setProperty("mode", "convert")
-        
+
         row_convert.addWidget(self.btn_convert)
         row_convert.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
         root.addLayout(row_convert)
@@ -155,7 +155,9 @@ class CommandPanel(QWidget):
         # Update text
         if self.translator:
             t = self.translator.t
-            self.btn_convert.setText(t("command_stop") if self._is_converting else t("command_convert"))
+            self.btn_convert.setText(
+                t("command_stop") if self._is_converting else t("command_convert")
+            )
         else:
             self.btn_convert.setText("Stop" if self._is_converting else "Convert to Markdown")
         # Update style via dynamic property
@@ -177,7 +179,7 @@ class CommandPanel(QWidget):
         """Retranslate UI elements."""
         if not self.translator:
             return
-            
+
         t = self.translator.t
         self.btn_restore.setText(t("command_restore_session"))
         self.btn_import.setText(t("command_import_session"))

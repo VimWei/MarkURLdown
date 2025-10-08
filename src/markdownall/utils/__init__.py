@@ -7,7 +7,7 @@ This module provides utility functions and classes including:
 - Common helper functions
 """
 
-from .memory_optimizer import MemoryOptimizer, MemoryMonitor
+from .memory_optimizer import MemoryMonitor, MemoryOptimizer
 
 __all__ = [
     "MemoryOptimizer",

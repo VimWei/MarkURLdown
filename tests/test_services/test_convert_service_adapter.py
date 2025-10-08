@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from markdownall.services.convert_service import LoggerAdapter
 from markdownall.app_types import ProgressEvent
+from markdownall.services.convert_service import LoggerAdapter
 
 
 class DummySignals:
@@ -29,10 +29,12 @@ def test_logger_adapter_signal_emit():
 def test_logger_adapter_signal_callable():
     # progress_event is callable, not a signal
     called = []
+
     class Sig:
         def __init__(self):
             # make progress_event a plain callable function
             self.progress_event = lambda ev: called.append(ev)
+
     sig = Sig()
     ui = Mock()
     adapter = LoggerAdapter(ui, sig)

@@ -8,10 +8,10 @@ This module provides business logic services including:
 """
 
 from .config_service import ConfigService
-from .startup_service import StartupService, BackgroundTaskManager
+from .startup_service import BackgroundTaskManager, StartupService
 
 __all__ = [
     "ConfigService",
-    "StartupService", 
+    "StartupService",
     "BackgroundTaskManager",
 ]
