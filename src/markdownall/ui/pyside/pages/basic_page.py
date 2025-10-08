@@ -229,7 +229,9 @@ class BasicPage(QWidget):
         # Reselect moved items at their new positions
         new_selection = []
         for row in selected_rows:
-            new_row = min(count - 1, row + (0 if (row + 1) in selected_rows or row >= count - 1 else 1))
+            new_row = min(
+                count - 1, row + (0 if (row + 1) in selected_rows or row >= count - 1 else 1)
+            )
             new_selection.append(new_row)
         self.url_listbox.clearSelection()
         for r in new_selection:

@@ -16,6 +16,3 @@ def speed_up_convert_service(monkeypatch):
     except Exception:
         # If module path changes, do not fail tests due to this optimization
         pass
-
-
-
