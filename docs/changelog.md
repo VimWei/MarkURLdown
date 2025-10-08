@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.0.0] - 2025-10-08
+
+- docs: update README
+- chore(docs): update screenshots
+- test: increase test coverage to 80% and strengthen critical cases
+- fix(tests): resolve test failures after comprehensive GUI refactor
+- refactor(config): unify session management and enhance configuration handling
+- refactor(MainWindow): integrate ConfigService for session management
+- refactor(gui): unify entry on MainWindow, remove legacy paths and StartupManager
+- docs: add startup flow analysis document outlining GUI structure and responsibilities
+- chore(docs): move Splitter analysis and design docs
+- refactor(ui/basic): connect output directory change event to editingFinished signal
+- feat(locales): enhance localization support and structured logging for conversion processes
+- refactor(ui/basic): deterministic label/button widths on locale switch
+- feat: Enhance progress bar with phase-aware interpolation and friendly labels
+- UI: Replace dual Convert/Stop buttons with a single toggle
+- fix(locales): update button label for consistency in English and Chinese
+- fix(locales): update labels for clarity and consistency
+- refactor(ui): remove unused log features; unify label styling
+- fix(Advanced): open data/ correctly and show absolute path after Open
+- feat: implement stop request handling in conversion processes
+- feat: add duration tracking for conversion processes
+- feat: implement structured logging system for conversion processes
+- fix: update logging directory and suppress noisy logs during session import
+- refactor: separate startup logic into services and utils layers
+- refactor: implement layered configuration architecture
+- feat: refactor configuration management architecture
+- Delete temp test files
+- fix: advanced page's config
+- feat: implement multi-task logging functionality in GUI
+- feat: implement direct logging system with simplified event handling
+- Update integration and user acceptance tests for internationalization and performance
+- Add detailed diagnostic and conversion testing scripts
+- Implement GUI refactor phase 4 foundation: modular architecture framework
+- Implement modular GUI refactor (Phase 1-3)
+- Add design documents for GUI refactor plan
+- Archive project_rename_guide.md
+
 ## [0.9.4] - 2025-10-03
 
 - Fix: enforce UTF-8 encoding in subprocess command execution
