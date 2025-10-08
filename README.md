@@ -20,7 +20,6 @@ MarkdownAll is a sophisticated desktop application designed to effortlessly conv
     * **Dynamic Content Processing:** Handles JavaScript-rendered content, lazy-loaded images, and interactive elements
     * **Smart Retry Logic:** Automatic retry with exponential backoff for failed requests and rate limiting
     * **Session Pre-warming:** Establishes legitimate sessions before accessing target content to improve success rates
-* **Smart Content Extraction:** Intelligently cleans up clutter like ads, navigation bars, and footers to grab only the main article content.
 * **Specialized Site Handlers:** Dedicated processors for complex websites:
     * **WeChat Official Account Articles:** Advanced handling with multi-strategy crawling and anti-detection measures, with configurable filtering rules for each account
     * **Zhihu.com:** Supports both Zhihu column articles and answer pages with Smart Content Detection
@@ -28,7 +27,7 @@ MarkdownAll is a sophisticated desktop application designed to effortlessly conv
     * **Next.js Blogs:** Tuned for common static Next.js blog themes with enhanced content processing
     * **More:** sspai.com, appinn.com and so on.
     * **Generic Handler:** Intelligent fallback for all other websites with multi-strategy implementation
-* **Advanced Options:**
+* **Options:**
     * **Proxy Support:** Configurable proxy settings with system proxy detection
     * **SSL Verification:** Optional SSL certificate verification bypass for problematic sites
     * **Image Handling:** Downloads all images from articles and saves them locally for complete, offline-first archives with format detection and correction
@@ -60,7 +59,7 @@ To set up the project locally, you will need a working Python environment (Pytho
    cd MarkdownAll
    uv sync
    ```
-4. **Install Playwright browsers:**
+3. **Install Playwright browsers:**
    ```bash
    playwright install
    ```
