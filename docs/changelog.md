@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.4] - 2025-10-09
+
+- refactor: simplify logger usage
+- refactor: update LOGGER_ARCHITECTURE_GUIDE.md and remove obsolete splitter design documents
+- refactor: rename session to config and update storage paths
+
 ## [1.0.3] - 2025-10-09
 
 - Enhance README.md: Update features and usage instructions for clarity and conciseness.
