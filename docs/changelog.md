@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.3] - 2025-10-09
+
+- Enhance README.md: Update features and usage instructions for clarity and conciseness.
+- Update license in README.md to GNU General Public License v3.0 (GPL-3.0) with detailed usage terms
+
 ## [1.0.2] - 2025-10-09
 
 - chore: change license from MIT to GPL-3.0 in pyproject.toml
