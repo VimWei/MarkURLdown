@@ -107,5 +107,8 @@
   "log_clear": "清除日志",
   "log_copy": "复制日志",
   "log_placeholder": "日志消息",
-  "multi_task_summary": "📈 多任务完成: 共 {total} 个，成功 {successful} 个，失败 {failed} 个，成功率: {success_rate}%"
+  "multi_task_summary": "📈 多任务完成: 共 {total} 个，成功 {successful} 个，失败 {failed} 个，成功率: {success_rate}%",
+  "time_unit_hours": "小时",
+  "time_unit_minutes": "分钟", 
+  "time_unit_seconds": "秒"
 }

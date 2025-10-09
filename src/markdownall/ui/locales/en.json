@@ -107,5 +107,8 @@
   "log_clear": "Clear Log",
   "log_copy": "Copy Log",
   "multi_task_summary": "📈 Multi-task completed: total {total}, successful {successful}, failed {failed}, success rate: {success_rate}%",
-  "log_placeholder": "log message"
+  "log_placeholder": "log message",
+  "time_unit_hours": "hours",
+  "time_unit_minutes": "minutes", 
+  "time_unit_seconds": "seconds"
 }

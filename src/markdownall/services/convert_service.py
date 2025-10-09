@@ -237,6 +237,7 @@ class ConvertService:
         on_event: EventCallback,
         signals=None,
         ui_logger: object | None = None,
+        translator=None,
     ) -> None:
         if self._thread and self._thread.is_alive():
             return
@@ -255,7 +256,7 @@ class ConvertService:
             pass
         self._thread = threading.Thread(
             target=self._worker,
-            args=(requests_list, out_dir, options, on_event, ui_logger),
+            args=(requests_list, out_dir, options, on_event, ui_logger, translator),
             daemon=True,
         )
         self._thread.start()
@@ -288,6 +289,7 @@ class ConvertService:
         options: ConversionOptions,
         on_event: EventCallback,
         ui_logger: object | None,
+        translator=None,
     ) -> None:
         try:
             logger = LoggerAdapter(ui_logger, self._signals)
@@ -638,7 +640,7 @@ class ConvertService:
             # 计算并记录总耗时
             if self._start_time is not None:
                 total_duration = time.time() - self._start_time
-                duration_str = human_readable_duration(total_duration)
+                duration_str = human_readable_duration(total_duration, translator)
                 # 直接发送时间统计事件（包含结构化数据以便本地化）
                 self._emit_event_safe(
                     ProgressEvent(

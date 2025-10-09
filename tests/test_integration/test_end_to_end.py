@@ -48,7 +48,7 @@ class TestEndToEnd:
 
         sig = inspect.signature(self.service.run)
         params = list(sig.parameters.keys())
-        expected_params = ["requests_list", "out_dir", "options", "on_event", "signals"]
+        expected_params = ["requests_list", "out_dir", "options", "on_event", "signals", "ui_logger", "translator"]
 
         # 检查是否包含预期的参数
         for param in expected_params:

@@ -30,8 +30,9 @@ class ViewModel:
         on_event: OnEvent,
         signals=None,
         ui_logger: object | None = None,
+        translator=None,
     ) -> None:
-        self._service.run(requests_list, out_dir, options, on_event, signals, ui_logger)
+        self._service.run(requests_list, out_dir, options, on_event, signals, ui_logger, translator)
 
     def stop(self, on_event: OnEvent) -> None:
         self._service.stop()
