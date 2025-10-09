@@ -21,9 +21,25 @@ def test_viewmodel_delegates_to_service_run_and_stop():
         dummy_signals = mock.Mock()
         dummy_ui_logger = mock.Mock()
         dummy_translator = mock.Mock()
-        
-        vm.start(["req"], "out", dummy_options, dummy_event, dummy_signals, dummy_ui_logger, dummy_translator)
-        service_mock.run.assert_called_once_with(["req"], "out", dummy_options, dummy_event, dummy_signals, dummy_ui_logger, dummy_translator)
+
+        vm.start(
+            ["req"],
+            "out",
+            dummy_options,
+            dummy_event,
+            dummy_signals,
+            dummy_ui_logger,
+            dummy_translator,
+        )
+        service_mock.run.assert_called_once_with(
+            ["req"],
+            "out",
+            dummy_options,
+            dummy_event,
+            dummy_signals,
+            dummy_ui_logger,
+            dummy_translator,
+        )
 
         vm.stop(lambda _: None)
         service_mock.stop.assert_called_once()

@@ -1101,7 +1101,9 @@ class MainWindow(QMainWindow):
 
         # Start conversion through ViewModel
         # 传入 UI 作为日志接收端（LoggerAdapter 将调用本窗口的 log_* 方法与 LogPanel 扩展方法）
-        self.vm.start(reqs, out_dir, options, self._on_event_thread_safe, self.signals, self, self.translator)
+        self.vm.start(
+            reqs, out_dir, options, self._on_event_thread_safe, self.signals, self, self.translator
+        )
 
     def _stop_conversion(self):
         """Stop conversion process."""

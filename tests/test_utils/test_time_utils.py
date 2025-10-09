@@ -12,14 +12,16 @@ class TestTimeUtils:
 
     def _get_mock_translator(self):
         """Get a mock translator for testing."""
+
         class MockTranslator:
             def t(self, key):
                 translations = {
                     "time_unit_hours": "hours",
                     "time_unit_minutes": "minutes",
-                    "time_unit_seconds": "seconds"
+                    "time_unit_seconds": "seconds",
                 }
                 return translations.get(key, key)
+
         return MockTranslator()
 
     def test_human_readable_duration_seconds_only(self):
@@ -145,20 +147,21 @@ class TestTimeUtils:
 
     def test_human_readable_duration_with_translator(self):
         """Test human_readable_duration with translator."""
+
         # Mock translator for Chinese
         class MockChineseTranslator:
             def t(self, key):
                 translations = {
                     "time_unit_hours": "小时",
                     "time_unit_minutes": "分钟",
-                    "time_unit_seconds": "秒"
+                    "time_unit_seconds": "秒",
                 }
                 return translations.get(key, key)
-        
+
         translator = MockChineseTranslator()
         result = human_readable_duration(182.758, translator)
         assert result == "03 分钟 02.758 秒"
-        
+
         # Test with hours
         result = human_readable_duration(3661.789, translator)
         assert result == "01 小时 01 分钟 01.789 秒"
