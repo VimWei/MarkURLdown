@@ -414,9 +414,9 @@ class MainWindow(QMainWindow):
     def _connect_component_signals(self):
         """Connect component signals to main window handlers."""
         # Command panel signals
-        self.command_panel.restoreRequested.connect(self._restore_session)
-        self.command_panel.importRequested.connect(self._import_session)
-        self.command_panel.exportRequested.connect(self._export_session)
+        self.command_panel.restoreRequested.connect(self._restore_config)
+        self.command_panel.importRequested.connect(self._import_config)
+        self.command_panel.exportRequested.connect(self._export_config)
         self.command_panel.convertRequested.connect(self._on_convert)
         self.command_panel.stopRequested.connect(self._stop_conversion)
 
@@ -943,8 +943,9 @@ class MainWindow(QMainWindow):
             # Sync UI from the reset configuration
             self._sync_ui_from_config()
 
-            # Save the restored config
-            self._save_config()
+            # Note: We do NOT save the restored config to last_state.json
+            # This allows users to easily restore their previous config later
+            # The default config only affects the current session
 
             self.log_success("Default configuration restored successfully")
         except Exception as e:
@@ -1007,11 +1008,11 @@ class MainWindow(QMainWindow):
         webbrowser.open("https://github.com/VimWei/MarkdownAll")
         self.log_panel.appendLog("Opened project homepage")
 
-    def _restore_session(self):
-        """Restore last session via ConfigService."""
+    def _restore_config(self):
+        """Restore last configuration via ConfigService."""
         try:
             if not self.config_service.load_session():
-                self.log_panel.appendLog("No session found to restore")
+                self.log_panel.appendLog("No configuration found to restore")
                 return
             config = self.config_service.get_all_config()
             self._apply_state(
@@ -1019,17 +1020,17 @@ class MainWindow(QMainWindow):
                 | config.get("webpage", {})
                 | {"output_dir": config.get("basic", {}).get("output_dir", "")}
             )
-            self.log_panel.appendLog("Session restored successfully")
+            self.log_panel.appendLog("Configuration restored successfully")
         except Exception as e:
-            self.log_panel.appendLog(f"Failed to restore session: {e}")
+            self.log_panel.appendLog(f"Failed to restore configuration: {e}")
 
-    def _import_session(self):
-        """Import session from file via ConfigService."""
+    def _import_config(self):
+        """Import configuration from file via ConfigService."""
         from PySide6.QtWidgets import QFileDialog
 
-        sessions_dir = os.path.join(self.root_dir, "data", "sessions")
+        config_dir = os.path.join(self.root_dir, "data", "config")
         filename, _ = QFileDialog.getOpenFileName(
-            self, "Import Session", sessions_dir, "JSON Files (*.json)"
+            self, "Import Configuration", config_dir, "JSON Files (*.json)"
         )
         if filename:
             try:
@@ -1048,17 +1049,17 @@ class MainWindow(QMainWindow):
                 except Exception:
                     pass
                 self._suppress_change_logs = False
-                self.log_panel.appendLog(f"Session imported from: {os.path.basename(filename)}")
+                self.log_panel.appendLog(f"Configuration imported from: {os.path.basename(filename)}")
             except Exception as e:
-                self.log_panel.appendLog(f"Failed to import session: {e}")
+                self.log_panel.appendLog(f"Failed to import configuration: {e}")
 
-    def _export_session(self):
-        """Export session to file via ConfigService."""
+    def _export_config(self):
+        """Export configuration to file via ConfigService."""
         from PySide6.QtWidgets import QFileDialog
 
-        sessions_dir = os.path.join(self.root_dir, "data", "sessions")
+        config_dir = os.path.join(self.root_dir, "data", "config")
         filename, _ = QFileDialog.getSaveFileName(
-            self, "Export Session", sessions_dir, "JSON Files (*.json)"
+            self, "Export Configuration", config_dir, "JSON Files (*.json)"
         )
         if filename:
             try:
@@ -1066,9 +1067,9 @@ class MainWindow(QMainWindow):
                 self._save_config()
                 if not self.config_service.export_config(filename):
                     raise RuntimeError("Export returned False")
-                self.log_panel.appendLog(f"Session exported to: {os.path.basename(filename)}")
+                self.log_panel.appendLog(f"Configuration exported to: {os.path.basename(filename)}")
             except Exception as e:
-                self.log_panel.appendLog(f"Failed to export session: {e}")
+                self.log_panel.appendLog(f"Failed to export configuration: {e}")
 
     def _on_convert(self):
         """Handle convert button click."""

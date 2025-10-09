@@ -98,7 +98,7 @@ def test_language_change_saves_settings_and_updates_status(tmp_path, qapp):
     idx = window.advanced_page.language_combo.findData("zh")
     assert idx != -1
     window._on_language_changed(idx)
-    settings_file = Path(tmp_path) / "data" / "sessions" / "last_state.json"
+    settings_file = Path(tmp_path) / "data" / "config" / "last_state.json"
     assert settings_file.exists()
     # status should indicate restart required (in zh or en depending translation availability)
     # Note: status_label is now in command_panel, but we need to check if it exists
@@ -135,19 +135,19 @@ def test_close_event_saves_last_state(tmp_path, qapp):
 
     e = _E()
     window.closeEvent(e)
-    last = Path(tmp_path) / "data" / "sessions" / "last_state.json"
+    last = Path(tmp_path) / "data" / "config" / "last_state.json"
     assert last.exists()
 
 
 @pytest.mark.unit
 def test_restore_last_session_loads_and_applies(tmp_path, qapp):
     window = _make_window(tmp_path, qapp)
-    sessions = Path(tmp_path) / "data" / "sessions"
-    sessions.mkdir(parents=True, exist_ok=True)
-    (sessions / "last_state.json").write_text(
+    config_dir = Path(tmp_path) / "data" / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "last_state.json").write_text(
         '{"urls": ["https://a.com"], "output_dir":"data/output"}', encoding="utf-8"
     )
-    window._restore_session()
+    window._restore_config()
     assert window.basic_page.url_listbox.count() == 1
 
 
@@ -376,16 +376,16 @@ def test_worker_emit_detail_variants(monkeypatch, tmp_path):
 @pytest.mark.unit
 def test_choose_and_import_export_are_mocked(tmp_path, qapp):
     window = _make_window(tmp_path, qapp)
-    sessions_dir = Path(tmp_path) / "data" / "sessions"
-    export_target = sessions_dir / "session.json"
+    config_dir = Path(tmp_path) / "data" / "config"
+    export_target = config_dir / "session.json"
     window.basic_page.url_listbox.addItem("https://x.com")
     # Mock save dialog
     with mock.patch.object(QFileDialog, "getSaveFileName", return_value=(str(export_target), "")):
-        window._export_session()
+        window._export_config()
         assert export_target.exists()
     # Mock open dialog
     with mock.patch.object(QFileDialog, "getOpenFileName", return_value=(str(export_target), "")):
-        window._import_session()
+        window._import_config()
         # After import, status/detail updated
         # Note: status_label and detail_label are now in command_panel or handled differently
         # For now, we'll skip these assertions as the new architecture may handle them differently

@@ -25,7 +25,7 @@
 #### 2.1 入口 `launch.py`
 职责：
 - 通过 `show_immediate_splash()` 创建 `QApplication` + `QSplashScreen`。
-- 读取 `data/sessions/settings.json`，解析语言等轻量设置。
+- 读取 `data/config/settings.json`，解析语言等轻量设置。
 - 基于语言决定启动提示文案，显示进度信息。
 - 构造新版 `MainWindow(root_dir, settings)`，显示窗口，结束 Splash，并进入 `app.exec()`。
 

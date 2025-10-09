@@ -35,7 +35,7 @@ class ConfigManager:
 
     def __init__(self, root_dir: str):
         self.root_dir = root_dir
-        self.sessions_dir = os.path.join(root_dir, "data", "sessions")
+        self.config_dir = os.path.join(root_dir, "data", "config")
 
         # Initialize configurations
         self.basic = BasicConfig()
@@ -50,7 +50,7 @@ class ConfigManager:
     def load_session(self, session_name: str = "last_state") -> bool:
         """Load session configuration."""
         try:
-            session_path = os.path.join(self.sessions_dir, f"{session_name}.json")
+            session_path = os.path.join(self.config_dir, f"{session_name}.json")
             if not os.path.exists(session_path):
                 return False
 
@@ -88,8 +88,8 @@ class ConfigManager:
     def save_session(self, session_name: str = "last_state") -> bool:
         """Save current session configuration (now writes full new-format)."""
         try:
-            os.makedirs(self.sessions_dir, exist_ok=True)
-            session_path = os.path.join(self.sessions_dir, f"{session_name}.json")
+            os.makedirs(self.config_dir, exist_ok=True)
+            session_path = os.path.join(self.config_dir, f"{session_name}.json")
             data = self.get_all_config()
             # Normalize output_dir to project-relative for persistence
             data["basic"]["output_dir"] = to_project_relative_path(

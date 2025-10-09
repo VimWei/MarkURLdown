@@ -68,9 +68,9 @@ class CommandPanel(QWidget):
         row_actions.setContentsMargins(0, 0, 0, 0)
         row_actions.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
 
-        self.btn_restore = QPushButton("Restore last session", self)
-        self.btn_import = QPushButton("Import session", self)
-        self.btn_export = QPushButton("Export session", self)
+        self.btn_restore = QPushButton("Restore last config", self)
+        self.btn_import = QPushButton("Import config", self)
+        self.btn_export = QPushButton("Export config", self)
 
         for b in (self.btn_restore, self.btn_import, self.btn_export):
             b.setFixedWidth(150)
@@ -181,9 +181,9 @@ class CommandPanel(QWidget):
             return
 
         t = self.translator.t
-        self.btn_restore.setText(t("command_restore_session"))
-        self.btn_import.setText(t("command_import_session"))
-        self.btn_export.setText(t("command_export_session"))
+        self.btn_restore.setText(t("command_restore_config"))
+        self.btn_import.setText(t("command_import_config"))
+        self.btn_export.setText(t("command_export_config"))
         # Update ready text and apply when idle at 0
         old_ready = self._ready_text
         self._ready_text = t("progress_ready")

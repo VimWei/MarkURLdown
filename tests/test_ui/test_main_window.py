@@ -389,16 +389,15 @@ class TestMainWindow:
         """Test _restore_default_config method."""
         with patch.object(self.main_window.config_service, "reset_to_defaults") as mock_reset:
             with patch.object(self.main_window, "_sync_ui_from_config") as mock_sync:
-                with patch.object(self.main_window, "_save_config") as mock_save:
-                    with patch.object(self.main_window, "log_success") as mock_log:
-                        self.main_window._restore_default_config()
+                with patch.object(self.main_window, "log_success") as mock_log:
+                    self.main_window._restore_default_config()
 
-                        mock_reset.assert_called_once()
-                        mock_sync.assert_called_once()
-                        mock_save.assert_called_once()
-                        mock_log.assert_called_once_with(
-                            "Default configuration restored successfully"
-                        )
+                    mock_reset.assert_called_once()
+                    mock_sync.assert_called_once()
+                    # Note: _save_config should NOT be called anymore
+                    mock_log.assert_called_once_with(
+                        "Default configuration restored successfully"
+                    )
 
     def test_restore_default_config_exception(self):
         """Test _restore_default_config method with exception."""

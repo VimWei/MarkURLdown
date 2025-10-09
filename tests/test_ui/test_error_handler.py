@@ -25,8 +25,8 @@ class TestErrorHandler:
         self.temp_dir = tempfile.mkdtemp()
         self.mock_config_service = Mock()
         self.mock_config_service.config_manager.root_dir = self.temp_dir
-        self.mock_config_service.config_manager.sessions_dir = os.path.join(
-            self.temp_dir, "data", "sessions"
+        self.mock_config_service.config_manager.config_dir = os.path.join(
+            self.temp_dir, "data", "config"
         )
 
         self.error_handler = ErrorHandler(self.mock_config_service)
@@ -99,7 +99,7 @@ class TestErrorHandler:
             result = self.error_handler._recover_file_not_found("session loading")
             assert result is True
             mock_makedirs.assert_called_once_with(
-                self.mock_config_service.config_manager.sessions_dir, exist_ok=True
+                self.mock_config_service.config_manager.config_dir, exist_ok=True
             )
 
     def test_recover_file_not_found_log(self):
@@ -128,7 +128,7 @@ class TestErrorHandler:
                 result = self.error_handler._recover_permission_error("session writing")
                 assert result is True
                 mock_chmod.assert_called_once_with(
-                    self.mock_config_service.config_manager.sessions_dir, 0o755
+                    self.mock_config_service.config_manager.config_dir, 0o755
                 )
 
     def test_recover_permission_error_no_session_dir(self):

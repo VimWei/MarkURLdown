@@ -114,8 +114,8 @@ class TestConfigManager:
         }
 
         # Create session file
-        session_path = os.path.join(self.config_manager.sessions_dir, "test_session.json")
-        os.makedirs(self.config_manager.sessions_dir, exist_ok=True)
+        session_path = os.path.join(self.config_manager.config_dir, "test_session.json")
+        os.makedirs(self.config_manager.config_dir, exist_ok=True)
 
         with open(session_path, "w") as f:
             json.dump(session_data, f)
@@ -139,8 +139,8 @@ class TestConfigManager:
         }
 
         # Create session file
-        session_path = os.path.join(self.config_manager.sessions_dir, "legacy.json")
-        os.makedirs(self.config_manager.sessions_dir, exist_ok=True)
+        session_path = os.path.join(self.config_manager.config_dir, "legacy.json")
+        os.makedirs(self.config_manager.config_dir, exist_ok=True)
 
         with open(session_path, "w") as f:
             import json
@@ -162,14 +162,14 @@ class TestConfigManager:
         self.config_manager.webpage.use_proxy = True
 
         # Ensure target directory exists to avoid early failure
-        os.makedirs(self.config_manager.sessions_dir, exist_ok=True)
+        os.makedirs(self.config_manager.config_dir, exist_ok=True)
 
         # Do real save (no mocking of save_config to avoid binding-order issues)
         result = self.config_manager.save_session("test_session")
         assert result is True
 
         # Verify file is created and JSON contains expected keys
-        session_path = os.path.join(self.config_manager.sessions_dir, "test_session.json")
+        session_path = os.path.join(self.config_manager.config_dir, "test_session.json")
         assert os.path.isfile(session_path)
         from markdownall.io.config import load_config
 

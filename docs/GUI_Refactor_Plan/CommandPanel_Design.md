@@ -53,9 +53,9 @@ class CommandPanel(QWidget):
         row_actions.setContentsMargins(0, 0, 0, 0)
         row_actions.addItem(QSpacerItem(20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
 
-        self.btn_restore = QPushButton("Restore last session", self)
-        self.btn_import = QPushButton("Import session", self)
-        self.btn_export = QPushButton("Export session", self)
+        self.btn_restore = QPushButton("Restore last config", self)
+        self.btn_import = QPushButton("Import config", self)
+        self.btn_export = QPushButton("Export config", self)
         for b in (self.btn_restore, self.btn_import, self.btn_export):
             b.setFixedWidth(150)
             b.setFixedHeight(32)
@@ -179,28 +179,28 @@ class MainWindow(QMainWindow):
         self.command_panel = CommandPanel(self)
         
         # 连接信号
-        self.command_panel.restoreRequested.connect(self._restore_last_session)
-        self.command_panel.importRequested.connect(self._import_session)
-        self.command_panel.exportRequested.connect(self._export_session)
+        self.command_panel.restoreRequested.connect(self._restore_last_config)
+        self.command_panel.importRequested.connect(self._import_config)
+        self.command_panel.exportRequested.connect(self._export_config)
         self.command_panel.convertRequested.connect(self._on_convert)
         self.command_panel.stopRequested.connect(self._on_stop)
         
         # 添加到 Splitter
         self.splitter.addWidget(self.command_panel)
 
-    def _restore_last_session(self):
-        """恢复最后会话"""
-        # 实现会话恢复逻辑
+    def _restore_last_config(self):
+        """恢复最后配置"""
+        # 实现配置恢复逻辑
         pass
 
-    def _import_session(self):
-        """导入会话"""
-        # 实现会话导入逻辑
+    def _import_config(self):
+        """导入配置"""
+        # 实现配置导入逻辑
         pass
 
-    def _export_session(self):
-        """导出会话"""
-        # 实现会话导出逻辑
+    def _export_config(self):
+        """导出配置"""
+        # 实现配置导出逻辑
         pass
 
     def _on_convert(self):

@@ -15,7 +15,7 @@ MarkdownAll is a sophisticated desktop application designed to effortlessly conv
 * **Advanced Crawler Technology:** Multi-strategy crawler system with Playwright, httpx, and Requests for handling complex websites with anti-detection measures and smart retry logic.
 * **Specialized Site Handlers:** Dedicated processors for WeChat Official Account Articles, Zhihu.com, WordPress blogs, Next.js blogs, sspai.com, appinn.com, and intelligent Generic Handler for all other websites.
 * **Comprehensive Options:** Proxy support, SSL verification bypass, local image downloading, content filtering, and Speed Mode with shared browser for improved performance.
-* **Session Management:** Auto-save sessions, config export/import, and support for multiple named sessions for different projects.
+* **Configuration Management:** Auto-save configurations, config export/import, and support for multiple named configurations for different projects.
 * **Multilingual Support:** Built-in support for English and Chinese (Simplified) with automatic language detection and easy switching.
 * **Structured Logging:** Comprehensive logging system with phase-aware progress tracking and conversion duration statistics.
 

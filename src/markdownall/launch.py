@@ -26,8 +26,8 @@ def main() -> None:
         _emit_startup_progress(app, splash, "Loading settings…")
 
         root_dir = os.getcwd()
-        sessions_dir = os.path.join(root_dir, "data", "sessions")
-        os.makedirs(sessions_dir, exist_ok=True)
+        config_dir = os.path.join(root_dir, "data", "config")
+        os.makedirs(config_dir, exist_ok=True)
 
         # Read language via ConfigService from unified session file
         from markdownall.services.config_service import ConfigService  # noqa: WPS433

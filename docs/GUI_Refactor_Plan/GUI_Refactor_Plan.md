@@ -191,7 +191,7 @@ class ConfigManager:
     
     def __init__(self, root_dir: str):
         self.root_dir = root_dir
-        self.sessions_dir = os.path.join(root_dir, "data", "sessions")
+        self.config_dir = os.path.join(root_dir, "data", "config")
         
         # 初始化配置对象
         self.basic = BasicConfig()
@@ -325,8 +325,8 @@ class MainWindow(QMainWindow):
 ##### 配置存储结构
 ```
 data/
-├── sessions/
-│   ├── last_state.json    # 会话配置（用户工作状态）
+├── config/
+│   ├── last_state.json    # 配置状态（用户工作状态）
 │   │   ├── urls: []       # URL列表
 │   │   ├── output_dir     # 输出目录
 │   │   ├── use_proxy      # 代理设置
@@ -340,16 +340,16 @@ data/
 │   │   ├── log_level      # 日志级别
 │   │   └── debug_mode     # 调试模式
 │   │
-│   └── *.json            # 其他会话文件
+│   └── *.json            # 其他配置文件
 │
 └── config.json.backup    # 旧配置备份（迁移后）
 ```
 
 ##### 配置分离原则
-1. **会话配置** (`last_state.json`)：
+1. **配置状态** (`last_state.json`)：
    - 用户的工作状态和临时设置
    - 每次使用应用时可能变化的数据
-   - 可以保存多个会话文件
+   - 可以保存多个配置文件
 
 2. **应用设置** (`settings.json`)：
    - 用户的个人偏好设置
@@ -369,8 +369,8 @@ data/
 - 验证路径解析正确
 
 ##### 架构优势
-1. **职责清晰**：会话配置 vs 应用设置分离
-2. **易于管理**：用户可以保存多个会话
+1. **职责清晰**：配置状态 vs 应用设置分离
+2. **易于管理**：用户可以保存多个配置
 3. **向后兼容**：旧配置已备份并自动迁移
 4. **架构一致**：遵循分层设计原则
 5. **可扩展性**：易于添加新的配置类型
@@ -499,9 +499,9 @@ def _setup_splitter_layout(self):
 - 专注于操作控制，不包含进度显示
 - 与ProgressPanel配合使用
 **信号**:
-- `restoreRequested`: 恢复最后会话
-- `importRequested`: 导入会话
-- `exportRequested`: 导出会话
+- `restoreRequested`: 恢复最后配置
+- `importRequested`: 导入配置
+- `exportRequested`: 导出配置
 - `convertRequested`: 开始转换
 - `stopRequested`: 停止转换
 
@@ -765,9 +765,9 @@ def _connect_signals(self):
     self.about_page.openHomepageRequested.connect(self._open_homepage)
     
     # 命令面板功能直接连接
-    self.command_panel.restoreRequested.connect(self._restore_session)
-    self.command_panel.importRequested.connect(self._import_session)
-    self.command_panel.exportRequested.connect(self._export_session)
+    self.command_panel.restoreRequested.connect(self._restore_config)
+    self.command_panel.importRequested.connect(self._import_config)
+    self.command_panel.exportRequested.connect(self._export_config)
     self.command_panel.convertRequested.connect(self._start_conversion)
     self.command_panel.stopRequested.connect(self._stop_conversion)
     
@@ -1083,9 +1083,9 @@ MainWindow (直接连接业务逻辑)
 │   ├── checkUpdatesRequested → MainWindow._check_updates
 │   └── openHomepageRequested → MainWindow._open_homepage
 ├── CommandPanel
-│   ├── restoreRequested → MainWindow._restore_session
-│   ├── importRequested → MainWindow._import_session
-│   ├── exportRequested → MainWindow._export_session
+│   ├── restoreRequested → MainWindow._restore_config
+│   ├── importRequested → MainWindow._import_config
+│   ├── exportRequested → MainWindow._export_config
 │   ├── convertRequested → MainWindow._start_conversion
 │   └── stopRequested → MainWindow._stop_conversion
 ├── ProgressPanel

@@ -221,7 +221,7 @@ if __name__ == "__main__":
 
 4) 配置加载与会话目录
 - 维持 portable app 现状：`sessions/`, `output/`, `log/` 均位于项目根目录，便于用户整体迁移与备份
-- 未来计划：将上述目录统一迁移至项目根目录下的 `data/`（形成 `data/sessions/`, `data/output/`, `data/log/`），但本次迁移不做变动，仅在后续版本中执行并提供迁移脚本
+- 未来计划：将上述目录统一迁移至项目根目录下的 `data/`（形成 `data/config/`, `data/output/`, `data/log/`），但本次迁移不做变动，仅在后续版本中执行并提供迁移脚本
 
 5) 与现有 UI 的对接
 - 原 `from markitdown_app.ui.pyside.gui import PySideApp` 替换为 `from markurldown.ui.pyside.gui import PySideApp`
