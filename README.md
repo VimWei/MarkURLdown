@@ -10,34 +10,14 @@ MarkdownAll is a sophisticated desktop application designed to effortlessly conv
 
 ## Features
 
-* **Modern & Intuitive GUI:** A clean and responsive graphical interface built with PySide6.
-* **Batch Conversion:** Convert multiple URLs in a single session with progress tracking and real-time status updates.
-* **Advanced Crawler Technology:** Multi-strategy crawler system with automatic fallback:
-    * **Playwright:** Modern browser automation for complex anti-bot scenarios with advanced stealth techniques
-    * **httpx:** High-performance HTTP/2 client for fast requests with session management
-    * **Requests:** Lightweight HTTP client for simple scenarios with robust error handling
-    * **Anti-Detection Measures:** Advanced browser automation with realistic user behavior simulation, geolocation spoofing, and stealth techniques
-    * **Dynamic Content Processing:** Handles JavaScript-rendered content, lazy-loaded images, and interactive elements
-    * **Smart Retry Logic:** Automatic retry with exponential backoff for failed requests and rate limiting
-    * **Session Pre-warming:** Establishes legitimate sessions before accessing target content to improve success rates
-* **Specialized Site Handlers:** Dedicated processors for complex websites:
-    * **WeChat Official Account Articles:** Advanced handling with multi-strategy crawling and anti-detection measures, with configurable filtering rules for each account
-    * **Zhihu.com:** Supports both Zhihu column articles and answer pages with Smart Content Detection
-    * **WordPress Blogs:** Optimized processing for WordPress-based websites with metadata extraction
-    * **Next.js Blogs:** Tuned for common static Next.js blog themes with enhanced content processing
-    * **More:** sspai.com, appinn.com and so on.
-    * **Generic Handler:** Intelligent fallback for all other websites with multi-strategy implementation
-* **Options:**
-    * **Proxy Support:** Configurable proxy settings with system proxy detection
-    * **SSL Verification:** Optional SSL certificate verification bypass for problematic sites
-    * **Image Handling:** Downloads all images from articles and saves them locally for complete, offline-first archives with format detection and correction
-    * **Content Filtering:** Removes typical site chrome (nav, header, footer, TOC, comments) before conversion for Generic Handler
-    * **Speed Mode (Shared Browser):** Reuse one Playwright browser per batch, new context per URL for improved performance
-* **Session Management:**
-    * **Auto-save:** Automatically saves your work session and restores it on next launch
-    * **Config Export/Import:** Export and import configuration settings for easy backup and sharing
-    * **Multiple Sessions:** Support for multiple named sessions for different projects
+* **Modern & Intuitive GUI:** Clean and responsive graphical interface built with PySide6, featuring tabbed interface and splitter layout for optimal user experience.
+* **Batch Conversion:** Convert multiple URLs in a single session with real-time progress tracking and status updates.
+* **Advanced Crawler Technology:** Multi-strategy crawler system with Playwright, httpx, and Requests for handling complex websites with anti-detection measures and smart retry logic.
+* **Specialized Site Handlers:** Dedicated processors for WeChat Official Account Articles, Zhihu.com, WordPress blogs, Next.js blogs, sspai.com, appinn.com, and intelligent Generic Handler for all other websites.
+* **Comprehensive Options:** Proxy support, SSL verification bypass, local image downloading, content filtering, and Speed Mode with shared browser for improved performance.
+* **Session Management:** Auto-save sessions, config export/import, and support for multiple named sessions for different projects.
 * **Multilingual Support:** Built-in support for English and Chinese (Simplified) with automatic language detection and easy switching.
+* **Structured Logging:** Comprehensive logging system with phase-aware progress tracking and conversion duration statistics.
 
 ## Installation
 
@@ -77,17 +57,18 @@ Option 2: (Windows only) Double-click launcher file `MarkdownAll.vbs`.
 ### Basic Usage
 
 **Converting Articles:**
-1. Paste a URL into the top input field and click "Add +".
-2. Add as many URLs as you need to the list.
-3. Use the up/down arrows to reorder URLs if needed.
-4. Choose your desired output directory using the "Choose..." button.
-5. Configure your options:
-   * **Use System Proxy:** Enable if you're behind a corporate firewall
-   * **Ignore SSL Verification:** Enable for sites with certificate issues
-   * **Download Images:** Download and save images locally (recommended)
-   * **Filter Non-content Elements:** Remove navigation, ads, and other non-article content for Generic Handler
-   * **Speed Mode (Shared Browser):** Enable for faster batch processing
-6. Click the "Convert to Markdown" button to begin the conversion process.
+1. Add URLs to the list using the input field and "Add +" button
+2. Set your output directory using "Browse…" 
+3. Configure options in the "Webpage" tab (optional):
+   * **Download Images:** Recommended for complete offline archives
+   * **Speed Mode:** Enable for faster batch processing
+   * **Proxy/SSL:** Configure if needed for your network environment
+4. Click "Convert to Markdown" to start the process
+
+**Tips:**
+- Use up/down arrows to reorder URLs before conversion
+- Enable "Filter Non-content Elements" for cleaner Generic Handler results
+- Check the log panel for real-time conversion progress and status
 
 ## Acknowledgements
 
