@@ -333,6 +333,9 @@ def _clean_and_normalize_newsite_content(content_elem) -> None:
 # - logger.clean_success(): 清理完成
 # - logger.convert_start(): 转换开始
 # - logger.convert_success(): 转换完成
+# 
+# 重要：LoggerAdapter 内部已处理所有异常情况，无需检查 logger 是否为 None。
+# 直接调用 logger 方法即可，即使没有signals或UI也会降级为print输出。
 
 
 def _process_newsite_content(
@@ -418,8 +421,7 @@ def _try_playwright_crawler(
                     step = min(0.2, total_sleep - slept)
                     time.sleep(step)
                     slept += step
-                if logger:
-                    logger.fetch_start("playwright")
+                logger.fetch_start("playwright")
                 if read_page_content_and_title is not None:
                     if should_stop and should_stop():
                         raise StopRequested()
@@ -428,8 +430,7 @@ def _try_playwright_crawler(
                     if should_stop and should_stop():
                         raise StopRequested()
                     html, title = page.content(), page.title()
-                if logger:
-                    logger.fetch_success(len(html))
+                logger.fetch_success(len(html))
                 return FetchResult(title=title, html_markdown=html)
             finally:
                 if teardown_context_page is not None:
@@ -459,13 +460,11 @@ def _try_playwright_crawler(
                 step = min(0.2, total_sleep - slept)
                 time.sleep(step)
                 slept += step
-            if logger:
-                logger.fetch_start("playwright")
+            logger.fetch_start("playwright")
             if should_stop and should_stop():
                 raise StopRequested()
             html, title = page.content(), page.title()
-            if logger:
-                logger.fetch_success(len(html))
+            logger.fetch_success(len(html))
             browser.close()
             return FetchResult(title=title, html_markdown=html)
 
@@ -486,6 +485,9 @@ def _try_playwright_crawler(
 # - parse_content_short(length, min_length): 记录内容太短
 # - url_success(title): 记录URL处理成功
 # - url_failed(url, error): 记录URL处理失败
+#
+# 重要：LoggerAdapter 内部已处理所有异常情况，无需检查 logger 是否为 None。
+# 直接调用 logger 方法即可，即使没有signals或UI也会降级为print输出。
 
 
 def fetch_newsite_article(
@@ -502,6 +504,7 @@ def fetch_newsite_article(
     - logger: 可选的日志记录器，使用细粒度日志方法记录操作进度和状态。
       支持的方法包括：fetch_start(), fetch_success(), fetch_failed(),
       fetch_retry(), parse_content_short(), url_success(), url_failed() 等。
+      LoggerAdapter 内部已处理所有异常情况，无需检查 logger 是否为 None。
     - shared_browser: 共享浏览器实例（如有）。
     - min_content_length: 内容质量阈值（字符数），过短则继续尝试其他策略。
     """
@@ -518,8 +521,7 @@ def fetch_newsite_article(
                     import random
                     import time
 
-                    if logger:
-                        logger.fetch_retry(f"策略{i}", retry, max_retries)
+                    logger.fetch_retry(f"策略{i}", retry, max_retries)
                     total_sleep = random.uniform(2, 4)
                     slept = 0.0
                     while slept < total_sleep:
@@ -529,8 +531,7 @@ def fetch_newsite_article(
                         time.sleep(step)
                         slept += step
                 else:
-                    if logger:
-                        logger.fetch_start(f"策略{i}")
+                    logger.fetch_start(f"策略{i}")
 
                 if should_stop and should_stop():
                     raise StopRequested()
@@ -546,34 +547,28 @@ def fetch_newsite_article(
                         # 检查内容质量，如果内容太短，继续尝试下一个策略
                         content = processed.html_markdown or ""
                         if len(content) < max(0, int(min_content_length)):
-                            if logger:
-                                logger.parse_content_short(len(content), min_content_length)
+                            logger.parse_content_short(len(content), min_content_length)
                             break
-                        if logger:
-                            logger.fetch_success(len(content))
-                            logger.url_success(processed.title or "无标题")
+                        logger.fetch_success(len(content))
+                        logger.url_success(processed.title or "无标题")
                         return processed
                     else:
                         return r
                 else:
-                    if logger:
-                        logger.fetch_failed(f"策略{i}", r.error or "未知错误")
+                    logger.fetch_failed(f"策略{i}", r.error or "未知错误")
                     if retry < max_retries - 1:
                         continue
                     else:
-                        if logger:
-                            logger.warning(f"策略 {i} 重试次数用尽，尝试下一个策略")
+                        logger.warning(f"策略 {i} 重试次数用尽，尝试下一个策略")
                         break
             except StopRequested:
                 raise
             except Exception as e:
-                if logger:
-                    logger.fetch_failed(f"策略{i}", str(e))
+                logger.fetch_failed(f"策略{i}", str(e))
                 if retry < max_retries - 1:
                     continue
                 else:
-                    if logger:
-                        logger.warning(f"策略 {i} 重试次数用尽，尝试下一个策略")
+                    logger.warning(f"策略 {i} 重试次数用尽，尝试下一个策略")
                     break
 
         # 策略间等待
@@ -590,6 +585,5 @@ def fetch_newsite_article(
                 time.sleep(step)
                 slept += step
 
-    if logger:
-        logger.url_failed(url, "所有策略都失败")
+    logger.url_failed(url, "所有策略都失败")
     return FetchResult(title=None, html_markdown="", success=False, error="所有策略都失败")

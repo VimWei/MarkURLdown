@@ -251,6 +251,7 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
 ### 日志与观测建议（实践）
 
 - **日志记录接口**：使用 `ConvertLogger` 接口进行结构化日志记录，直接显示在 `LogPanel` 中。优先使用细粒度日志方法提供更清晰的进度信息。
+- **安全调用**：LoggerAdapter 内部已处理所有异常情况，无需检查 `logger` 是否为 `None`。直接调用 logger 方法即可，即使没有signals或UI也会降级为print输出。
 - **关键日志点**：
   - 策略尝试与结果：使用 `logger.fetch_start(strategy_name)`、`logger.fetch_failed(strategy_name, error)`、`logger.fetch_success(content_length)` 等细粒度方法。
   - 重要分支：使用 `logger.parse_start()`、`logger.parse_title(title)`、`logger.parse_success(content_length)` 记录解析阶段。
@@ -276,6 +277,17 @@ HandlerWrapper(_zhihu_handler, "ZhihuHandler", prefers_shared_browser=True)
 - **故障定位**：
   - 抓取问题优先看网络/等待/选择器日志；验证问题看关键词与页面标题；结构问题看正文容器未命中与删除清单。
 - **最佳实践**：避免在循环内记录大量 DOM 内容；必要时输出片段长度或选择器数量即可。
+
+```python
+# 推荐：直接调用，无需检查
+logger.fetch_start("httpx")
+logger.fetch_success(len(content))
+logger.url_success(title)
+
+# 避免：多余的检查
+# if logger:
+#     logger.fetch_start("httpx")
+```
 
 ### 测试建议（快查）
 
