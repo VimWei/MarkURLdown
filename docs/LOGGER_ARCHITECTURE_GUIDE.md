@@ -11,15 +11,9 @@
 
 ## 架构设计理念
 
-### 从 on_detail 到 logger 的演进
+### ConvertLogger 架构优势
 
-**旧架构问题**：
-- `on_detail` 回调机制过于简单，只能传递字符串消息
-- 缺乏结构化的日志级别和分类
-- 难以在多任务场景下提供细粒度的进度信息
-- 日志信息分散，难以统一管理和显示
-
-**新架构优势**：
+**设计目标**：
 - 统一的 `ConvertLogger` 接口，支持多种日志级别
 - 结构化日志记录，支持任务状态和进度信息
 - 直接集成到 `LogPanel`，提供更好的用户体验
@@ -29,19 +23,63 @@
 ## 线程安全与信号桥接
 
 ### 为什么需要
-Qt（PySide6）要求 UI 组件只能在主线程更新。直接从后台线程调用 UI 方法会随机崩溃或出现访问冲突。因此需要“信号桥接”：后台线程发出信号，主线程接收并更新 UI。
+Qt（PySide6）要求 UI 组件只能在主线程更新。直接从后台线程调用 UI 方法会随机崩溃或出现访问冲突。因此需要"信号桥接"：后台线程发出信号，主线程接收并更新 UI。
+
+### ProgressEvent 定义
+```python
+@dataclass
+class ProgressEvent:
+    kind: Literal[
+        "status", "detail", "progress_init", "progress_step", "progress_done", "stopped", "error"
+    ]
+    key: str | None = None
+    data: dict | None = None
+    text: str | None = None
+    total: int | None = None
+    current: int | None = None
+```
 
 ### 具体实现
-- `ConvertService` 中持有 `signals`（主线程创建），后台工作线程只“发事件”：
+- `ConvertService` 中持有 `signals`（主线程创建），后台工作线程只"发事件"：
   - `ProgressEvent(kind, key, text, data)` 通过 `signals.progress_event.emit(event)` 发送。
   - 无 `signals` 场景降级为直接回调或简单 `print`。
 - `LoggerAdapter` 不再直接调用 UI；优先将日志包装为 `ProgressEvent` 发信号；若无信号，则仅在主线程直接调用 UI，后台线程降级 `print`。
 - `MainWindow._on_event_thread_safe` 作为信号槽函数，在主线程内把事件映射为细颗粒度日志与进度。
-- 停止事件：当处理器抛出 `StopRequested` 时，服务层会发出 `ProgressEvent(kind="stopped")`，UI 记录“Conversion stopped”，不计为失败。
+- 停止事件：当处理器抛出 `StopRequested` 时，服务层会发出 `ProgressEvent(kind="stopped")`，UI 记录"Conversion stopped"，不计为失败。
 
 ### LoggerAdapter 行为摘要
 
 `LoggerAdapter` 是线程安全的日志适配器，负责将服务层日志调用适配到 UI(LogPanel)：
+
+```python
+class LoggerAdapter:
+    """将服务层日志调用适配到 UI(LogPanel) 的轻量适配器（线程安全）。
+
+    优先通过 ConvertService 提供的 signals 将日志事件发往主线程；
+    若无 signals，则在主线程直接调用 UI；在后台线程降级为 print。
+    """
+
+    def __init__(self, ui: object | None, signals=None):
+        # 期望 ui 暴露: log_info/log_success/log_warning/log_error
+        self._ui = ui
+        self._signals = signals
+
+    def _emit_progress(
+        self, kind: str, key: str | None = None, text: str | None = None, data: dict | None = None
+    ) -> None:
+        # 尽量使用 signals 将事件发到主线程
+        try:
+            if self._signals is not None and hasattr(self._signals, "progress_event"):
+                from markdownall.app_types import ProgressEvent
+                ev = ProgressEvent(kind=kind, key=key, text=text, data=data)
+                # 发送信号到主线程
+                self._signals.progress_event.emit(ev)
+                return
+        except Exception:
+            pass
+        # 无 signals 或信号失败：尝试直接 UI 调用（仅主线程）或降级为打印
+        self._call(kind, text or (data and str(data)) or "")
+```
 
 - **线程安全机制**：优先通过 `signals.progress_event.emit(ProgressEvent(...))` 将日志事件发往主线程；若无信号，则在主线程直接调用 UI；在后台线程降级为 `print`。
 - **事件映射**：
@@ -55,6 +93,99 @@ Qt（PySide6）要求 UI 组件只能在主线程更新。直接从后台线程�
 
 `MainWindow._on_event_thread_safe` 是线程安全的事件处理器，负责将 `ProgressEvent` 转换为直接的日志调用：
 
+```python
+def _on_event_thread_safe(self, ev: ProgressEvent):
+    """Enhanced event handler - converts ProgressEvent to direct log calls (MdxScraper style)."""
+    if not self.ui_ready:
+        return
+
+    try:
+        message = ev.text or ""
+
+        # Handle all event types with direct log calls
+        if ev.kind == "progress_init":
+            self.command_panel.set_progress(
+                0,
+                self.translator.t(
+                    "convert_init",
+                    total=ev.data.get("total", 0) if isinstance(ev.data, dict) else 0,
+                ),
+            )
+            # Reset per-run image download log trackers
+            self._images_dl_logged = False
+            self._images_dl_logged_tasks.clear()
+            # Reset progress interpolation state
+            try:
+                self._progress_total_urls = (
+                    int(ev.data.get("total", 0)) if isinstance(ev.data, dict) else 0
+                )
+            except Exception:
+                self._progress_total_urls = 0
+            self._progress_completed_urls = 0
+            self._current_task_idx = 0
+            self._current_phase_key = None
+            self._current_images_progress = None
+            if message:
+                self.log_info(f"Starting conversion: {message}")
+
+        elif ev.kind == "status":
+            # Prefer structured status data for task grouping when available
+            if ev.data and isinstance(ev.data, dict):
+                idx = ev.data.get("idx")
+                total = ev.data.get("total")
+                url = ev.data.get("url")
+                if idx is not None and total is not None and url:
+                    self.log_info(f"Task {idx}/{total}: {url}")
+                else:
+                    self.log_info(message)
+            else:
+                self.log_info(message)
+
+        elif ev.kind == "detail":
+            # Handle specific detail events with task grouping
+            if ev.key == "convert_detail_done" and ev.data:
+                title = (ev.data.get("title") if isinstance(ev.data, dict) else "") or "无标题"
+                _total_val = ev.data.get("total") if isinstance(ev.data, dict) else None
+                total = int(_total_val) if isinstance(_total_val, int) else 1
+                if total > 1:
+                    _idx_val = ev.data.get("idx") if isinstance(ev.data, dict) else None
+                    idx = int(_idx_val) if isinstance(_idx_val, int) else 0
+                    task_id = f"Task {idx}/{total}"
+                    self.log_panel.appendTaskLog(
+                        task_id, self.translator.t("url_success_message", title=title), "✅"
+                    )
+                else:
+                    self.log_success(
+                        f"✅ {self.translator.t('url_success_message', title=title)}"
+                    )
+            else:
+                self.log_info(message)
+
+        elif ev.kind == "error":
+            self.log_error(message)
+
+        elif ev.kind == "progress_step":
+            # Update progress bar
+            if ev.data and isinstance(ev.data, dict):
+                completed = ev.data.get("completed", 0)
+                total = ev.data.get("total", 0)
+                if completed is not None and total is not None:
+                    self.command_panel.set_progress(completed, f"Progress: {completed}/{total}")
+            else:
+                current = self.command_panel.get_progress_value()
+                self.command_panel.set_progress(current + 1, message)
+
+        elif ev.kind == "progress_done":
+            self.command_panel.set_progress(100, message or "Conversion completed")
+            self.log_success(message or "Conversion completed")
+
+        elif ev.kind == "stopped":
+            self.log_warning(message or "Conversion stopped")
+
+    except Exception as e:
+        self.log_error(f"Event handler error: {e}")
+```
+
 - **线程安全**：只在槽函数里更新 UI；不要在工作线程中直接访问 `LogPanel`。
 - **健壮性处理**：对 `ev.data` 做健壮化：读取前判断是否为 `dict`；转换为 `int` 时注意 `None` 情况，避免 `None > 0` 一类比较。
 - **事件映射**：
@@ -65,9 +196,111 @@ Qt（PySide6）要求 UI 组件只能在主线程更新。直接从后台线程�
 - **多任务支持**：通过 `appendTaskLog` 和 `appendMultiTaskSummary` 提供任务级别的日志分组。
 - **去重机制**：图片下载日志使用 `_images_dl_logged_tasks` 集合避免重复记录。
 
+## ConvertService 实现细节
+
+### 核心架构
+```python
+class ConvertService:
+    def __init__(self) -> None:
+        self._thread: threading.Thread | None = None
+        self._should_stop = False
+        self._signals = None  # 用于存储UI信号对象
+        self._start_time: float | None = None  # 用于记录转换开始时间
+
+    def run(
+        self,
+        requests_list: list[SourceRequest],
+        out_dir: str,
+        options: ConversionOptions,
+        on_event: EventCallback,
+        signals=None,
+        ui_logger: object | None = None,
+        translator=None,
+    ) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._should_stop = False
+        self._signals = signals  # 存储信号对象
+        self._start_time = time.time()  # 记录转换开始时间
+        
+        self._thread = threading.Thread(
+            target=self._worker,
+            args=(requests_list, out_dir, options, on_event, ui_logger, translator),
+            daemon=True,
+        )
+        self._thread.start()
+
+    def _emit_event_safe(self, event: ProgressEvent, on_event: EventCallback) -> None:
+        """线程安全的事件发送方法"""
+        try:
+            if self._signals is not None:
+                # 使用信号槽机制，确保线程安全
+                self._signals.progress_event.emit(event)
+            else:
+                # 回退到直接调用（向后兼容）
+                on_event(event)
+        except Exception as e:
+            print(f"Error emitting event: {e}")
+            # 如果信号发送失败，尝试直接调用
+            try:
+                on_event(event)
+            except Exception as e2:
+                print(f"Error in fallback event call: {e2}")
+```
+
+### 任务上下文注入
+ConvertService 为每个任务创建带有任务上下文的 Logger 代理：
+
+```python
+# 为当前任务构建一个带有任务上下文的 Logger 代理，自动注入 task_idx/task_total
+class _TaskAwareLogger:
+    def __init__(self, base_logger, task_idx: int, task_total: int):
+        self._base = base_logger
+        self._task_idx = task_idx
+        self._task_total = task_total
+
+    # 基础信息透传
+    def info(self, msg: str) -> None:
+        self._base.info(msg)
+
+    def success(self, msg: str) -> None:
+        self._base.success(msg)
+
+    def warning(self, msg: str) -> None:
+        self._base.warning(msg)
+
+    def error(self, msg: str) -> None:
+        self._base.error(msg)
+
+    # 注入任务上下文的图片事件
+    def images_progress(
+        self,
+        total_imgs: int,
+        task_idx: int | None = None,
+        task_total: int | None = None,
+    ) -> None:
+        self._base.images_progress(
+            total_imgs,
+            task_idx=self._task_idx if task_idx is None else task_idx,
+            task_total=self._task_total if task_total is None else task_total,
+        )
+
+    def images_done(
+        self,
+        total_imgs: int,
+        task_idx: int | None = None,
+        task_total: int | None = None,
+    ) -> None:
+        self._base.images_done(
+            total_imgs,
+            task_idx=self._task_idx if task_idx is None else task_idx,
+            task_total=self._task_total if task_total is None else task_total,
+        )
+```
+
 ## 图片下载与事件循环隔离
 
-为避免与 Qt/其它协程循环发生冲突，图片下载的协程在“专用线程 + 新事件循环”中运行：
+为避免与 Qt/其它协程循环发生冲突，图片下载的协程在"专用线程 + 新事件循环"中运行：
 - 在新线程中 `asyncio.new_event_loop()` + `loop.run_until_complete()` 执行下载任务；
 - 主线程仅接收下载进度事件与最终结果；
 - 用户体验保持不变，但稳定性显著提升。
@@ -79,106 +312,46 @@ from typing import Protocol
 
 class ConvertLogger(Protocol):
     """用于在转换过程中输出日志到 UI(LogPanel) 的协议接口。"""
-    
-    # 基础日志方法
-    def info(self, msg: str) -> None:
-        """记录一般信息"""
-        ...
-    
-    def success(self, msg: str) -> None:
-        """记录成功信息"""
-        ...
-    
-    def warning(self, msg: str) -> None:
-        """记录警告信息"""
-        ...
-    
-    def error(self, msg: str) -> None:
-        """记录错误信息"""
-        ...
-    
-    def debug(self, msg: str) -> None:
-        """记录调试信息"""
-        ...
-    
+
+    def info(self, msg: str) -> None: ...
+    def success(self, msg: str) -> None: ...
+    def warning(self, msg: str) -> None: ...
+    def error(self, msg: str) -> None: ...
+    def debug(self, msg: str) -> None: ...
+
     # 任务级别状态（可选）
-    def task_status(self, idx: int, total: int, url: str) -> None:
-        """记录多任务状态"""
-        ...
-    
+    def task_status(self, idx: int, total: int, url: str) -> None: ...
+
     # 图片下载进度（可选）
-    def images_progress(self, total: int, task_idx: int | None = None, task_total: int | None = None) -> None:
-        """记录图片下载进度"""
-        ...
-    
-    def images_done(self, total: int, task_idx: int | None = None, task_total: int | None = None) -> None:
-        """记录图片下载完成"""
-        ...
-    
+    def images_progress(
+        self, total: int, task_idx: int | None = None, task_total: int | None = None
+    ) -> None: ...
+    def images_done(
+        self, total: int, task_idx: int | None = None, task_total: int | None = None
+    ) -> None: ...
+
     # 细粒度阶段日志方法
-    def fetch_start(self, strategy_name: str, retry: int = 0, max_retries: int = 0) -> None:
-        """记录抓取开始"""
-        ...
-    
-    def fetch_success(self, content_length: int = 0) -> None:
-        """记录抓取成功"""
-        ...
-    
-    def fetch_failed(self, strategy_name: str, error: str) -> None:
-        """记录抓取失败"""
-        ...
-    
-    def fetch_retry(self, strategy_name: str, retry: int, max_retries: int) -> None:
-        """记录抓取重试"""
-        ...
-    
-    def parse_start(self) -> None:
-        """记录解析开始"""
-        ...
-    
-    def parse_title(self, title: str) -> None:
-        """记录解析到的标题"""
-        ...
-    
-    def parse_content_short(self, length: int, min_length: int = 200) -> None:
-        """记录内容太短的情况"""
-        ...
-    
-    def parse_success(self, content_length: int) -> None:
-        """记录解析成功"""
-        ...
-    
-    def clean_start(self) -> None:
-        """记录清理开始"""
-        ...
-    
-    def clean_success(self) -> None:
-        """记录清理完成"""
-        ...
-    
-    def convert_start(self) -> None:
-        """记录转换开始"""
-        ...
-    
-    def convert_success(self) -> None:
-        """记录转换完成"""
-        ...
-    
-    def url_success(self, title: str) -> None:
-        """记录URL处理成功"""
-        ...
-    
-    def url_failed(self, url: str, error: str) -> None:
-        """记录URL处理失败"""
-        ...
-    
-    def batch_start(self, total: int) -> None:
-        """记录批量处理开始"""
-        ...
-    
-    def batch_summary(self, success: int, failed: int, total: int) -> None:
-        """记录批量处理摘要"""
-        ...
+    def fetch_start(self, strategy_name: str, retry: int = 0, max_retries: int = 0) -> None: ...
+    def fetch_success(self, content_length: int = 0) -> None: ...
+    def fetch_failed(self, strategy_name: str, error: str) -> None: ...
+    def fetch_retry(self, strategy_name: str, retry: int, max_retries: int) -> None: ...
+
+    def parse_start(self) -> None: ...
+    def parse_title(self, title: str) -> None: ...
+    def parse_content_short(self, length: int, min_length: int = 200) -> None: ...
+    def parse_success(self, content_length: int) -> None: ...
+
+    def clean_start(self) -> None: ...
+    def clean_success(self) -> None: ...
+
+    def convert_start(self) -> None: ...
+    def convert_success(self) -> None: ...
+
+    def url_success(self, title: str) -> None: ...
+    def url_failed(self, url: str, error: str) -> None: ...
+
+    def batch_start(self, total: int) -> None: ...
+    def batch_summary(self, success: int, failed: int, total: int) -> None: ...
 ```
 
 ## 在 Handler 中使用 Logger
@@ -186,16 +359,13 @@ class ConvertLogger(Protocol):
 ### 基本使用模式
 
 ```python
-def fetch_example_article(
-    session,
-    url: str,
-    logger: ConvertLogger | None = None,
-    shared_browser: Any | None = None,
-) -> FetchResult:
+def convert_url(payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult:
     """示例 Handler 函数 - 使用细粒度日志方法"""
     
-    if logger:
-        logger.fetch_start("httpx")
+    logger = payload.meta.get("logger")
+    url = payload.value
+    
+    logger.fetch_start("httpx")
     
     try:
         # 执行抓取逻辑
@@ -203,21 +373,36 @@ def fetch_example_article(
         
         if result.success:
             logger.fetch_success(len(result.html_markdown))
-            return result
+            return ConvertResult(
+                title=result.title,
+                markdown=result.html_markdown,
+                suggested_filename=f"{result.title or 'untitled'}.md"
+            )
         else:
             logger.fetch_failed("httpx", result.error)
-            return result
+            return ConvertResult(
+                title=None,
+                markdown="",
+                suggested_filename="error.md"
+            )
             
     except Exception as e:
         logger.fetch_failed("httpx", str(e))
-        return FetchResult(title=None, html_markdown="", success=False, error=str(e))
+        return ConvertResult(
+            title=None,
+            markdown="",
+            suggested_filename="error.md"
+        )
 ```
 
 ### 多策略重试模式
 
 ```python
-def fetch_with_retry(session, url: str, logger: ConvertLogger | None = None) -> FetchResult:
+def convert_url_with_retry(payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult:
     """多策略重试示例 - 使用细粒度日志方法"""
+    
+    logger = payload.meta.get("logger")
+    url = payload.value
     
     strategies = [
         ("httpx", lambda: _try_httpx_crawler(session, url)),
@@ -225,46 +410,47 @@ def fetch_with_retry(session, url: str, logger: ConvertLogger | None = None) -> 
     ]
     
     for i, (name, strategy) in enumerate(strategies, 1):
-        if logger:
-            logger.fetch_start(name)
+        logger.fetch_start(name)
         
         for retry in range(2):  # 每个策略最多重试2次
             try:
                 result = strategy()
                 
                 if result.success:
-                    if logger:
-                        logger.fetch_success(len(result.html_markdown))
-                    return result
+                    logger.fetch_success(len(result.html_markdown))
+                    return ConvertResult(
+                        title=result.title,
+                        markdown=result.html_markdown,
+                        suggested_filename=f"{result.title or 'untitled'}.md"
+                    )
                 else:
-                    if logger:
-                        logger.fetch_failed(name, result.error)
+                    logger.fetch_failed(name, result.error)
                     
                     if retry < 1:  # 还有重试机会
-                        if logger:
-                            logger.fetch_retry(name, retry + 1, 2)
+                        logger.fetch_retry(name, retry + 1, 2)
                         continue
                     else:
                         break
                         
             except Exception as e:
-                if logger:
-                    logger.fetch_failed(name, str(e))
+                logger.fetch_failed(name, str(e))
                 
                 if retry < 1:
-                    if logger:
-                        logger.fetch_retry(name, retry + 1, 2)
+                    logger.fetch_retry(name, retry + 1, 2)
                     continue
                 else:
                     break
         
-        # 策略间等待（如实现 should_stop，可在等待期间切片检查）
+        # 策略间等待
         if i < len(strategies):
             time.sleep(1)
     
-    if logger:
-        logger.error("所有策略都失败")
-    return FetchResult(title=None, html_markdown="", success=False, error="所有策略都失败")
+    logger.error("所有策略都失败")
+    return ConvertResult(
+        title=None,
+        markdown="",
+        suggested_filename="error.md"
+    )
 ```
 
 ### 图片下载进度记录
@@ -272,9 +458,6 @@ def fetch_with_retry(session, url: str, logger: ConvertLogger | None = None) -> 
 ```python
 def download_images_with_progress(content: str, logger: ConvertLogger | None = None) -> str:
     """图片下载进度记录示例 - 使用细粒度日志方法"""
-    
-    if not logger:
-        return content
     
     # 统计图片数量
     img_count = len(re.findall(r'<img[^>]+src="([^"]+)"', content))
@@ -288,6 +471,7 @@ def download_images_with_progress(content: str, logger: ConvertLogger | None = N
     
     # 模拟下载过程
     downloaded = 0
+    img_urls = re.findall(r'<img[^>]+src="([^"]+)"', content)
     for i, img_url in enumerate(img_urls):
         try:
             # 下载图片逻辑
@@ -309,16 +493,11 @@ def download_images_with_progress(content: str, logger: ConvertLogger | None = N
 ### 完整处理流程示例
 
 ```python
-def process_article_complete(
-    session,
-    url: str,
-    logger: ConvertLogger | None = None,
-    shared_browser: Any | None = None,
-) -> FetchResult:
+def convert_url_complete(payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult:
     """完整的文章处理流程示例 - 展示所有细粒度日志方法的使用"""
     
-    if not logger:
-        return FetchResult(title=None, html_markdown="", success=False, error="No logger")
+    logger = payload.meta.get("logger")
+    url = payload.value
     
     try:
         # 1. 抓取阶段
@@ -326,7 +505,7 @@ def process_article_complete(
         html_content = fetch_html(session, url)
         if not html_content:
             logger.fetch_failed("httpx", "Empty content")
-            return FetchResult(title=None, html_markdown="", success=False, error="Empty content")
+            return ConvertResult(title=None, markdown="", suggested_filename="error.md")
         
         logger.fetch_success(len(html_content))
         
@@ -343,7 +522,7 @@ def process_article_complete(
         content = extract_main_content(soup)
         if len(content) < 200:
             logger.parse_content_short(len(content))
-            return FetchResult(title=None, html_markdown="", success=False, error="Content too short")
+            return ConvertResult(title=None, markdown="", suggested_filename="error.md")
         
         logger.parse_success(len(content))
         
@@ -365,17 +544,18 @@ def process_article_complete(
             logger.images_done(img_count)
         
         # 6. 完成
-        logger.url_success(title.get_text().strip() if title else "无标题")
+        final_title = title.get_text().strip() if title else "无标题"
+        logger.url_success(final_title)
         
-        return FetchResult(
-            title=title.get_text().strip() if title else "无标题",
-            html_markdown=markdown_content,
-            success=True
+        return ConvertResult(
+            title=final_title,
+            markdown=markdown_content,
+            suggested_filename=f"{final_title}.md"
         )
         
     except Exception as e:
         logger.url_failed(url, str(e))
-        return FetchResult(title=None, html_markdown="", success=False, error=str(e))
+        return ConvertResult(title=None, markdown="", suggested_filename="error.md")
 ```
 
 ## 日志级别使用指南
@@ -522,20 +702,24 @@ logger.info("Processing...")  # 自动通过信号发送到主线程
 # self.log_panel.appendLog("Processing...")  # 会导致崩溃
 ```
 
-### 5. 条件记录
-- **始终检查logger**：在使用logger前检查是否为 `None`。
+### 5. 安全调用
 - **避免冗余日志**：细粒度方法已经提供了足够的上下文，避免重复记录相同信息。
 - **静默处理**：某些方法（如 `convert_success`, `batch_summary`）被设计为静默，避免冗余日志。
 
 ```python
-# 推荐：条件检查
-if logger:
-    logger.fetch_start("httpx")
+# 推荐：直接调用，无需检查
+logger.fetch_start("httpx")
 
 # 推荐：利用静默设计
 logger.convert_success()  # 静默，避免冗余
 logger.batch_summary(success, failed, total)  # 静默，统计信息会合并显示
 ```
+
+**为什么不需要检查logger？**
+LoggerAdapter 的设计确保了所有方法调用都是安全的：
+- 如果 `logger` 为 `None`，调用会抛出 `AttributeError`，这是预期的错误
+- 如果 `logger` 是 LoggerAdapter 实例但内部状态为 `None`，方法内部有异常处理，会降级为 `print` 输出
+- 这种设计让代码更简洁，避免了大量的 `if logger:` 检查
 
 ### 6. 多任务场景
 - **任务状态记录**：使用 `task_status` 记录多任务状态。
@@ -550,67 +734,36 @@ for idx, url in enumerate(urls, 1):
     # 处理单个任务...
 ```
 
-## 在现有代码中迁移
+## Handler 开发指南
 
-### 1. 函数签名更新
-将 `on_detail` 参数替换为 `logger` 参数：
-
-```python
-# 旧版本
-def fetch_article(session, url: str, on_detail=None, shared_browser=None):
-    if on_detail:
-        on_detail("开始抓取...")
-
-# 新版本
-def fetch_article(session, url: str, logger: ConvertLogger | None = None, shared_browser=None):
-    if logger:
-        logger.fetch_start("httpx")
-```
-
-### 2. 日志调用替换
-将 `on_detail` 调用替换为相应的细粒度 `logger` 方法：
+### 函数签名规范
+Handler 函数必须遵循以下签名：
 
 ```python
-# 旧版本
-on_detail("抓取成功")
-on_detail("策略失败")
-
-# 新版本
-logger.fetch_success(len(content))
-logger.fetch_failed("httpx", error_message)
-```
-
-### 3. 参数传递
-在调用链中正确传递 `logger` 参数：
-
-```python
-# 在 registry 中
-def convert(payload, session, options):
+def convert_url(payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult:
+    """Handler 函数标准签名"""
     logger = payload.meta.get("logger")
-    result = handler(payload, session, options)
-    # 传递 logger 到子函数
-    process_result(result, logger)
-
-def process_result(result, logger):
-    if logger:
-        logger.parse_start()
-        # 处理逻辑...
-        logger.parse_success(len(result.content))
+    url = payload.value
+    # 处理逻辑...
 ```
 
-### 4. 细粒度方法迁移
-将通用的日志调用迁移到细粒度方法：
+### Logger 获取方式
+从 `payload.meta` 中获取 logger：
 
 ```python
-# 旧版本：通用日志
-logger.info("开始抓取内容...")
-logger.info("抓取成功")
-logger.info("开始解析...")
+logger = payload.meta.get("logger")
+logger.fetch_start("httpx")  # LoggerAdapter 内部已处理 None 情况
+```
 
-# 新版本：细粒度日志
-logger.fetch_start("httpx")
-logger.fetch_success(len(content))
-logger.parse_start()
+### 返回值规范
+Handler 必须返回 `ConvertResult` 对象：
+
+```python
+return ConvertResult(
+    title="文章标题",
+    markdown="# 文章内容",
+    suggested_filename="article.md"
+)
 ```
 
 ## 调试和故障排除
@@ -666,7 +819,7 @@ else:
 - **条件判断**：使用条件判断减少不必要的字符串格式化
 - **静默设计**：某些方法被设计为静默，避免冗余日志输出
 
-## 迁移清单（自检）
+## 架构实现状态
 
 ### 1. ConvertService ✅
 - [x] `run(..., signals, ui_logger)`：保存 `signals`，后台线程创建 `LoggerAdapter(ui_logger, signals)`。
@@ -691,7 +844,7 @@ else:
 - [x] 通过LoggerAdapter发送进度事件，UI自动处理去重。
 
 ### 5. Handler实现 ✅
-- [x] 函数签名更新为 `logger: ConvertLogger | None = None`。
+- [x] 函数签名遵循 `convert_url(payload, session, options) -> ConvertResult` 规范。
 - [x] 使用细粒度日志方法替代通用方法。
 - [x] 正确处理错误和重试场景。
 - [x] 传播 `should_stop` 并在耗时点检查；遇到停止抛出 `StopRequested`。
