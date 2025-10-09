@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.2] - 2025-10-09
+
+- chore: change license from MIT to GPL-3.0 in pyproject.toml
+- feat(ConvertService): add translator support for human-readable duration formatting
+
 ## [1.0.1] - 2025-10-09
 
 - refactor(ConvertService): improve shared browser handling and optimize test performance
