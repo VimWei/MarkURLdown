@@ -333,7 +333,7 @@ def _clean_and_normalize_newsite_content(content_elem) -> None:
 # - logger.clean_success(): 清理完成
 # - logger.convert_start(): 转换开始
 # - logger.convert_success(): 转换完成
-# 
+#
 # 重要：LoggerAdapter 内部已处理所有异常情况，无需检查 logger 是否为 None。
 # 直接调用 logger 方法即可，即使没有signals或UI也会降级为print输出。
 

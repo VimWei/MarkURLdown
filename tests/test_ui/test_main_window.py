@@ -395,9 +395,7 @@ class TestMainWindow:
                     mock_reset.assert_called_once()
                     mock_sync.assert_called_once()
                     # Note: _save_config should NOT be called anymore
-                    mock_log.assert_called_once_with(
-                        "Default configuration restored successfully"
-                    )
+                    mock_log.assert_called_once_with("Default configuration restored successfully")
 
     def test_restore_default_config_exception(self):
         """Test _restore_default_config method with exception."""

@@ -1049,7 +1049,9 @@ class MainWindow(QMainWindow):
                 except Exception:
                     pass
                 self._suppress_change_logs = False
-                self.log_panel.appendLog(f"Configuration imported from: {os.path.basename(filename)}")
+                self.log_panel.appendLog(
+                    f"Configuration imported from: {os.path.basename(filename)}"
+                )
             except Exception as e:
                 self.log_panel.appendLog(f"Failed to import configuration: {e}")
 
