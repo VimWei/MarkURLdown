@@ -104,4 +104,12 @@ This project stands on the shoulders of giants. We would like to thank the devel
 
 ## License
 
-This project is licensed under the **MIT License**. You are free to use, modify, and distribute it as you see fit.
+This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. 
+
+This means:
+- You are free to use, modify, and distribute this software
+- Any derivative works must also be licensed under GPL-3.0
+- You must make the source code available when distributing the software
+- You must preserve copyright notices and license information
+
+For more details, see the [LICENSE](LICENSE) file or visit [https://www.gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html).
