@@ -194,7 +194,7 @@ class MainWindow(QMainWindow):
 
         # 基于布局计算设置窗口大小
         # 布局计算: Tab(270) + Command(120) + Log(160) + 边距(50) = 600px
-        self.resize(800, 600)  # 初始大小: 800x600 (基于精确布局计算)
+        self.resize(1024, 650)  # 初始大小
         qr = self.frameGeometry()
         cp = QApplication.primaryScreen().availableGeometry().center()
         qr.moveCenter(cp)
