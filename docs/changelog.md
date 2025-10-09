@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.5] - 2025-10-09
+
+- refactor: reorganize project structure and adjust UI
+
 ## [1.0.4] - 2025-10-09
 
 - refactor: simplify logger usage
