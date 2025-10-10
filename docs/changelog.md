@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.7] - 2025-10-10
+
+- feat: enhance appinn and nextjs handlers with new functionality
+- Update screenshot asset with new version
+
 ## [1.0.6] - 2025-10-10
 
 - feat: implement actual version check functionality
