@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.6] - 2025-10-10
+
+- feat: implement actual version check functionality
+
 ## [1.0.5] - 2025-10-09
 
 - refactor: reorganize project structure and adjust UI
