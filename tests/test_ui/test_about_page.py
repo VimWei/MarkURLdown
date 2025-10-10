@@ -135,7 +135,9 @@ class TestAboutPage:
         """Test on_update_check_complete method with translator and custom message."""
         with patch.object(self.about_page.update_status_label, "setText") as mock_set_text:
             with patch.object(self.about_page.check_updates_btn, "setText") as mock_btn_text:
-                self.about_page.on_update_check_complete(False, "New version 2.0.0 available", "2.0.0")
+                self.about_page.on_update_check_complete(
+                    False, "New version 2.0.0 available", "2.0.0"
+                )
 
                 mock_set_text.assert_called_with("translated_about_new_version_available")
                 mock_btn_text.assert_called_with("translated_about_check_again")

@@ -168,7 +168,9 @@ class AboutPage(QWidget):
                 elif message.startswith("New version") and "available" in message:
                     # Extract version from message and format with translation
                     version = latest_version or "unknown"
-                    self.update_status_label.setText(self.translator.t("about_new_version_available").format(version=version))
+                    self.update_status_label.setText(
+                        self.translator.t("about_new_version_available").format(version=version)
+                    )
                 elif "Failed to check for updates" in message and "internet connection" in message:
                     self.update_status_label.setText(self.translator.t("about_check_failed"))
                 elif "Failed to parse update information" in message:
