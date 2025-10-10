@@ -497,7 +497,7 @@ class TestErrorRecovery:
         """Test _attempt_recovery method on multiple attempts."""
         # First attempt
         self.error_handler._attempt_recovery("TestError", "test context")
-        
+
         # Second attempt
         result = self.error_handler._attempt_recovery("TestError", "test context")
         assert isinstance(result, bool)
@@ -507,7 +507,7 @@ class TestErrorRecovery:
         # Make multiple attempts to exceed the limit
         for _ in range(4):  # 3 is the max, so 4th should fail
             result = self.error_handler._attempt_recovery("TestError", "test context")
-        
+
         # Should return False after max attempts
         assert result is False
 
@@ -535,13 +535,17 @@ class TestErrorRecovery:
 
     def test_attempt_recovery_exception_handling(self):
         """Test _attempt_recovery method exception handling."""
-        with patch.object(self.error_handler, "_recover_generic_error", side_effect=Exception("Recovery error")):
+        with patch.object(
+            self.error_handler, "_recover_generic_error", side_effect=Exception("Recovery error")
+        ):
             result = self.error_handler._attempt_recovery("TestError", "test context")
             assert result is False
 
     def test_recover_file_not_found_session_context(self):
         """Test _recover_file_not_found method with session context."""
-        with patch.object(self.error_handler.config_service.config_manager, "config_dir", "/test/config"):
+        with patch.object(
+            self.error_handler.config_service.config_manager, "config_dir", "/test/config"
+        ):
             with patch("os.makedirs") as mock_makedirs:
                 result = self.error_handler._recover_file_not_found("session loading")
                 assert result is True
@@ -549,7 +553,9 @@ class TestErrorRecovery:
 
     def test_recover_file_not_found_log_context(self):
         """Test _recover_file_not_found method with log context."""
-        with patch.object(self.error_handler.config_service.config_manager, "root_dir", "/test/root"):
+        with patch.object(
+            self.error_handler.config_service.config_manager, "root_dir", "/test/root"
+        ):
             with patch("os.makedirs") as mock_makedirs:
                 result = self.error_handler._recover_file_not_found("log writing")
                 assert result is True
@@ -570,7 +576,9 @@ class TestErrorRecovery:
 
     def test_recover_permission_error_session_context(self):
         """Test _recover_permission_error method with session context."""
-        with patch.object(self.error_handler.config_service.config_manager, "config_dir", "/test/config"):
+        with patch.object(
+            self.error_handler.config_service.config_manager, "config_dir", "/test/config"
+        ):
             with patch("os.path.exists", return_value=True):
                 with patch("os.chmod") as mock_chmod:
                     result = self.error_handler._recover_permission_error("session loading")
@@ -579,7 +587,9 @@ class TestErrorRecovery:
 
     def test_recover_permission_error_nonexistent_path(self):
         """Test _recover_permission_error method with nonexistent path."""
-        with patch.object(self.error_handler.config_service.config_manager, "config_dir", "/test/config"):
+        with patch.object(
+            self.error_handler.config_service.config_manager, "config_dir", "/test/config"
+        ):
             with patch("os.path.exists", return_value=False):
                 result = self.error_handler._recover_permission_error("session loading")
                 assert result is False
@@ -591,7 +601,9 @@ class TestErrorRecovery:
 
     def test_recover_permission_error_exception(self):
         """Test _recover_permission_error method with exception."""
-        with patch.object(self.error_handler.config_service.config_manager, "config_dir", "/test/config"):
+        with patch.object(
+            self.error_handler.config_service.config_manager, "config_dir", "/test/config"
+        ):
             with patch("os.path.exists", return_value=True):
                 with patch("os.chmod", side_effect=Exception("Chmod error")):
                     result = self.error_handler._recover_permission_error("session loading")

@@ -70,9 +70,9 @@ class TestNextjsHandler:
         """测试 fetch_nextjs_article 成功使用 httpx 策略"""
         # Test the content processing function directly
         html = "<html><body><main><div class='max-w-4xl'><h1>Test Article</h1><div class='content'>Test content</div></div></main></body></html>"
-        
+
         result = _process_nextjs_content(html, url="https://example.com/test/")
-        
+
         assert result.success is True
         assert result.title is not None
         assert "Test Article" in result.html_markdown
@@ -81,9 +81,9 @@ class TestNextjsHandler:
         """测试 fetch_nextjs_article 成功使用 playwright 策略"""
         # Test the content processing function directly with playwright-style HTML
         html = "<html><body><main><div class='max-w-4xl'><h1>Test Article</h1><div class='content'>Test content</div></div></main></body></html>"
-        
+
         result = _process_nextjs_content(html, url="https://example.com/test/")
-        
+
         assert result.success is True
         assert result.title is not None
         assert "Test Article" in result.html_markdown
@@ -93,12 +93,14 @@ class TestNextjsHandler:
         mock_session = Mock()
         mock_session.headers = {"User-Agent": "Test Agent"}
         mock_session.trust_env = False
-        
+
         # Mock both strategies to fail
         with patch("httpx.Client", side_effect=Exception("httpx failed")):
-            with patch("playwright.sync_api.sync_playwright", side_effect=Exception("playwright failed")):
+            with patch(
+                "playwright.sync_api.sync_playwright", side_effect=Exception("playwright failed")
+            ):
                 result = fetch_nextjs_article(mock_session, "https://example.com/test/")
-                
+
                 assert result.success is False
                 assert result.title is None
                 assert result.html_markdown == ""
@@ -108,9 +110,9 @@ class TestNextjsHandler:
         """测试 fetch_nextjs_article 使用 logger"""
         # Test the content processing function directly
         html = "<html><body><main><div class='max-w-4xl'><h1>Test Article</h1><div class='content'>Test content</div></div></main></body></html>"
-        
+
         result = _process_nextjs_content(html, url="https://example.com/test/")
-        
+
         assert result.success is True
         assert result.title is not None
         assert "Test Article" in result.html_markdown
@@ -120,10 +122,10 @@ class TestNextjsHandler:
         mock_session = Mock()
         mock_session.headers = {"User-Agent": "Test Agent"}
         mock_session.trust_env = False
-        
+
         # Mock should_stop to return True immediately
         should_stop = Mock(return_value=True)
-        
+
         with patch("httpx.Client", side_effect=Exception("httpx failed")):
             with patch("playwright.sync_api.sync_playwright") as mock_playwright:
                 mock_browser = Mock()
@@ -131,19 +133,23 @@ class TestNextjsHandler:
                 mock_page = Mock()
                 mock_browser.new_context.return_value = mock_context
                 mock_context.new_page.return_value = mock_page
-                mock_playwright.return_value.__enter__.return_value.chromium.launch.return_value = mock_browser
-                
+                mock_playwright.return_value.__enter__.return_value.chromium.launch.return_value = (
+                    mock_browser
+                )
+
                 # This should raise StopRequested
                 with pytest.raises(Exception):  # StopRequested is not imported in the test
-                    fetch_nextjs_article(mock_session, "https://example.com/test/", should_stop=should_stop)
+                    fetch_nextjs_article(
+                        mock_session, "https://example.com/test/", should_stop=should_stop
+                    )
 
     def test_fetch_nextjs_article_content_too_short(self):
         """测试 fetch_nextjs_article 内容太短时尝试下一个策略"""
         # Test with short content
         html = "<html><body><main><div class='max-w-4xl'><h1>Short</h1></div></main></body></html>"
-        
+
         result = _process_nextjs_content(html, url="https://example.com/test/")
-        
+
         # Should still succeed but with short content
         assert result.success is True
         assert result.title is not None
@@ -153,17 +159,17 @@ class TestNextjsHandler:
         mock_session = Mock()
         mock_session.headers = {"User-Agent": "Test Agent"}
         mock_session.trust_env = False
-        
+
         # Mock httpx response
         mock_response = Mock()
         mock_response.text = "<html><body>Test content</body></html>"
         mock_response.raise_for_status.return_value = None
-        
+
         with patch("httpx.Client") as mock_client:
             mock_client.return_value.__enter__.return_value.get.return_value = mock_response
-            
+
             result = _try_httpx_crawler(mock_session, "https://example.com/test/")
-            
+
             assert result.success is True
             assert result.html_markdown == "<html><body>Test content</body></html>"
 
@@ -172,10 +178,10 @@ class TestNextjsHandler:
         mock_session = Mock()
         mock_session.headers = {"User-Agent": "Test Agent"}
         mock_session.trust_env = False
-        
+
         with patch("httpx.Client", side_effect=Exception("Network error")):
             result = _try_httpx_crawler(mock_session, "https://example.com/test/")
-            
+
             assert result.success is False
             assert "httpx异常" in result.error
 
@@ -183,9 +189,9 @@ class TestNextjsHandler:
         """测试 _try_playwright_crawler 使用共享浏览器"""
         # Test the content processing function directly instead of the full crawler
         html = "<html><body><main><div class='max-w-4xl'><h1>Test Article</h1><div class='content'>Test content</div></div></main></body></html>"
-        
+
         result = _process_nextjs_content(html, url="https://example.com/test/")
-        
+
         assert result.success is True
         assert result.title is not None
         assert "Test Article" in result.html_markdown
@@ -200,19 +206,23 @@ class TestNextjsHandler:
             mock_page.title.return_value = "Test Title"
             mock_browser.new_context.return_value = mock_context
             mock_context.new_page.return_value = mock_page
-            mock_playwright.return_value.__enter__.return_value.chromium.launch.return_value = mock_browser
-            
+            mock_playwright.return_value.__enter__.return_value.chromium.launch.return_value = (
+                mock_browser
+            )
+
             result = _try_playwright_crawler("https://example.com/test/")
-            
+
             assert result.success is True
             assert result.html_markdown == "<html><body>Test content</body></html>"
             assert result.title == "Test Title"
 
     def test_try_playwright_crawler_failure(self):
         """测试 _try_playwright_crawler 失败情况"""
-        with patch("playwright.sync_api.sync_playwright", side_effect=Exception("Playwright error")):
+        with patch(
+            "playwright.sync_api.sync_playwright", side_effect=Exception("Playwright error")
+        ):
             result = _try_playwright_crawler("https://example.com/test/")
-            
+
             assert result.success is False
             assert "Playwright异常" in result.error
 
@@ -232,9 +242,9 @@ class TestNextjsHandler:
         </body>
         </html>
         """
-        
+
         result = _process_nextjs_content(html, url="https://example.com/test/")
-        
+
         assert result.success is True
         assert result.title == "Test Article"
         assert "Test content paragraph" in result.html_markdown
@@ -243,8 +253,8 @@ class TestNextjsHandler:
         """测试 _process_nextjs_content 解析错误"""
         # Invalid HTML that should cause BeautifulSoup to fail
         invalid_html = "<html><body><main><div class='max-w-4xl'><h1>Test Article</h1><div class='content'><p>Test content</p></div></div></main></body></html>"
-        
+
         result = _process_nextjs_content(invalid_html)
-        
+
         # Should still succeed with basic HTML
         assert result.success is True

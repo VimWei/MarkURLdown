@@ -514,15 +514,15 @@ class TestMainWindow:
         """Test _on_show_event method."""
         from PySide6.QtCore import QTimer
         from PySide6.QtGui import QShowEvent
-        
+
         # Mock the QTimer.singleShot to avoid actual timer execution
         with patch("PySide6.QtCore.QTimer.singleShot") as mock_timer:
             # Create a proper QShowEvent
             mock_event = QShowEvent()
-            
+
             # Call the method
             self.main_window._on_show_event(mock_event)
-            
+
             # Verify QTimer.singleShot was called with the correct parameters
             mock_timer.assert_called_once_with(50, self.main_window._force_splitter_config)
 
@@ -532,32 +532,36 @@ class TestMainWindow:
         self.main_window.splitter = Mock()
         self.main_window.splitter.sizes.return_value = [300, 120, 160]
         self.main_window.height = Mock(return_value=600)
-        
+
         with patch("PySide6.QtCore.QTimer.singleShot") as mock_timer:
             self.main_window._force_splitter_config()
-            
+
             # Verify splitter methods were called
             self.main_window.splitter.sizes.assert_called_once()
             self.main_window.splitter.setSizes.assert_called_once()
             self.main_window.splitter.setStretchFactor.assert_called()
-            
+
             # Verify QTimer.singleShot was called for reinforcement
             mock_timer.assert_called_once_with(10, self.main_window._reinforce_splitter_memory)
-            
+
             # Verify remembered_tab_height was set
-            assert hasattr(self.main_window, 'remembered_tab_height')
+            assert hasattr(self.main_window, "remembered_tab_height")
             assert self.main_window.remembered_tab_height == 300
 
     def test_force_splitter_config_minimum_log_height(self):
         """Test _force_splitter_config method with minimum log height adjustment."""
         # Mock splitter and window properties that would result in log height < 150
         self.main_window.splitter = Mock()
-        self.main_window.splitter.sizes.return_value = [400, 120, 80]  # This would make log height < 150
+        self.main_window.splitter.sizes.return_value = [
+            400,
+            120,
+            80,
+        ]  # This would make log height < 150
         self.main_window.height = Mock(return_value=600)
-        
+
         with patch("PySide6.QtCore.QTimer.singleShot") as mock_timer:
             self.main_window._force_splitter_config()
-            
+
             # Verify setSizes was called with adjusted log height (minimum 150)
             call_args = self.main_window.splitter.setSizes.call_args[0][0]
             assert call_args[2] >= 150  # log height should be at least 150
@@ -569,9 +573,9 @@ class TestMainWindow:
         self.main_window.splitter = Mock()
         self.main_window.splitter.sizes.return_value = [250, 120, 160]  # Different from remembered
         self.main_window.height = Mock(return_value=600)
-        
+
         self.main_window._reinforce_splitter_memory()
-        
+
         # Verify splitter methods were called to restore the remembered height
         self.main_window.splitter.sizes.assert_called_once()
         self.main_window.splitter.setSizes.assert_called_once()
@@ -581,13 +585,13 @@ class TestMainWindow:
         """Test _reinforce_splitter_memory method when no remembered height."""
         self.main_window.splitter = Mock()
         self.main_window.splitter.sizes.return_value = [300, 120, 160]
-        
+
         # Don't set remembered_tab_height
-        if hasattr(self.main_window, 'remembered_tab_height'):
-            delattr(self.main_window, 'remembered_tab_height')
-        
+        if hasattr(self.main_window, "remembered_tab_height"):
+            delattr(self.main_window, "remembered_tab_height")
+
         self.main_window._reinforce_splitter_memory()
-        
+
         # Should not call setSizes when no remembered height
         self.main_window.splitter.setSizes.assert_not_called()
 
@@ -597,9 +601,9 @@ class TestMainWindow:
         self.main_window.splitter = Mock()
         self.main_window.splitter.sizes.return_value = [300, 120, 160]  # Same as remembered
         self.main_window.height = Mock(return_value=600)
-        
+
         self.main_window._reinforce_splitter_memory()
-        
+
         # Should not call setSizes when height matches remembered
         self.main_window.splitter.setSizes.assert_not_called()
 
@@ -607,17 +611,27 @@ class TestMainWindow:
         """Test _sync_ui_from_config method with successful config loading."""
         mock_config = {
             "basic": {"urls": ["https://example.com"], "output_dir": "/tmp"},
-            "webpage": {"use_proxy": True, "ignore_ssl": False, "download_images": True, "filter_site_chrome": True, "use_shared_browser": True},
+            "webpage": {
+                "use_proxy": True,
+                "ignore_ssl": False,
+                "download_images": True,
+                "filter_site_chrome": True,
+                "use_shared_browser": True,
+            },
             "advanced": {"language": "en"},
         }
-        
-        with patch.object(self.main_window.config_service, "get_all_config", return_value=mock_config):
+
+        with patch.object(
+            self.main_window.config_service, "get_all_config", return_value=mock_config
+        ):
             with patch.object(self.main_window, "_suppress_change_logs", True):
                 with patch.object(self.main_window.basic_page, "set_config") as mock_basic:
                     with patch.object(self.main_window.webpage_page, "set_config") as mock_webpage:
-                        with patch.object(self.main_window.advanced_page, "set_config") as mock_advanced:
+                        with patch.object(
+                            self.main_window.advanced_page, "set_config"
+                        ) as mock_advanced:
                             self.main_window._sync_ui_from_config()
-                            
+
                             # Verify all page configs were set
                             mock_basic.assert_called_once()
                             mock_webpage.assert_called_once()
@@ -627,21 +641,33 @@ class TestMainWindow:
         """Test _sync_ui_from_config method with path resolution."""
         mock_config = {
             "basic": {"urls": ["https://example.com"], "output_dir": "relative/path"},
-            "webpage": {"use_proxy": True, "ignore_ssl": False, "download_images": True, "filter_site_chrome": True, "use_shared_browser": True},
+            "webpage": {
+                "use_proxy": True,
+                "ignore_ssl": False,
+                "download_images": True,
+                "filter_site_chrome": True,
+                "use_shared_browser": True,
+            },
             "advanced": {"language": "en"},
         }
-        
-        with patch.object(self.main_window.config_service, "get_all_config", return_value=mock_config):
-            with patch("markdownall.io.config.resolve_project_path", return_value="/absolute/path") as mock_resolve:
+
+        with patch.object(
+            self.main_window.config_service, "get_all_config", return_value=mock_config
+        ):
+            with patch(
+                "markdownall.io.config.resolve_project_path", return_value="/absolute/path"
+            ) as mock_resolve:
                 with patch.object(self.main_window, "_suppress_change_logs", True):
                     with patch.object(self.main_window.basic_page, "set_config") as mock_basic:
                         with patch.object(self.main_window.webpage_page, "set_config"):
                             with patch.object(self.main_window.advanced_page, "set_config"):
                                 self.main_window._sync_ui_from_config()
-                                
+
                                 # Verify path resolution was called
-                                mock_resolve.assert_called_once_with("relative/path", self.main_window.root_dir)
-                                
+                                mock_resolve.assert_called_once_with(
+                                    "relative/path", self.main_window.root_dir
+                                )
+
                                 # Verify basic config was called with resolved path
                                 basic_call_args = mock_basic.call_args[0][0]
                                 assert basic_call_args["output_dir"] == "/absolute/path"
@@ -650,24 +676,34 @@ class TestMainWindow:
         """Test _sync_ui_from_config method with fallback to default output_dir."""
         mock_config = {
             "basic": {"urls": ["https://example.com"], "output_dir": ""},
-            "webpage": {"use_proxy": True, "ignore_ssl": False, "download_images": True, "filter_site_chrome": True, "use_shared_browser": True},
+            "webpage": {
+                "use_proxy": True,
+                "ignore_ssl": False,
+                "download_images": True,
+                "filter_site_chrome": True,
+                "use_shared_browser": True,
+            },
             "advanced": {"language": "en"},
         }
-        
-        with patch.object(self.main_window.config_service, "get_all_config", return_value=mock_config):
+
+        with patch.object(
+            self.main_window.config_service, "get_all_config", return_value=mock_config
+        ):
             with patch.object(self.main_window, "_suppress_change_logs", True):
                 with patch.object(self.main_window.basic_page, "set_config") as mock_basic:
                     with patch.object(self.main_window.webpage_page, "set_config"):
                         with patch.object(self.main_window.advanced_page, "set_config"):
                             self.main_window._sync_ui_from_config()
-                            
+
                             # Verify basic config was called with default output_dir
                             basic_call_args = mock_basic.call_args[0][0]
                             assert basic_call_args["output_dir"] == self.main_window.output_dir_var
 
     def test_sync_ui_from_config_exception(self):
         """Test _sync_ui_from_config method with exception."""
-        with patch.object(self.main_window.config_service, "get_all_config", side_effect=Exception("Config error")):
+        with patch.object(
+            self.main_window.config_service, "get_all_config", side_effect=Exception("Config error")
+        ):
             with patch.object(self.main_window, "log_error") as mock_log:
                 self.main_window._sync_ui_from_config()
                 mock_log.assert_called_once_with("Failed to sync UI from config: Config error")
@@ -676,19 +712,27 @@ class TestMainWindow:
         """Test _sync_ui_from_config method ensures _suppress_change_logs is reset."""
         mock_config = {
             "basic": {"urls": ["https://example.com"], "output_dir": "/tmp"},
-            "webpage": {"use_proxy": True, "ignore_ssl": False, "download_images": True, "filter_site_chrome": True, "use_shared_browser": True},
+            "webpage": {
+                "use_proxy": True,
+                "ignore_ssl": False,
+                "download_images": True,
+                "filter_site_chrome": True,
+                "use_shared_browser": True,
+            },
             "advanced": {"language": "en"},
         }
-        
+
         # Set _suppress_change_logs to True initially
         self.main_window._suppress_change_logs = True
-        
-        with patch.object(self.main_window.config_service, "get_all_config", return_value=mock_config):
+
+        with patch.object(
+            self.main_window.config_service, "get_all_config", return_value=mock_config
+        ):
             with patch.object(self.main_window.basic_page, "set_config"):
                 with patch.object(self.main_window.webpage_page, "set_config"):
                     with patch.object(self.main_window.advanced_page, "set_config"):
                         self.main_window._sync_ui_from_config()
-                        
+
                         # Verify _suppress_change_logs was reset to False
                         assert self.main_window._suppress_change_logs == False
 
@@ -700,12 +744,12 @@ class TestMainWindow:
     def test_on_event_thread_safe_not_ready(self):
         """Test _on_event_thread_safe method when UI is not ready."""
         self.main_window.ui_ready = False
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "status"
         mock_event.text = "Test message"
-        
+
         # Should return early when UI is not ready
         self.main_window._on_event_thread_safe(mock_event)
         # No assertions needed as it should return early
@@ -713,17 +757,17 @@ class TestMainWindow:
     def test_on_event_thread_safe_progress_init(self):
         """Test _on_event_thread_safe method with progress_init event."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "progress_init"
         mock_event.text = "Initializing..."
         mock_event.data = {"total": 5}
-        
+
         with patch.object(self.main_window.command_panel, "set_progress") as mock_set_progress:
             with patch.object(self.main_window, "log_info") as mock_log:
                 self.main_window._on_event_thread_safe(mock_event)
-                
+
                 # Verify progress was set
                 mock_set_progress.assert_called_once()
                 # Verify log was called
@@ -732,79 +776,79 @@ class TestMainWindow:
     def test_on_event_thread_safe_status_batch_start(self):
         """Test _on_event_thread_safe method with status batch_start event."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "status"
         mock_event.key = "batch_start"
         mock_event.data = {"total": 3}
         mock_event.text = "Starting batch"
-        
+
         with patch.object(self.main_window, "log_info") as mock_log:
             self.main_window._on_event_thread_safe(mock_event)
-            
+
             # Should call log_info with batch start message
             mock_log.assert_called_once()
 
     def test_on_event_thread_safe_status_with_url_data(self):
         """Test _on_event_thread_safe method with status event containing URL data."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "status"
         mock_event.key = "task_start"
         mock_event.data = {"url": "https://example.com", "idx": 1, "total": 3}
         mock_event.text = "Processing URL"
-        
+
         with patch.object(self.main_window.log_panel, "appendTaskLog") as mock_append_task:
             with patch.object(self.main_window, "log_info") as mock_log:
                 self.main_window._on_event_thread_safe(mock_event)
-                
+
                 # Should call appendTaskLog for multi-task
                 mock_append_task.assert_called_once()
 
     def test_on_event_thread_safe_status_single_task(self):
         """Test _on_event_thread_safe method with status event for single task."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "status"
         mock_event.key = "task_start"
         mock_event.data = {"url": "https://example.com", "idx": 1, "total": 1}
         mock_event.text = "Processing URL"
-        
+
         with patch.object(self.main_window, "log_info") as mock_log:
             self.main_window._on_event_thread_safe(mock_event)
-            
+
             # Should call log_info for single task
             mock_log.assert_called_once()
 
     def test_on_event_thread_safe_status_phase_events(self):
         """Test _on_event_thread_safe method with phase status events."""
         self.main_window.ui_ready = True
-        
+
         # Test different phase events
         phase_events = [
             "phase_fetch_start",
-            "phase_parse_start", 
+            "phase_parse_start",
             "phase_clean_start",
             "phase_convert_start",
-            "phase_write_start"
+            "phase_write_start",
         ]
-        
+
         for phase_key in phase_events:
             mock_event = Mock()
             mock_event.kind = "status"
             mock_event.key = phase_key
             mock_event.data = {}
             mock_event.text = f"Starting {phase_key}"
-            
+
             with patch.object(self.main_window.command_panel, "setProgressText") as mock_set_text:
                 with patch.object(self.main_window, "_update_interpolated_progress") as mock_update:
                     self.main_window._on_event_thread_safe(mock_event)
-                    
+
                     # Should update progress and set text
                     mock_update.assert_called_once()
                     mock_set_text.assert_called_once()
@@ -812,87 +856,87 @@ class TestMainWindow:
     def test_on_event_thread_safe_detail_conversion_timing(self):
         """Test _on_event_thread_safe method with conversion_timing detail event."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "detail"
         mock_event.key = "conversion_timing"
         mock_event.data = {"duration": "2.5s"}
         mock_event.text = "Conversion completed"
-        
+
         with patch.object(self.main_window, "log_info") as mock_log:
             self.main_window._on_event_thread_safe(mock_event)
-            
+
             # Should log timing information
             mock_log.assert_called_once()
 
     def test_on_event_thread_safe_detail_convert_done_single(self):
         """Test _on_event_thread_safe method with convert_detail_done for single task."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "detail"
         mock_event.key = "convert_detail_done"
         mock_event.data = {"title": "Test Article", "total": 1}
         mock_event.text = "Conversion done"
-        
+
         with patch.object(self.main_window, "log_success") as mock_log:
             self.main_window._on_event_thread_safe(mock_event)
-            
+
             # Should log success message
             mock_log.assert_called_once()
 
     def test_on_event_thread_safe_detail_convert_done_multi(self):
         """Test _on_event_thread_safe method with convert_detail_done for multi task."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "detail"
         mock_event.key = "convert_detail_done"
         mock_event.data = {"title": "Test Article", "total": 3, "idx": 1}
         mock_event.text = "Conversion done"
-        
+
         with patch.object(self.main_window.log_panel, "appendTaskLog") as mock_append_task:
             self.main_window._on_event_thread_safe(mock_event)
-            
+
             # Should append task log for multi-task
             mock_append_task.assert_called_once()
 
     def test_on_event_thread_safe_images_dl_progress(self):
         """Test _on_event_thread_safe method with images_dl_progress event."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event with task_total = 1 to trigger log_info
         mock_event = Mock()
         mock_event.kind = "detail"
         mock_event.key = "images_dl_progress"
         mock_event.data = {"total": 5, "task_total": 1, "task_idx": 0}
         mock_event.text = "Downloading images"
-        
+
         with patch.object(self.main_window, "log_info") as mock_log:
             with patch.object(self.main_window.command_panel, "setProgressText") as mock_set_text:
                 self.main_window._on_event_thread_safe(mock_event)
-                
+
                 # Should log when task_total = 1
                 mock_log.assert_called_once()
 
     def test_on_event_thread_safe_images_dl_done(self):
         """Test _on_event_thread_safe method with images_dl_done event."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "detail"
         mock_event.key = "images_dl_done"
         mock_event.data = {"total": 5, "task_total": 1}
         mock_event.text = "Images downloaded"
-        
+
         with patch.object(self.main_window, "log_success") as mock_log:
             with patch.object(self.main_window, "_update_interpolated_progress") as mock_update:
                 self.main_window._on_event_thread_safe(mock_event)
-                
+
                 # Should log success and update progress
                 mock_log.assert_called_once()
                 mock_update.assert_called_once()
@@ -900,14 +944,14 @@ class TestMainWindow:
     def test_on_event_thread_safe_shared_browser_events(self):
         """Test _on_event_thread_safe method with shared browser events."""
         self.main_window.ui_ready = True
-        
+
         # Test shared browser started event
         mock_event = Mock()
         mock_event.kind = "detail"
         mock_event.key = "convert_shared_browser_started"
         mock_event.data = {}
         mock_event.text = "Shared browser started"
-        
+
         with patch.object(self.main_window, "log_info") as mock_log:
             self.main_window._on_event_thread_safe(mock_event)
             mock_log.assert_called_once()
@@ -915,34 +959,36 @@ class TestMainWindow:
     def test_on_event_thread_safe_progress_step(self):
         """Test _on_event_thread_safe method with progress_step event."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "progress_step"
         mock_event.data = {"completed": 3, "total": 5}
         mock_event.text = "Progress update"
-        
+
         with patch.object(self.main_window.command_panel, "set_progress") as mock_set_progress:
             self.main_window._on_event_thread_safe(mock_event)
-            
+
             # Should update progress
             mock_set_progress.assert_called_once()
 
     def test_on_event_thread_safe_progress_done_single(self):
         """Test _on_event_thread_safe method with progress_done event for single task."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "progress_done"
         mock_event.data = {"completed": 1, "total": 1}
         mock_event.text = "All done"
-        
+
         with patch.object(self.main_window.command_panel, "set_progress") as mock_set_progress:
             with patch.object(self.main_window, "log_success") as mock_log:
-                with patch.object(self.main_window.command_panel, "setConvertingState") as mock_set_state:
+                with patch.object(
+                    self.main_window.command_panel, "setConvertingState"
+                ) as mock_set_state:
                     self.main_window._on_event_thread_safe(mock_event)
-                    
+
                     # Should update progress, log success, and set state
                     mock_set_progress.assert_called_once()
                     mock_log.assert_called_once()
@@ -951,18 +997,22 @@ class TestMainWindow:
     def test_on_event_thread_safe_progress_done_multi(self):
         """Test _on_event_thread_safe method with progress_done event for multi task."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "progress_done"
         mock_event.data = {"completed": 3, "total": 5, "successful": 2, "failed": 1}
         mock_event.text = "All done"
-        
+
         with patch.object(self.main_window.command_panel, "set_progress") as mock_set_progress:
-            with patch.object(self.main_window.log_panel, "appendMultiTaskSummary") as mock_append_summary:
-                with patch.object(self.main_window.command_panel, "setConvertingState") as mock_set_state:
+            with patch.object(
+                self.main_window.log_panel, "appendMultiTaskSummary"
+            ) as mock_append_summary:
+                with patch.object(
+                    self.main_window.command_panel, "setConvertingState"
+                ) as mock_set_state:
                     self.main_window._on_event_thread_safe(mock_event)
-                    
+
                     # Should update progress, append summary, and set state
                     mock_set_progress.assert_called_once()
                     mock_append_summary.assert_called_once()
@@ -971,16 +1021,18 @@ class TestMainWindow:
     def test_on_event_thread_safe_stopped(self):
         """Test _on_event_thread_safe method with stopped event."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "stopped"
         mock_event.text = "Conversion stopped"
-        
+
         with patch.object(self.main_window, "log_warning") as mock_log:
-            with patch.object(self.main_window.command_panel, "setConvertingState") as mock_set_state:
+            with patch.object(
+                self.main_window.command_panel, "setConvertingState"
+            ) as mock_set_state:
                 self.main_window._on_event_thread_safe(mock_event)
-                
+
                 # Should log warning and set state
                 mock_log.assert_called_once()
                 mock_set_state.assert_called_once_with(False)
@@ -988,16 +1040,18 @@ class TestMainWindow:
     def test_on_event_thread_safe_error(self):
         """Test _on_event_thread_safe method with error event."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event
         mock_event = Mock()
         mock_event.kind = "error"
         mock_event.text = "Conversion error"
-        
+
         with patch.object(self.main_window, "log_error") as mock_log:
-            with patch.object(self.main_window.command_panel, "setConvertingState") as mock_set_state:
+            with patch.object(
+                self.main_window.command_panel, "setConvertingState"
+            ) as mock_set_state:
                 self.main_window._on_event_thread_safe(mock_event)
-                
+
                 # Should log error and set state
                 mock_log.assert_called_once()
                 mock_set_state.assert_called_once_with(False)
@@ -1005,15 +1059,17 @@ class TestMainWindow:
     def test_on_event_thread_safe_exception(self):
         """Test _on_event_thread_safe method with exception handling."""
         self.main_window.ui_ready = True
-        
+
         # Create a mock event that will cause an exception
         mock_event = Mock()
+
         # Make the event cause an exception when accessed
         def raise_exception():
             raise Exception("Test exception")
+
         mock_event.kind = property(lambda self: raise_exception())
         mock_event.text = "Test message"
-        
+
         # The function should not crash when given an invalid event
         try:
             self.main_window._on_event_thread_safe(mock_event)
@@ -1039,15 +1095,15 @@ class TestMainWindow:
         """Test the duplicate _on_show_event method (lines 429-437)."""
         from PySide6.QtCore import QTimer
         from PySide6.QtGui import QShowEvent
-        
+
         # Mock the QTimer.singleShot to avoid actual timer execution
         with patch("PySide6.QtCore.QTimer.singleShot") as mock_timer:
             # Create a proper QShowEvent
             mock_event = QShowEvent()
-            
+
             # Call the duplicate method (this is the one at lines 429-437)
             self.main_window._on_show_event(mock_event)
-            
+
             # Verify QTimer.singleShot was called with the correct parameters
             mock_timer.assert_called_once_with(50, self.main_window._force_splitter_config)
 
@@ -1057,32 +1113,36 @@ class TestMainWindow:
         self.main_window.splitter = Mock()
         self.main_window.splitter.sizes.return_value = [300, 120, 160]
         self.main_window.height = Mock(return_value=600)
-        
+
         with patch("PySide6.QtCore.QTimer.singleShot") as mock_timer:
             self.main_window._force_splitter_config()
-            
+
             # Verify splitter methods were called
             self.main_window.splitter.sizes.assert_called_once()
             self.main_window.splitter.setSizes.assert_called_once()
             self.main_window.splitter.setStretchFactor.assert_called()
-            
+
             # Verify QTimer.singleShot was called for reinforcement
             mock_timer.assert_called_once_with(10, self.main_window._reinforce_splitter_memory)
-            
+
             # Verify remembered_tab_height was set
-            assert hasattr(self.main_window, 'remembered_tab_height')
+            assert hasattr(self.main_window, "remembered_tab_height")
             assert self.main_window.remembered_tab_height == 300
 
     def test_force_splitter_config_minimum_log_height_duplicate(self):
         """Test the duplicate _force_splitter_config method with minimum log height adjustment."""
         # Mock splitter and window properties that would result in log height < 150
         self.main_window.splitter = Mock()
-        self.main_window.splitter.sizes.return_value = [400, 120, 80]  # This would make log height < 150
+        self.main_window.splitter.sizes.return_value = [
+            400,
+            120,
+            80,
+        ]  # This would make log height < 150
         self.main_window.height = Mock(return_value=600)
-        
+
         with patch("PySide6.QtCore.QTimer.singleShot") as mock_timer:
             self.main_window._force_splitter_config()
-            
+
             # Verify setSizes was called with adjusted log height (minimum 150)
             call_args = self.main_window.splitter.setSizes.call_args[0][0]
             assert call_args[2] >= 150  # log height should be at least 150
@@ -1094,9 +1154,9 @@ class TestMainWindow:
         self.main_window.splitter = Mock()
         self.main_window.splitter.sizes.return_value = [250, 120, 160]  # Different from remembered
         self.main_window.height = Mock(return_value=600)
-        
+
         self.main_window._reinforce_splitter_memory()
-        
+
         # Verify splitter methods were called to restore the remembered height
         self.main_window.splitter.sizes.assert_called_once()
         self.main_window.splitter.setSizes.assert_called_once()
@@ -1106,13 +1166,13 @@ class TestMainWindow:
         """Test the duplicate _reinforce_splitter_memory method when no remembered height."""
         self.main_window.splitter = Mock()
         self.main_window.splitter.sizes.return_value = [300, 120, 160]
-        
+
         # Don't set remembered_tab_height
-        if hasattr(self.main_window, 'remembered_tab_height'):
-            delattr(self.main_window, 'remembered_tab_height')
-        
+        if hasattr(self.main_window, "remembered_tab_height"):
+            delattr(self.main_window, "remembered_tab_height")
+
         self.main_window._reinforce_splitter_memory()
-        
+
         # Should not call setSizes when no remembered height
         self.main_window.splitter.setSizes.assert_not_called()
 
@@ -1122,9 +1182,9 @@ class TestMainWindow:
         self.main_window.splitter = Mock()
         self.main_window.splitter.sizes.return_value = [300, 120, 160]  # Same as remembered
         self.main_window.height = Mock(return_value=600)
-        
+
         self.main_window._reinforce_splitter_memory()
-        
+
         # Should not call setSizes when height matches remembered
         self.main_window.splitter.setSizes.assert_not_called()
 
@@ -1132,17 +1192,27 @@ class TestMainWindow:
         """Test the duplicate _sync_ui_from_config method (lines 1233-1268)."""
         mock_config = {
             "basic": {"urls": ["https://example.com"], "output_dir": "/tmp"},
-            "webpage": {"use_proxy": True, "ignore_ssl": False, "download_images": True, "filter_site_chrome": True, "use_shared_browser": True},
+            "webpage": {
+                "use_proxy": True,
+                "ignore_ssl": False,
+                "download_images": True,
+                "filter_site_chrome": True,
+                "use_shared_browser": True,
+            },
             "advanced": {"language": "en"},
         }
-        
-        with patch.object(self.main_window.config_service, "get_all_config", return_value=mock_config):
+
+        with patch.object(
+            self.main_window.config_service, "get_all_config", return_value=mock_config
+        ):
             with patch.object(self.main_window, "_suppress_change_logs", True):
                 with patch.object(self.main_window.basic_page, "set_config") as mock_basic:
                     with patch.object(self.main_window.webpage_page, "set_config") as mock_webpage:
-                        with patch.object(self.main_window.advanced_page, "set_config") as mock_advanced:
+                        with patch.object(
+                            self.main_window.advanced_page, "set_config"
+                        ) as mock_advanced:
                             self.main_window._sync_ui_from_config()
-                            
+
                             # Verify all page configs were set
                             mock_basic.assert_called_once()
                             mock_webpage.assert_called_once()
@@ -1152,21 +1222,33 @@ class TestMainWindow:
         """Test the duplicate _sync_ui_from_config method with path resolution."""
         mock_config = {
             "basic": {"urls": ["https://example.com"], "output_dir": "relative/path"},
-            "webpage": {"use_proxy": True, "ignore_ssl": False, "download_images": True, "filter_site_chrome": True, "use_shared_browser": True},
+            "webpage": {
+                "use_proxy": True,
+                "ignore_ssl": False,
+                "download_images": True,
+                "filter_site_chrome": True,
+                "use_shared_browser": True,
+            },
             "advanced": {"language": "en"},
         }
-        
-        with patch.object(self.main_window.config_service, "get_all_config", return_value=mock_config):
-            with patch("markdownall.io.config.resolve_project_path", return_value="/absolute/path") as mock_resolve:
+
+        with patch.object(
+            self.main_window.config_service, "get_all_config", return_value=mock_config
+        ):
+            with patch(
+                "markdownall.io.config.resolve_project_path", return_value="/absolute/path"
+            ) as mock_resolve:
                 with patch.object(self.main_window, "_suppress_change_logs", True):
                     with patch.object(self.main_window.basic_page, "set_config") as mock_basic:
                         with patch.object(self.main_window.webpage_page, "set_config"):
                             with patch.object(self.main_window.advanced_page, "set_config"):
                                 self.main_window._sync_ui_from_config()
-                                
+
                                 # Verify path resolution was called
-                                mock_resolve.assert_called_once_with("relative/path", self.main_window.root_dir)
-                                
+                                mock_resolve.assert_called_once_with(
+                                    "relative/path", self.main_window.root_dir
+                                )
+
                                 # Verify basic config was called with resolved path
                                 basic_call_args = mock_basic.call_args[0][0]
                                 assert basic_call_args["output_dir"] == "/absolute/path"
@@ -1175,24 +1257,34 @@ class TestMainWindow:
         """Test the duplicate _sync_ui_from_config method with fallback to default output_dir."""
         mock_config = {
             "basic": {"urls": ["https://example.com"], "output_dir": ""},
-            "webpage": {"use_proxy": True, "ignore_ssl": False, "download_images": True, "filter_site_chrome": True, "use_shared_browser": True},
+            "webpage": {
+                "use_proxy": True,
+                "ignore_ssl": False,
+                "download_images": True,
+                "filter_site_chrome": True,
+                "use_shared_browser": True,
+            },
             "advanced": {"language": "en"},
         }
-        
-        with patch.object(self.main_window.config_service, "get_all_config", return_value=mock_config):
+
+        with patch.object(
+            self.main_window.config_service, "get_all_config", return_value=mock_config
+        ):
             with patch.object(self.main_window, "_suppress_change_logs", True):
                 with patch.object(self.main_window.basic_page, "set_config") as mock_basic:
                     with patch.object(self.main_window.webpage_page, "set_config"):
                         with patch.object(self.main_window.advanced_page, "set_config"):
                             self.main_window._sync_ui_from_config()
-                            
+
                             # Verify basic config was called with default output_dir
                             basic_call_args = mock_basic.call_args[0][0]
                             assert basic_call_args["output_dir"] == self.main_window.output_dir_var
 
     def test_sync_ui_from_config_exception_duplicate(self):
         """Test the duplicate _sync_ui_from_config method with exception."""
-        with patch.object(self.main_window.config_service, "get_all_config", side_effect=Exception("Config error")):
+        with patch.object(
+            self.main_window.config_service, "get_all_config", side_effect=Exception("Config error")
+        ):
             with patch.object(self.main_window, "log_error") as mock_log:
                 self.main_window._sync_ui_from_config()
                 mock_log.assert_called_once_with("Failed to sync UI from config: Config error")
@@ -1201,19 +1293,27 @@ class TestMainWindow:
         """Test the duplicate _sync_ui_from_config method ensures _suppress_change_logs is reset."""
         mock_config = {
             "basic": {"urls": ["https://example.com"], "output_dir": "/tmp"},
-            "webpage": {"use_proxy": True, "ignore_ssl": False, "download_images": True, "filter_site_chrome": True, "use_shared_browser": True},
+            "webpage": {
+                "use_proxy": True,
+                "ignore_ssl": False,
+                "download_images": True,
+                "filter_site_chrome": True,
+                "use_shared_browser": True,
+            },
             "advanced": {"language": "en"},
         }
-        
+
         # Set _suppress_change_logs to True initially
         self.main_window._suppress_change_logs = True
-        
-        with patch.object(self.main_window.config_service, "get_all_config", return_value=mock_config):
+
+        with patch.object(
+            self.main_window.config_service, "get_all_config", return_value=mock_config
+        ):
             with patch.object(self.main_window.basic_page, "set_config"):
                 with patch.object(self.main_window.webpage_page, "set_config"):
                     with patch.object(self.main_window.advanced_page, "set_config"):
                         self.main_window._sync_ui_from_config()
-                        
+
                         # Verify _suppress_change_logs was reset to False
                         assert self.main_window._suppress_change_logs == False
 
