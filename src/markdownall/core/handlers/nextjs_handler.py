@@ -522,6 +522,8 @@ def _process_nextjs_content(
         from markdownall.core.html_to_md import html_fragment_to_markdown
 
         md = html_fragment_to_markdown(content_elem)
+    else:
+        md = ""
 
     # 最后拼接为全文
     if header_str:

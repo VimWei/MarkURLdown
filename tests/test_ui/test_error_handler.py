@@ -365,6 +365,28 @@ class TestErrorHandler:
 class TestErrorRecovery:
     """Test ErrorRecovery class."""
 
+    def setup_method(self):
+        """Setup test environment."""
+        if not QApplication.instance():
+            self.app = QApplication([])
+        else:
+            self.app = QApplication.instance()
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.mock_config_service = Mock()
+        self.mock_config_service.config_manager.root_dir = self.temp_dir
+        self.mock_config_service.config_manager.config_dir = os.path.join(
+            self.temp_dir, "data", "config"
+        )
+
+        self.error_handler = ErrorHandler(self.mock_config_service)
+
+    def teardown_method(self):
+        """Cleanup test environment."""
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
     def test_recover_from_critical_error_config(self):
         """Test recover_from_critical_error method for config context."""
         with patch("gc.collect") as mock_gc:
@@ -423,3 +445,167 @@ class TestErrorRecovery:
         # Check advanced config
         assert config["advanced"]["user_data_path"] == ""
         assert config["advanced"]["language"] == "auto"
+
+    def test_recover_generic_error_pytest_environment(self):
+        """Test _recover_generic_error method in pytest environment."""
+        with patch.dict("os.environ", {"PYTEST_CURRENT_TEST": "test_function"}):
+            result = self.error_handler._recover_generic_error("TestError", "test context")
+            assert result is True
+
+    def test_recover_generic_error_headless_environment(self):
+        """Test _recover_generic_error method in headless environment."""
+        with patch.dict("os.environ", {"QT_QPA_PLATFORM": "offscreen"}):
+            result = self.error_handler._recover_generic_error("TestError", "test context")
+            assert result is True
+
+    def test_recover_generic_error_minimal_environment(self):
+        """Test _recover_generic_error method in minimal environment."""
+        with patch.dict("os.environ", {"QT_QPA_PLATFORM": "minimal"}):
+            result = self.error_handler._recover_generic_error("TestError", "test context")
+            assert result is True
+
+    def test_recover_generic_error_normal_environment(self):
+        """Test _recover_generic_error method in normal environment."""
+        with patch.dict("os.environ", {}, clear=True):
+            with patch("gc.collect") as mock_gc:
+                result = self.error_handler._recover_generic_error("TestError", "test context")
+                assert result is True
+                mock_gc.assert_called_once()
+
+    def test_recover_generic_error_gc_exception(self):
+        """Test _recover_generic_error method when gc.collect raises exception."""
+        with patch.dict("os.environ", {}, clear=True):
+            with patch("gc.collect", side_effect=Exception("GC error")):
+                result = self.error_handler._recover_generic_error("TestError", "test context")
+                assert result is True  # Should still return True even if GC fails
+
+    def test_recover_generic_error_exception_handling(self):
+        """Test _recover_generic_error method exception handling."""
+        with patch.dict("os.environ", {}, clear=True):
+            with patch("gc.collect", side_effect=Exception("GC error")):
+                # This should not raise an exception
+                result = self.error_handler._recover_generic_error("TestError", "test context")
+                assert result is True
+
+    def test_attempt_recovery_first_attempt(self):
+        """Test _attempt_recovery method on first attempt."""
+        result = self.error_handler._attempt_recovery("TestError", "test context")
+        # Should attempt recovery and return the result
+        assert isinstance(result, bool)
+
+    def test_attempt_recovery_multiple_attempts(self):
+        """Test _attempt_recovery method on multiple attempts."""
+        # First attempt
+        self.error_handler._attempt_recovery("TestError", "test context")
+        
+        # Second attempt
+        result = self.error_handler._attempt_recovery("TestError", "test context")
+        assert isinstance(result, bool)
+
+    def test_attempt_recovery_max_attempts_exceeded(self):
+        """Test _attempt_recovery method when max attempts exceeded."""
+        # Make multiple attempts to exceed the limit
+        for _ in range(4):  # 3 is the max, so 4th should fail
+            result = self.error_handler._attempt_recovery("TestError", "test context")
+        
+        # Should return False after max attempts
+        assert result is False
+
+    def test_attempt_recovery_different_error_types(self):
+        """Test _attempt_recovery method with different error types."""
+        # Test FileNotFoundError
+        with patch.object(self.error_handler, "_recover_file_not_found", return_value=True):
+            result = self.error_handler._attempt_recovery("FileNotFoundError", "file context")
+            assert result is True
+
+        # Test PermissionError
+        with patch.object(self.error_handler, "_recover_permission_error", return_value=True):
+            result = self.error_handler._attempt_recovery("PermissionError", "permission context")
+            assert result is True
+
+        # Test ConnectionError
+        with patch.object(self.error_handler, "_recover_connection_error", return_value=True):
+            result = self.error_handler._attempt_recovery("ConnectionError", "connection context")
+            assert result is True
+
+        # Test generic error
+        with patch.object(self.error_handler, "_recover_generic_error", return_value=True):
+            result = self.error_handler._attempt_recovery("GenericError", "generic context")
+            assert result is True
+
+    def test_attempt_recovery_exception_handling(self):
+        """Test _attempt_recovery method exception handling."""
+        with patch.object(self.error_handler, "_recover_generic_error", side_effect=Exception("Recovery error")):
+            result = self.error_handler._attempt_recovery("TestError", "test context")
+            assert result is False
+
+    def test_recover_file_not_found_session_context(self):
+        """Test _recover_file_not_found method with session context."""
+        with patch.object(self.error_handler.config_service.config_manager, "config_dir", "/test/config"):
+            with patch("os.makedirs") as mock_makedirs:
+                result = self.error_handler._recover_file_not_found("session loading")
+                assert result is True
+                mock_makedirs.assert_called_once_with("/test/config", exist_ok=True)
+
+    def test_recover_file_not_found_log_context(self):
+        """Test _recover_file_not_found method with log context."""
+        with patch.object(self.error_handler.config_service.config_manager, "root_dir", "/test/root"):
+            with patch("os.makedirs") as mock_makedirs:
+                result = self.error_handler._recover_file_not_found("log writing")
+                assert result is True
+                # Check that makedirs was called with the log directory path
+                expected_path = os.path.join("/test/root", "data", "log")
+                mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+
+    def test_recover_file_not_found_other_context(self):
+        """Test _recover_file_not_found method with other context."""
+        result = self.error_handler._recover_file_not_found("other context")
+        assert result is False
+
+    def test_recover_file_not_found_exception(self):
+        """Test _recover_file_not_found method with exception."""
+        with patch("os.makedirs", side_effect=Exception("Makedirs error")):
+            result = self.error_handler._recover_file_not_found("session loading")
+            assert result is False
+
+    def test_recover_permission_error_session_context(self):
+        """Test _recover_permission_error method with session context."""
+        with patch.object(self.error_handler.config_service.config_manager, "config_dir", "/test/config"):
+            with patch("os.path.exists", return_value=True):
+                with patch("os.chmod") as mock_chmod:
+                    result = self.error_handler._recover_permission_error("session loading")
+                    assert result is True
+                    mock_chmod.assert_called_once_with("/test/config", 0o755)
+
+    def test_recover_permission_error_nonexistent_path(self):
+        """Test _recover_permission_error method with nonexistent path."""
+        with patch.object(self.error_handler.config_service.config_manager, "config_dir", "/test/config"):
+            with patch("os.path.exists", return_value=False):
+                result = self.error_handler._recover_permission_error("session loading")
+                assert result is False
+
+    def test_recover_permission_error_other_context(self):
+        """Test _recover_permission_error method with other context."""
+        result = self.error_handler._recover_permission_error("other context")
+        assert result is False
+
+    def test_recover_permission_error_exception(self):
+        """Test _recover_permission_error method with exception."""
+        with patch.object(self.error_handler.config_service.config_manager, "config_dir", "/test/config"):
+            with patch("os.path.exists", return_value=True):
+                with patch("os.chmod", side_effect=Exception("Chmod error")):
+                    result = self.error_handler._recover_permission_error("session loading")
+                    assert result is False
+
+    def test_recover_connection_error_success(self):
+        """Test _recover_connection_error method success."""
+        with patch("time.sleep") as mock_sleep:
+            result = self.error_handler._recover_connection_error("connection context")
+            assert result is True
+            mock_sleep.assert_called_once_with(1)
+
+    def test_recover_connection_error_exception(self):
+        """Test _recover_connection_error method with exception."""
+        with patch("time.sleep", side_effect=Exception("Sleep error")):
+            result = self.error_handler._recover_connection_error("connection context")
+            assert result is False
