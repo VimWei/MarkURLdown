@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from markdownall.services.version_check_service import VersionCheckService
+
 if TYPE_CHECKING:
     from markdownall.ui.pyside.main_window import Translator
 
@@ -32,12 +34,12 @@ class VersionCheckThread(QThread):
 
     def __init__(self):
         super().__init__()
+        self.version_service = VersionCheckService()
 
     def run(self):
         """Run version check in background thread."""
-        # TODO: Implement actual version check service
-        # For now, return a mock response
-        self.update_available.emit(True, "Current version is up to date", "")
+        is_latest, message, latest_version = self.version_service.check_for_updates()
+        self.update_available.emit(is_latest, message, latest_version or "")
 
 
 class AboutPage(QWidget):
@@ -123,7 +125,11 @@ class AboutPage(QWidget):
         try:
             self.retranslate_ui()
         except Exception:
-            pass
+            # Fallback to English if translation fails
+            self._lbl_home.setText("Homepage:")
+            self._lbl_update.setText("Updates:")
+            self.update_status_label.setText("Click 'Check for Updates' to check")
+            self.check_updates_btn.setText("Check for Updates")
 
     def _connect_signals(self):
         """Connect internal signals."""
@@ -154,26 +160,33 @@ class AboutPage(QWidget):
 
     def on_update_check_complete(self, is_latest: bool, message: str, latest_version: str):
         """Handle update check completion."""
-        # Prefer localized canned messages if recognized, else show raw message
-        try:
-            if self.translator and (message == "Current version is up to date" or not message):
-                self.update_status_label.setText(self.translator.t("about_up_to_date"))
-            else:
+        # Map English messages to translation keys for localization
+        if self.translator:
+            try:
+                if message == "You are using the latest version.":
+                    self.update_status_label.setText(self.translator.t("about_latest_version"))
+                elif message.startswith("New version") and "available" in message:
+                    # Extract version from message and format with translation
+                    version = latest_version or "unknown"
+                    self.update_status_label.setText(self.translator.t("about_new_version_available").format(version=version))
+                elif "Failed to check for updates" in message and "internet connection" in message:
+                    self.update_status_label.setText(self.translator.t("about_check_failed"))
+                elif "Failed to parse update information" in message:
+                    self.update_status_label.setText(self.translator.t("about_parse_failed"))
+                elif "An error occurred while checking for updates" in message:
+                    self.update_status_label.setText(self.translator.t("about_check_error"))
+                else:
+                    self.update_status_label.setText(message)
+            except Exception:
                 self.update_status_label.setText(message)
-        except Exception:
+        else:
             self.update_status_label.setText(message)
 
         # Update button text based on result
-        if is_latest:
-            if self.translator:
-                self.check_updates_btn.setText(self.translator.t("about_check_again"))
-            else:
-                self.check_updates_btn.setText("Check Again")
+        if self.translator:
+            self.check_updates_btn.setText(self.translator.t("about_check_again"))
         else:
-            if self.translator:
-                self.check_updates_btn.setText(self.translator.t("about_check_again"))
-            else:
-                self.check_updates_btn.setText("Check Again")
+            self.check_updates_btn.setText("Check Again")
 
     def on_version_thread_finished(self):
         """Handle version check thread completion."""
@@ -197,7 +210,7 @@ class AboutPage(QWidget):
             self._lbl_update.setText(t("about_updates"))
             # Only text values; widths fixed at setup
             # Set default message text to hint user
-            self.update_status_label.setText(t("about_check_updates"))
+            self.update_status_label.setText(t("about_click_to_check"))
             self.check_updates_btn.setText(t("about_check_updates"))
         except Exception:
             pass

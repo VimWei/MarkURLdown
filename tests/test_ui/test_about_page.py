@@ -125,19 +125,19 @@ class TestAboutPage:
         with patch.object(self.about_page.update_status_label, "setText") as mock_set_text:
             with patch.object(self.about_page.check_updates_btn, "setText") as mock_btn_text:
                 self.about_page.on_update_check_complete(
-                    True, "Current version is up to date", "1.0.0"
+                    True, "You are using the latest version.", "1.0.0"
                 )
 
-                mock_set_text.assert_called_with("translated_about_up_to_date")
+                mock_set_text.assert_called_with("translated_about_latest_version")
                 mock_btn_text.assert_called_with("translated_about_check_again")
 
     def test_on_update_check_complete_with_translator_custom_message(self):
         """Test on_update_check_complete method with translator and custom message."""
         with patch.object(self.about_page.update_status_label, "setText") as mock_set_text:
             with patch.object(self.about_page.check_updates_btn, "setText") as mock_btn_text:
-                self.about_page.on_update_check_complete(False, "New version available", "2.0.0")
+                self.about_page.on_update_check_complete(False, "New version 2.0.0 available", "2.0.0")
 
-                mock_set_text.assert_called_with("New version available")
+                mock_set_text.assert_called_with("translated_about_new_version_available")
                 mock_btn_text.assert_called_with("translated_about_check_again")
 
     def test_on_update_check_complete_without_translator(self):
@@ -147,10 +147,10 @@ class TestAboutPage:
         with patch.object(self.about_page.update_status_label, "setText") as mock_set_text:
             with patch.object(self.about_page.check_updates_btn, "setText") as mock_btn_text:
                 self.about_page.on_update_check_complete(
-                    True, "Current version is up to date", "1.0.0"
+                    True, "You are using the latest version.", "1.0.0"
                 )
 
-                mock_set_text.assert_called_with("Current version is up to date")
+                mock_set_text.assert_called_with("You are using the latest version.")
                 mock_btn_text.assert_called_with("Check Again")
 
     def test_on_update_check_complete_exception(self):
@@ -158,7 +158,7 @@ class TestAboutPage:
 
         # Mock translator to raise for status text but succeed for button text
         def t_side_effect(key, **kwargs):
-            if key == "about_up_to_date":
+            if key == "about_latest_version":
                 raise Exception("Translation error")
             return f"translated_{key}"
 
@@ -225,7 +225,7 @@ class TestAboutPage:
 
                         mock_home.assert_called_with("translated_about_homepage")
                         mock_update.assert_called_with("translated_about_updates")
-                        mock_status.assert_called_with("translated_about_check_updates")
+                        mock_status.assert_called_with("translated_about_click_to_check")
                         mock_btn.assert_called_with("translated_about_check_updates")
 
     def test_retranslate_ui_without_translator(self):
