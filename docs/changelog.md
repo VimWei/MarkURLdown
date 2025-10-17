@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.8] - 2025-10-18
+
+- fix: ensure correct HTML decoding and aligned request headers
+
 ## [1.0.7] - 2025-10-10
 
 - feat: enhance appinn and nextjs handlers with new functionality
