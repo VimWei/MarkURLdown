@@ -41,13 +41,14 @@ def _try_lightweight_markitdown(url: str, session) -> CrawlerResult:
     try:
         # 尝试轻量级MarkItDown（静默处理）
         md = MarkItDown()
-        # 修复 MarkItDown 的 User-Agent 问题
+        # 对齐 UA 与压缩支持，避免brotli解码缺失导致乱码
         md._requests_session.headers.update(
             {
                 "User-Agent": session.headers.get(
                     "User-Agent",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                )
+                ),
+                "Accept-Encoding": "gzip, deflate",
             }
         )
         result = md.convert(url)
@@ -100,6 +101,7 @@ def _try_enhanced_markitdown(url: str, session) -> CrawlerResult:
 
             # 使用MarkItDown处理HTML
             md = MarkItDown()
+            md._requests_session.headers.update({"Accept-Encoding": "gzip, deflate"})
             result = md.convert(html)
 
             if result and result.text_content:
@@ -141,13 +143,14 @@ def _try_direct_httpx(url: str, session) -> CrawlerResult:
 
             # 使用MarkItDown处理URL（直接传递URL而不是HTML内容）
             md = MarkItDown()
-            # 修复 MarkItDown 的 User-Agent 问题
+            # 修复 MarkItDown 的 User-Agent/Accept-Encoding 问题
             md._requests_session.headers.update(
                 {
                     "User-Agent": session.headers.get(
                         "User-Agent",
                         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    )
+                    ),
+                    "Accept-Encoding": "gzip, deflate",
                 }
             )
             result = md.convert(url)
@@ -178,6 +181,14 @@ def _try_generic_with_filtering(url: str, session) -> CrawlerResult:
         resp = session.get(url, timeout=30)
         resp.raise_for_status()
 
+        # Ensure correct decoding when server omits charset
+        try:
+            apparent = getattr(resp, "apparent_encoding", None)
+            current = getattr(resp, "encoding", None)
+            resp.encoding = apparent or current or "utf-8"
+        except Exception:
+            # Fallback safely even if attributes are missing in mocked responses
+            resp.encoding = "utf-8"
         raw_html = resp.text
         domain = urlparse(url).netloc.lower()
 

@@ -37,6 +37,7 @@ def build_requests_session(ignore_ssl: bool, use_proxy: bool) -> requests.Sessio
     session.headers.update(
         {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Encoding": "gzip, deflate",
         }
     )
     return session
