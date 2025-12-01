@@ -17,6 +17,9 @@ from markdownall.core.images import download_images_and_rewrite
 from markdownall.core.normalize import normalize_markdown_headings
 
 
+GENERIC_HANDLER_NAME = "GenericHandler"
+
+
 class HandlerWrapper:
     """Handler包装器，支持元数据声明"""
 
@@ -59,11 +62,16 @@ class Handler(Protocol):
         return self.__class__.__name__
 
 
+def _is_forced_handler(payload: ConvertPayload, handler_name: str) -> bool:
+    return payload.meta.get("forced_handler") == handler_name
+
+
 def _weixin_handler(
     payload: ConvertPayload, session, options: ConversionOptions
 ) -> ConvertResult | None:
     url = payload.value
-    if "mp.weixin.qq.com" not in url:
+    forced = _is_forced_handler(payload, "WeixinHandler")
+    if not forced and "mp.weixin.qq.com" not in url:
         return None
     # 新日志接口
     logger = payload.meta.get("logger")
@@ -122,7 +130,8 @@ def _zhihu_handler(
     payload: ConvertPayload, session, options: ConversionOptions
 ) -> ConvertResult | None:
     url = payload.value
-    if "zhuanlan.zhihu.com" not in url and "zhihu.com" not in url:
+    forced = _is_forced_handler(payload, "ZhihuHandler")
+    if not forced and "zhuanlan.zhihu.com" not in url and "zhihu.com" not in url:
         return None
 
     try:
@@ -195,9 +204,10 @@ def _wordpress_handler(
 ) -> ConvertResult | None:
     """WordPress网站处理器 - 专门处理skywind.me/blog等WordPress站点"""
     url = payload.value
+    forced = _is_forced_handler(payload, "WordPressHandler")
 
     # 检查是否是WordPress站点（特别是skywind.me/blog）
-    if "skywind.me/blog" not in url and not _is_wordpress_site(url):
+    if not forced and "skywind.me/blog" not in url and not _is_wordpress_site(url):
         return None
 
     try:
@@ -253,8 +263,9 @@ def _nextjs_handler(
 ) -> ConvertResult | None:
     """Next.js Blog 处理器 - 专门处理 guangzhengli.com/blog"""
     url = payload.value
+    forced = _is_forced_handler(payload, "NextJSHandler")
     # 目前仅针对 guangzhengli 博客域名启用
-    if "guangzhengli.com/blog" not in url:
+    if not forced and "guangzhengli.com/blog" not in url:
         return None
 
     try:
@@ -316,7 +327,8 @@ def _sspai_handler(
 ) -> ConvertResult | None:
     """少数派文章处理器"""
     url = payload.value
-    if "sspai.com" not in url:
+    forced = _is_forced_handler(payload, "SspaiHandler")
+    if not forced and "sspai.com" not in url:
         return None
 
     try:
@@ -374,7 +386,8 @@ def _appinn_handler(
 ) -> ConvertResult | None:
     """appinn.com 文章处理器"""
     url = payload.value
-    if "appinn.com" not in url:
+    forced = _is_forced_handler(payload, "AppinnHandler")
+    if not forced and "appinn.com" not in url:
         return None
 
     try:
@@ -491,11 +504,46 @@ def should_use_shared_browser_for_url(url: str) -> bool:
     return handler.prefers_shared_browser
 
 
-def convert(payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult:
-    if payload.kind == "url":
-        for h in HANDLERS:
-            out = h(payload, session, options)
-            if out is not None:
-                return out
+def get_handler_by_name(name: str) -> Handler | None:
+    for handler in HANDLERS:
+        if handler.handler_name == name:
+            return handler
+    return None
+
+
+def list_handler_names() -> list[str]:
+    return [handler.handler_name for handler in HANDLERS]
+
+
+def _apply_forced_handler(
+    payload: ConvertPayload, session, options: ConversionOptions, handler_name: str
+) -> ConvertResult | None:
+    if handler_name == GENERIC_HANDLER_NAME:
         return convert_url(payload, session, options)
-    raise NotImplementedError(f"Unsupported payload kind: {payload.kind}")
+
+    handler = get_handler_by_name(handler_name)
+    if handler is None:
+        return None
+    return handler(payload, session, options)
+
+
+def convert(payload: ConvertPayload, session, options: ConversionOptions) -> ConvertResult:
+    if payload.kind != "url":
+        raise NotImplementedError(f"Unsupported payload kind: {payload.kind}")
+
+    forced_handler = getattr(options, "handler_override", None)
+    if forced_handler:
+        if payload.meta is None:
+            payload.meta = {}
+        payload.meta.setdefault("forced_handler", forced_handler)
+        result = _apply_forced_handler(payload, session, options, forced_handler)
+        if result is not None:
+            return result
+        # 强制handler失败时兜底使用通用转换器
+        return convert_url(payload, session, options)
+
+    for h in HANDLERS:
+        out = h(payload, session, options)
+        if out is not None:
+            return out
+    return convert_url(payload, session, options)

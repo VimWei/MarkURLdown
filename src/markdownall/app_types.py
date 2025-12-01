@@ -18,6 +18,7 @@ class ConversionOptions:
     download_images: bool
     filter_site_chrome: bool
     use_shared_browser: bool = True
+    handler_override: str | None = None
 
 
 @dataclass

@@ -147,6 +147,8 @@ class ConfigService:
             ):
                 if key in data:
                     setattr(self.config_manager.webpage, key, bool(data.get(key)))
+            if "handler_override" in data:
+                self.config_manager.webpage.handler_override = data.get("handler_override")
 
             return True
         except Exception:

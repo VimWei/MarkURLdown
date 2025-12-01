@@ -34,10 +34,10 @@ def test_goto_target_and_prepare_content_calls_paths(monkeypatch):
 
 @pytest.mark.unit
 def test_fetch_zhihu_article_unknown_fallback_then_success(monkeypatch):
-    # unknown URL triggers generic fallback loop: first generic returns success
+    # unknown URL triggers generic Playwright-based fallback: generic returns success
     monkeypatch.setattr(
         zh._generic,
-        "_try_lightweight_markitdown",
+        "_try_playwright_markitdown",
         lambda url, session: zh.CrawlerResult(success=True, title="T", text_content="ok" * 600),
     )
     r = zh.fetch_zhihu_article(session=object(), url="https://unknown.example.com/page")

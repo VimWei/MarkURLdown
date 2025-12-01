@@ -17,19 +17,9 @@ def test_fetch_zhihu_article_unknown_type_falls_back_to_generic(
         zh, "_detect_zhihu_page_type", lambda url: zh.ZhihuPageType(False, False, "unknown")
     )
 
-    # First generic strategy returns success
+    # generic handler returns success
     ok = types.SimpleNamespace(success=True, title="T", text_content="CONTENT")
-    monkeypatch.setattr(zh._generic, "_try_lightweight_markitdown", lambda url, session: ok)
-    monkeypatch.setattr(
-        zh._generic,
-        "_try_enhanced_markitdown",
-        lambda url, session: types.SimpleNamespace(success=False, title=None, text_content=""),
-    )
-    monkeypatch.setattr(
-        zh._generic,
-        "_try_direct_httpx",
-        lambda url, session: types.SimpleNamespace(success=False, title=None, text_content=""),
-    )
+    monkeypatch.setattr(zh._generic, "_try_playwright_markitdown", lambda url, session: ok)
 
     r = zh.fetch_zhihu_article(mock_session, mock_zhihu_url)
     assert r.html_markdown == "CONTENT"
@@ -100,6 +90,7 @@ def make_opts(**kwargs) -> ConversionOptions:
     opt.ignore_ssl = kwargs.get("ignore_ssl", True)
     opt.use_proxy = kwargs.get("use_proxy", False)
     opt.use_shared_browser = kwargs.get("use_shared_browser", True)
+    opt.handler_override = kwargs.get("handler_override")
     return opt
 
 

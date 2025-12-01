@@ -14,6 +14,7 @@ def make_opts(**kwargs) -> ConversionOptions:
     opt.ignore_ssl = kwargs.get("ignore_ssl", True)
     opt.use_proxy = kwargs.get("use_proxy", False)
     opt.use_shared_browser = kwargs.get("use_shared_browser", False)
+    opt.handler_override = kwargs.get("handler_override")
     return opt
 
 

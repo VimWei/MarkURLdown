@@ -802,18 +802,12 @@ def fetch_zhihu_article(
     # 检测页面类型
     page_type = _detect_zhihu_page_type(url)
 
-    # 若页面类型未知，委托给通用处理器
+    # 若页面类型未知，委托给通用处理器（单一Playwright策略）
     if page_type.kind == "unknown":
         try:
-            # 先轻量策略，再增强，再直接httpx
-            for strat in (
-                lambda: _generic._try_lightweight_markitdown(url, session),
-                lambda: _generic._try_enhanced_markitdown(url, session),
-                lambda: _generic._try_direct_httpx(url, session),
-            ):
-                r = strat()
-                if r.success and r.text_content:
-                    return FetchResult(title=r.title, html_markdown=r.text_content)
+            result = _generic._try_playwright_markitdown(url, session)
+            if result.success and result.text_content:
+                return FetchResult(title=result.title, html_markdown=result.text_content)
         except Exception:
             pass
 

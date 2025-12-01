@@ -79,6 +79,8 @@ class ConfigManager:
             ):
                 if key in data:
                     setattr(self.webpage, key, bool(data.get(key)))
+            if "handler_override" in data:
+                self.webpage.handler_override = data.get("handler_override")
             return True
 
         except Exception as e:
@@ -135,6 +137,7 @@ class ConfigManager:
                 "download_images": bool(self.webpage.download_images),
                 "filter_site_chrome": bool(self.webpage.filter_site_chrome),
                 "use_shared_browser": bool(self.webpage.use_shared_browser),
+                "handler_override": self.webpage.handler_override,
             },
             "advanced": {
                 "language": self.advanced.language,

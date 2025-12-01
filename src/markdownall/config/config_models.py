@@ -32,6 +32,7 @@ class WebpageConfig:
     download_images: bool = True
     filter_site_chrome: bool = True
     use_shared_browser: bool = True
+    handler_override: str | None = None
 
 
 @dataclass

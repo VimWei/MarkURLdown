@@ -156,6 +156,7 @@ class MainWindow(QMainWindow):
         self.download_images_var = True
         self.filter_site_chrome_var = True
         self.use_shared_browser_var = True
+        self.handler_override_var = None
 
         # Setup UI components
         self._setup_ui()
@@ -525,6 +526,7 @@ class MainWindow(QMainWindow):
             "download_images": webpage_config.get("download_images", True),
             "filter_site_chrome": webpage_config.get("filter_site_chrome", True),
             "use_shared_browser": webpage_config.get("use_shared_browser", True),
+            "handler_override": webpage_config.get("handler_override"),
         }
 
     def _on_event_thread_safe(self, ev: ProgressEvent):
@@ -1145,6 +1147,7 @@ class MainWindow(QMainWindow):
             "download_images": state.get("download_images", True),
             "filter_site_chrome": state.get("filter_site_chrome", True),
             "use_shared_browser": state.get("use_shared_browser", True),
+            "handler_override": state.get("handler_override"),
         }
         self.webpage_page.set_config(webpage_config)
 
@@ -1201,6 +1204,7 @@ class MainWindow(QMainWindow):
                     "download_images": state.get("download_images", True),
                     "filter_site_chrome": state.get("filter_site_chrome", True),
                     "use_shared_browser": state.get("use_shared_browser", True),
+                    "handler_override": state.get("handler_override"),
                 }
             )
 

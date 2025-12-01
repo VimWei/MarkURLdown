@@ -12,7 +12,13 @@ from markdownall.app_types import (
     SourceRequest,
 )
 from markdownall.core.exceptions import StopRequested
-from markdownall.core.registry import convert as registry_convert
+from markdownall.core.registry import (
+    GENERIC_HANDLER_NAME,
+    convert as registry_convert,
+    get_handler_by_name,
+    get_handler_for_url,
+    should_use_shared_browser_for_url,
+)
 from markdownall.io.logger import log_urls
 from markdownall.io.session import build_requests_session
 from markdownall.io.writer import write_markdown
@@ -305,10 +311,19 @@ class ConvertService:
                 ignore_ssl=options.ignore_ssl, use_proxy=options.use_proxy
             )
 
+            forced_handler_name = getattr(options, "handler_override", None)
+            forced_handler = None
+            if forced_handler_name and forced_handler_name != GENERIC_HANDLER_NAME:
+                forced_handler = get_handler_by_name(forced_handler_name)
+
             # 可选：共享 Browser （加速模式）
             playwright_runtime = None
             shared_browser = None
-            if getattr(options, "use_shared_browser", False):
+            allow_shared_browser = getattr(options, "use_shared_browser", False)
+            if forced_handler and not forced_handler.prefers_shared_browser:
+                allow_shared_browser = False
+
+            if allow_shared_browser:
                 try:
                     from playwright.sync_api import sync_playwright
 
@@ -465,23 +480,17 @@ class ConvertService:
 
                 # Handler级别的共享浏览器控制（仅当启用了共享浏览器时才进行判断）
                 effective_shared_browser = shared_browser
+                def _handler_prefers_shared(url: str) -> tuple[bool, str]:
+                    if forced_handler:
+                        return forced_handler.prefers_shared_browser, forced_handler.handler_name
+                    handler = get_handler_for_url(url)
+                    if handler is None:
+                        return True, "Unknown"
+                    return handler.prefers_shared_browser, handler.handler_name
+
                 if shared_browser is not None and req.kind == "url" and isinstance(req.value, str):
-                    url = req.value
-                    from markdownall.core.registry import (
-                        should_use_shared_browser_for_url,
-                    )
-
-                    if not should_use_shared_browser_for_url(url):
-                        # 当前URL的handler声明不使用共享浏览器，先关闭共享浏览器
-                        handler_name = "Unknown"
-                        try:
-                            from markdownall.core.registry import get_handler_for_url
-
-                            handler = get_handler_for_url(url)
-                            if handler:
-                                handler_name = handler.handler_name
-                        except:
-                            pass
+                    prefers_shared, handler_name = _handler_prefers_shared(req.value)
+                    if not prefers_shared:
 
                         # Structured event for i18n at UI layer
                         self._emit_event_safe(
@@ -523,6 +532,7 @@ class ConvertService:
                         "should_stop": lambda: self._should_stop,
                         # 根据handler类型决定是否传递共享浏览器
                         "shared_browser": effective_shared_browser,
+                        "forced_handler": forced_handler_name,
                     },
                 )
                 try:
@@ -558,60 +568,64 @@ class ConvertService:
                         shared_browser is not None
                         and req.kind == "url"
                         and isinstance(req.value, str)
-                        and not should_use_shared_browser_for_url(req.value)
                     ):
-                        # 检查是否还有后续URL需要处理
-                        remaining_urls = [
-                            r
-                            for r in requests_list[idx:]
-                            if r.kind == "url"
-                            and isinstance(r.value, str)
-                            and should_use_shared_browser_for_url(r.value)
-                        ]
-                        if remaining_urls and getattr(options, "use_shared_browser", False):
-                            handler_name = "Unknown"
-                            try:
-                                handler = get_handler_for_url(req.value)
-                                if handler:
-                                    handler_name = handler.handler_name
-                            except:
-                                pass
+                        prefers_shared, _ = _handler_prefers_shared(req.value)
+                        if not prefers_shared:
+                            # 检查是否还有后续URL需要处理
+                            remaining_urls = [
+                                r
+                                for r in requests_list[idx:]
+                                if r.kind == "url"
+                                and isinstance(r.value, str)
+                                and _handler_prefers_shared(r.value)[0]
+                            ]
+                            if remaining_urls and getattr(options, "use_shared_browser", False):
+                                handler_name = "Unknown"
+                                try:
+                                    if forced_handler:
+                                        handler_name = forced_handler.handler_name
+                                    else:
+                                        handler = get_handler_for_url(req.value)
+                                        if handler:
+                                            handler_name = handler.handler_name
+                                except:
+                                    pass
 
-                            # 重新创建共享浏览器（静默处理）
-                            try:
-                                from playwright.sync_api import sync_playwright
+                                # 重新创建共享浏览器（静默处理）
+                                try:
+                                    from playwright.sync_api import sync_playwright
 
-                                playwright_runtime = sync_playwright().start()
-                                shared_browser = playwright_runtime.chromium.launch(
-                                    headless=True,
-                                    channel="chrome",
-                                    args=[
-                                        "--no-sandbox",
-                                        "--disable-dev-shm-usage",
-                                        "--disable-blink-features=AutomationControlled",
-                                        "--disable-web-security",
-                                        "--disable-features=VizDisplayCompositor",
-                                        "--disable-gpu",
-                                        "--no-first-run",
-                                        "--no-default-browser-check",
-                                        "--disable-extensions",
-                                        "--disable-plugins",
-                                        "--disable-background-timer-throttling",
-                                        "--disable-backgrounding-occluded-windows",
-                                        "--disable-renderer-backgrounding",
-                                    ],
-                                )
-                                self._emit_event_safe(
-                                    ProgressEvent(
-                                        kind="detail",
-                                        key="convert_shared_browser_started",
-                                        text="Shared browser restarted",
-                                    ),
-                                    on_event,
-                                )
-                            except Exception:
-                                shared_browser = None
-                                playwright_runtime = None
+                                    playwright_runtime = sync_playwright().start()
+                                    shared_browser = playwright_runtime.chromium.launch(
+                                        headless=True,
+                                        channel="chrome",
+                                        args=[
+                                            "--no-sandbox",
+                                            "--disable-dev-shm-usage",
+                                            "--disable-blink-features=AutomationControlled",
+                                            "--disable-web-security",
+                                            "--disable-features=VizDisplayCompositor",
+                                            "--disable-gpu",
+                                            "--no-first-run",
+                                            "--no-default-browser-check",
+                                            "--disable-extensions",
+                                            "--disable-plugins",
+                                            "--disable-background-timer-throttling",
+                                            "--disable-backgrounding-occluded-windows",
+                                            "--disable-renderer-backgrounding",
+                                        ],
+                                    )
+                                    self._emit_event_safe(
+                                        ProgressEvent(
+                                            kind="detail",
+                                            key="convert_shared_browser_started",
+                                            text="Shared browser restarted",
+                                        ),
+                                        on_event,
+                                    )
+                                except Exception:
+                                    shared_browser = None
+                                    playwright_runtime = None
 
                 except StopRequested:
                     # User requested stop mid-task: emit stopped and return immediately
