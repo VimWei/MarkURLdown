@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.9] - 2025-12-01
+
+- feat: add manual handler override for URL conversion
+- refactor: consolidate URL conversion strategy to a single Playwright + MarkItDown approach
+
 ## [1.0.8] - 2025-10-18
 
 - fix: ensure correct HTML decoding and aligned request headers
