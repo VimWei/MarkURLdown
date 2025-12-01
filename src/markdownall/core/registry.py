@@ -16,7 +16,6 @@ from markdownall.core.handlers.zhihu_handler import fetch_zhihu_article
 from markdownall.core.images import download_images_and_rewrite
 from markdownall.core.normalize import normalize_markdown_headings
 
-
 GENERIC_HANDLER_NAME = "GenericHandler"
 
 

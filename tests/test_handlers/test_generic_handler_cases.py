@@ -34,9 +34,7 @@ def test_generic_convert_url_success(monkeypatch):
         "normalize_markdown_headings",
         lambda text, title: f"{title}:{text[:3]}",
     )
-    monkeypatch.setattr(
-        generic_handler, "derive_md_filename", lambda title, url, ts: "file.md"
-    )
+    monkeypatch.setattr(generic_handler, "derive_md_filename", lambda title, url, ts: "file.md")
 
     res = generic_handler.convert_url(payload, session, make_opts())
     assert res.title == "T"
@@ -64,9 +62,7 @@ def test_generic_convert_url_retries_then_success(monkeypatch):
         "normalize_markdown_headings",
         lambda text, title: text,
     )
-    monkeypatch.setattr(
-        generic_handler, "derive_md_filename", lambda title, url, ts: "retry.md"
-    )
+    monkeypatch.setattr(generic_handler, "derive_md_filename", lambda title, url, ts: "retry.md")
 
     res = generic_handler.convert_url(payload, session, make_opts())
     assert res.title == "T"

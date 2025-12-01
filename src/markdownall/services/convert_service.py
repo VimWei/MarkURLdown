@@ -14,7 +14,9 @@ from markdownall.app_types import (
 from markdownall.core.exceptions import StopRequested
 from markdownall.core.registry import (
     GENERIC_HANDLER_NAME,
-    convert as registry_convert,
+)
+from markdownall.core.registry import convert as registry_convert
+from markdownall.core.registry import (
     get_handler_by_name,
     get_handler_for_url,
     should_use_shared_browser_for_url,
@@ -480,6 +482,7 @@ class ConvertService:
 
                 # Handler级别的共享浏览器控制（仅当启用了共享浏览器时才进行判断）
                 effective_shared_browser = shared_browser
+
                 def _handler_prefers_shared(url: str) -> tuple[bool, str]:
                     if forced_handler:
                         return forced_handler.prefers_shared_browser, forced_handler.handler_name

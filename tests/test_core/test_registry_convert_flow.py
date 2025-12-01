@@ -74,7 +74,9 @@ def test_convert_respects_forced_handler_even_without_pattern():
 
     with (
         mock.patch("markdownall.core.registry.fetch_wordpress_article") as fw,
-        mock.patch("markdownall.core.registry.normalize_markdown_headings", side_effect=lambda t, x: t),
+        mock.patch(
+            "markdownall.core.registry.normalize_markdown_headings", side_effect=lambda t, x: t
+        ),
         mock.patch("markdownall.core.registry.derive_md_filename", return_value="forced.md"),
         mock.patch("markdownall.core.registry._is_wordpress_site", return_value=False),
     ):
